@@ -2,13 +2,14 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import type { StoredAuthSession, UserProfile } from "../types";
 
-const ACCESS_TOKEN_KEY = "@vaayu/access-token";
-const PROFILE_KEY = "@vaayu/profile";
+const ACCESS_TOKEN_KEY = "@fitfo/access-token";
+const PROFILE_KEY = "@fitfo/profile";
 
 export async function storeAuthSession(
   accessToken: string,
   profile: UserProfile,
 ) {
+  // Only the auth session is cached on-device. Workout data is fetched from the backend per account.
   await AsyncStorage.multiSet([
     [ACCESS_TOKEN_KEY, accessToken],
     [PROFILE_KEY, JSON.stringify(profile)],

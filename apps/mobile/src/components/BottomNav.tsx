@@ -1,12 +1,13 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
-import { colors, radii, shadows } from "../theme";
+import { getTheme, type ThemeMode } from "../theme";
 import type { AppTab } from "../types";
 
 interface BottomNavProps {
   activeTab: AppTab;
   onChangeTab: (tab: AppTab) => void;
+  themeMode?: ThemeMode;
 }
 
 const tabs: Array<{
@@ -19,7 +20,14 @@ const tabs: Array<{
   { key: "profile", label: "Profile", icon: "person" },
 ];
 
-export function BottomNav({ activeTab, onChangeTab }: BottomNavProps) {
+export function BottomNav({
+  activeTab,
+  onChangeTab,
+  themeMode = "light",
+}: BottomNavProps) {
+  const theme = getTheme(themeMode);
+  const styles = createStyles(theme);
+
   return (
     <View style={styles.shell}>
       {tabs.map((tab) => {
@@ -36,7 +44,7 @@ export function BottomNav({ activeTab, onChangeTab }: BottomNavProps) {
             ]}
           >
             <Ionicons
-              color={isActive ? colors.surface : colors.textMuted}
+              color={isActive ? theme.colors.surface : theme.colors.textMuted}
               name={tab.icon}
               size={18}
             />
@@ -50,44 +58,47 @@ export function BottomNav({ activeTab, onChangeTab }: BottomNavProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  shell: {
-    position: "absolute",
-    left: 12,
-    right: 12,
-    bottom: 10,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingHorizontal: 10,
-    paddingTop: 10,
-    paddingBottom: 14,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    backgroundColor: "rgba(255, 255, 255, 0.92)",
-    ...shadows.nav,
-  },
-  item: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 4,
-    borderRadius: radii.large,
-    paddingVertical: 10,
-  },
-  itemActive: {
-    backgroundColor: colors.primaryBright,
-  },
-  itemPressed: {
-    opacity: 0.85,
-  },
-  label: {
-    color: colors.textMuted,
-    fontSize: 10,
-    fontWeight: "800",
-    letterSpacing: 1,
-    textTransform: "uppercase",
-  },
-  labelActive: {
-    color: colors.surface,
-  },
-});
+const createStyles = (theme: ReturnType<typeof getTheme>) =>
+  StyleSheet.create({
+    shell: {
+      position: "absolute",
+      left: 12,
+      right: 12,
+      bottom: 10,
+      flexDirection: "row",
+      justifyContent: "space-between",
+      paddingHorizontal: 10,
+      paddingTop: 10,
+      paddingBottom: 14,
+      borderTopLeftRadius: 28,
+      borderTopRightRadius: 28,
+      backgroundColor: theme.colors.navShell,
+      borderWidth: theme.mode === "dark" ? 1 : 0,
+      borderColor: theme.mode === "dark" ? theme.colors.borderSoft : "transparent",
+      ...theme.shadows.nav,
+    },
+    item: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 4,
+      borderRadius: theme.radii.large,
+      paddingVertical: 10,
+    },
+    itemActive: {
+      backgroundColor: theme.colors.primaryBright,
+    },
+    itemPressed: {
+      opacity: 0.85,
+    },
+    label: {
+      color: theme.colors.textMuted,
+      fontSize: 10,
+      fontWeight: "800",
+      letterSpacing: 1,
+      textTransform: "uppercase",
+    },
+    labelActive: {
+      color: theme.colors.surface,
+    },
+  });

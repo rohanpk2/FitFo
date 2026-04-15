@@ -1,7 +1,8 @@
 from uuid import UUID
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 
+from app.routers.deps import require_profile_id
 from app.schemas.ingest import IngestCheckResponse, IngestRequest
 from app.services import ingestion_pipeline, supabase_db, tiktok_url
 
@@ -9,7 +10,11 @@ router = APIRouter(prefix="/ingest", tags=["ingest"])
 
 
 @router.post("", response_model=IngestCheckResponse)
-async def ingest_tiktok(body: IngestRequest, background: BackgroundTasks) -> IngestCheckResponse:
+async def ingest_tiktok(
+    body: IngestRequest,
+    background: BackgroundTasks,
+    profile_id: str = Depends(require_profile_id),
+) -> IngestCheckResponse:
     """Validate TikTok URL (oEmbed); if real, insert ingestion_jobs row (pending) and start pipeline."""
     try:
         normalized = tiktok_url.assert_valid_tiktok_url(body.source_url)
@@ -38,6 +43,7 @@ async def ingest_tiktok(body: IngestRequest, background: BackgroundTasks) -> Ing
         row = supabase_db.create_ingestion_job(
             normalized,
             provider_meta=provider_meta,
+            user_id=profile_id,
         )
     except supabase_db.SupabaseNotConfiguredError as exc:
         raise HTTPException(

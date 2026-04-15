@@ -1,10 +1,14 @@
 import type {
   AccountStatusRequest,
   AccountStatusResponse,
+  CompletedWorkoutCreateRequest,
+  CompletedWorkoutRecord,
   IngestRequest,
   IngestResponse,
   JobResponse,
   MeResponse,
+  SavedWorkoutRecord,
+  SavedWorkoutUpsertRequest,
   SendOtpRequest,
   SendOtpResponse,
   VerifyOtpRequest,
@@ -61,21 +65,33 @@ async function request<T>(path: string, init?: RequestOptions): Promise<T> {
 
 export async function createIngestionJob(
   sourceUrl: string,
+  accessToken: string,
 ): Promise<IngestResponse> {
   const body: IngestRequest = { source_url: sourceUrl };
 
   return request<IngestResponse>("/ingest", {
     method: "POST",
+    accessToken,
     body: JSON.stringify(body),
   });
 }
 
-export async function getJob(jobId: string): Promise<JobResponse> {
-  return request<JobResponse>(`/jobs/${jobId}`);
+export async function getJob(
+  jobId: string,
+  accessToken: string,
+): Promise<JobResponse> {
+  return request<JobResponse>(`/jobs/${jobId}`, {
+    accessToken,
+  });
 }
 
-export async function getWorkoutByJob(jobId: string): Promise<WorkoutRow> {
-  return request<WorkoutRow>(`/jobs/${jobId}/workout`);
+export async function getWorkoutByJob(
+  jobId: string,
+  accessToken: string,
+): Promise<WorkoutRow> {
+  return request<WorkoutRow>(`/jobs/${jobId}/workout`, {
+    accessToken,
+  });
 }
 
 export async function checkAccountStatus(
@@ -113,5 +129,65 @@ export async function getCurrentUser(
   return request<MeResponse>("/auth/me", {
     method: "GET",
     accessToken,
+  });
+}
+
+export async function listSavedWorkouts(
+  accessToken: string,
+): Promise<SavedWorkoutRecord[]> {
+  return request<SavedWorkoutRecord[]>("/saved-workouts", {
+    method: "GET",
+    accessToken,
+  });
+}
+
+export async function saveWorkoutForLater(
+  accessToken: string,
+  body: SavedWorkoutUpsertRequest,
+): Promise<SavedWorkoutRecord> {
+  return request<SavedWorkoutRecord>("/saved-workouts", {
+    method: "POST",
+    accessToken,
+    body: JSON.stringify(body),
+  });
+}
+
+export async function deleteSavedWorkout(
+  accessToken: string,
+  savedWorkoutId: string,
+): Promise<SavedWorkoutRecord> {
+  return request<SavedWorkoutRecord>(`/saved-workouts/${savedWorkoutId}`, {
+    method: "DELETE",
+    accessToken,
+  });
+}
+
+export async function listCompletedWorkouts(
+  accessToken: string,
+): Promise<CompletedWorkoutRecord[]> {
+  return request<CompletedWorkoutRecord[]>("/completed-workouts", {
+    method: "GET",
+    accessToken,
+  });
+}
+
+export async function getCompletedWorkout(
+  accessToken: string,
+  completedWorkoutId: string,
+): Promise<CompletedWorkoutRecord> {
+  return request<CompletedWorkoutRecord>(`/completed-workouts/${completedWorkoutId}`, {
+    method: "GET",
+    accessToken,
+  });
+}
+
+export async function createCompletedWorkout(
+  accessToken: string,
+  body: CompletedWorkoutCreateRequest,
+): Promise<CompletedWorkoutRecord> {
+  return request<CompletedWorkoutRecord>("/completed-workouts", {
+    method: "POST",
+    accessToken,
+    body: JSON.stringify(body),
   });
 }

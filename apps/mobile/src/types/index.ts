@@ -138,6 +138,10 @@ export interface StoredAuthSession {
 
 export interface SavedRoutinePreview {
   id: string;
+  savedWorkoutId?: string;
+  workoutId?: string | null;
+  jobId?: string | null;
+  sourceUrl?: string | null;
   title: string;
   description: string;
   metaLeft: string;
@@ -146,35 +150,103 @@ export interface SavedRoutinePreview {
   workoutPlan?: WorkoutPlan;
 }
 
-export type ActiveExerciseState = "complete" | "current" | "locked";
-
-export type ActiveSetState = "complete" | "current" | "upcoming";
-
 export interface ActiveSetPreview {
+  id: string;
   label: string;
-  value: string;
-  state: ActiveSetState;
+  targetReps: number | null;
+  targetDurationSec: number | null;
+  loggedWeight: string;
+  loggedReps: string;
+  completed: boolean;
 }
 
 export interface ActiveExercisePreview {
   id: string;
   name: string;
   subtitle: string;
-  image: string;
-  state: ActiveExerciseState;
-  sets?: ActiveSetPreview[];
+  blockName: string | null;
+  notes: string | null;
+  restSeconds: number | null;
+  sets: ActiveSetPreview[];
 }
 
 export interface ActiveSessionPreview {
   title: string;
   description: string;
-  elapsed: string;
-  calories: string;
-  bpm: string;
-  goalTitle: string;
-  goalProgress: number;
-  goalImage: string;
-  statHeartRate: string;
-  statRestTime: string;
+  startedAt: number;
+  averageRestSeconds: number | null;
   exercises: ActiveExercisePreview[];
+  sourceWorkoutId?: string | null;
+  sourceJobId?: string | null;
+  sourceUrl?: string | null;
+  workoutPlan?: WorkoutPlan | null;
+}
+
+export interface SavedWorkoutRecord {
+  id: string;
+  user_id: string;
+  workout_id: string | null;
+  job_id: string | null;
+  source_url: string | null;
+  title: string;
+  description: string | null;
+  meta_left: string | null;
+  meta_right: string | null;
+  badge_label: string | null;
+  workout_plan: WorkoutPlan | null;
+  saved_at: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface SavedWorkoutUpsertRequest {
+  workout_id?: string | null;
+  job_id?: string | null;
+  source_url?: string | null;
+  title: string;
+  description?: string | null;
+  meta_left?: string | null;
+  meta_right?: string | null;
+  badge_label?: string | null;
+  workout_plan?: WorkoutPlan | null;
+}
+
+export interface CompletedWorkoutRecord {
+  id: string;
+  user_id: string;
+  workout_id: string | null;
+  job_id: string | null;
+  source_url: string | null;
+  title: string;
+  description: string | null;
+  summary: string | null;
+  exercises: ActiveExercisePreview[];
+  workout_plan: WorkoutPlan | null;
+  notes: string | null;
+  calories: number | null;
+  difficulty: string | null;
+  tags: string[];
+  average_rest_seconds: number | null;
+  started_at: string | null;
+  completed_at: string;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface CompletedWorkoutCreateRequest {
+  workout_id?: string | null;
+  job_id?: string | null;
+  source_url?: string | null;
+  title: string;
+  description?: string | null;
+  summary?: string | null;
+  exercises: ActiveExercisePreview[];
+  workout_plan?: WorkoutPlan | null;
+  notes?: string | null;
+  calories?: number | null;
+  difficulty?: string | null;
+  tags?: string[];
+  average_rest_seconds?: number | null;
+  started_at?: string | null;
+  completed_at?: string | null;
 }

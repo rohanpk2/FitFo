@@ -48,7 +48,7 @@ def _service_sid() -> str:
 def _friendly_name() -> str:
     _load_env_if_missing()
     friendly_name = (os.environ.get("TWILIO_VERIFY_FRIENDLY_NAME") or "").strip()
-    return friendly_name or "Vaayu"
+    return friendly_name or "FitFo"
 
 
 def send_sms_otp(phone: str):

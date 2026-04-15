@@ -75,7 +75,7 @@ begin
   insert into public.profiles (id, full_name, phone)
   values (
     new.id,
-    coalesce(raw_name, 'Vaayu User'),
+    coalesce(raw_name, 'FitFo User'),
     coalesce(new.phone, '')
   )
   on conflict (id) do update
@@ -98,7 +98,7 @@ select
   users.id,
   coalesce(
     nullif(trim(coalesce(users.raw_user_meta_data ->> 'full_name', '')), ''),
-    'Vaayu User'
+    'FitFo User'
   ),
   users.phone
 from auth.users as users

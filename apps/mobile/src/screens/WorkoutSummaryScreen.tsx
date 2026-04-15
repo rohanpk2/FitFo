@@ -1,0 +1,526 @@
+import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+import {
+  formatCompletedWorkoutDate,
+  getCompletedWorkoutMeta,
+} from "../lib/fitfo";
+import { getTheme, type ThemeMode } from "../theme";
+import type { ActiveSetPreview, CompletedWorkoutRecord } from "../types";
+
+interface WorkoutSummaryScreenProps {
+  onBack: () => void;
+  workout: CompletedWorkoutRecord;
+  themeMode?: ThemeMode;
+}
+
+function formatSeconds(totalSeconds: number) {
+  if (totalSeconds < 60) {
+    return `${totalSeconds}s`;
+  }
+
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+
+  if (seconds === 0) {
+    return `${minutes} min`;
+  }
+
+  return `${minutes}m ${seconds}s`;
+}
+
+function formatLoggedSet(set: ActiveSetPreview) {
+  const parts: string[] = [];
+
+  if (set.loggedWeight.trim()) {
+    parts.push(`${set.loggedWeight} lb`);
+  }
+
+  if (set.loggedReps.trim()) {
+    parts.push(set.targetDurationSec != null ? `${set.loggedReps}s` : `${set.loggedReps} reps`);
+  }
+
+  if (parts.length > 0) {
+    return parts.join(" • ");
+  }
+
+  if (set.targetDurationSec != null) {
+    return `${set.targetDurationSec}s target`;
+  }
+
+  if (set.targetReps != null) {
+    return `${set.targetReps} reps target`;
+  }
+
+  return "No set details recorded";
+}
+
+function formatSourceUrl(sourceUrl: string) {
+  try {
+    const parsed = new URL(sourceUrl);
+    return `${parsed.host}${parsed.pathname}`;
+  } catch {
+    return sourceUrl;
+  }
+}
+
+export function WorkoutSummaryScreen({
+  onBack,
+  workout,
+  themeMode = "light",
+}: WorkoutSummaryScreenProps) {
+  const theme = getTheme(themeMode);
+  const styles = createStyles(theme);
+  const meta = getCompletedWorkoutMeta(workout);
+  const detailChips = [
+    workout.difficulty ? `Difficulty: ${workout.difficulty}` : null,
+    workout.calories != null ? `${workout.calories} cal` : null,
+    workout.average_rest_seconds != null
+      ? `${formatSeconds(workout.average_rest_seconds)} avg rest`
+      : null,
+  ].filter((value): value is string => Boolean(value));
+
+  return (
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator={false}
+    >
+      <View style={styles.header}>
+        <Pressable onPress={onBack} style={styles.backButton}>
+          <Ionicons color={theme.colors.primary} name="chevron-back" size={18} />
+        </Pressable>
+        <View style={styles.headerBrand}>
+          <View style={styles.brandBadge}>
+            <Text style={styles.brandBadgeText}>F</Text>
+          </View>
+          <Text style={styles.brandText}>FitFo</Text>
+        </View>
+      </View>
+
+      <View style={styles.heroCard}>
+        <Text style={styles.eyebrow}>Workout Summary</Text>
+        <Text style={styles.title}>{workout.title}</Text>
+        <Text style={styles.completedAt}>
+          Completed {formatCompletedWorkoutDate(workout.completed_at)}
+        </Text>
+        <Text style={styles.summary}>
+          {workout.summary || workout.description || "Your completed workout is saved to your account."}
+        </Text>
+
+        <View style={styles.heroStats}>
+          <View style={styles.heroStatCard}>
+            <Text style={styles.heroStatLabel}>Volume</Text>
+            <Text style={styles.heroStatValue}>{meta.metaLeft}</Text>
+          </View>
+          <View style={styles.heroStatCard}>
+            <Text style={styles.heroStatLabel}>Logged</Text>
+            <Text style={styles.heroStatValue}>{meta.metaRight}</Text>
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Session Details</Text>
+
+        {workout.started_at ? (
+          <View style={styles.detailCard}>
+            <Text style={styles.detailLabel}>Started</Text>
+            <Text style={styles.detailValue}>{formatCompletedWorkoutDate(workout.started_at)}</Text>
+          </View>
+        ) : null}
+
+        {detailChips.length > 0 ? (
+          <View style={styles.chipRow}>
+            {detailChips.map((chip) => (
+              <View key={chip} style={styles.detailChip}>
+                <Text style={styles.detailChipText}>{chip}</Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
+
+        {workout.tags.length > 0 ? (
+          <View style={styles.detailCard}>
+            <Text style={styles.detailLabel}>Tags</Text>
+            <View style={styles.chipRow}>
+              {workout.tags.map((tag) => (
+                <View key={tag} style={styles.tagChip}>
+                  <Text style={styles.tagChipText}>{tag}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        ) : null}
+
+        {workout.source_url ? (
+          <View style={styles.detailCard}>
+            <Text style={styles.detailLabel}>Source</Text>
+            <Pressable onPress={() => void Linking.openURL(workout.source_url || "")}>
+              <Text style={styles.sourceLink}>{formatSourceUrl(workout.source_url)}</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
+        {workout.notes ? (
+          <View style={styles.detailCard}>
+            <Text style={styles.detailLabel}>Notes</Text>
+            <Text style={styles.detailBody}>{workout.notes}</Text>
+          </View>
+        ) : null}
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Exercises</Text>
+
+        {workout.exercises.length > 0 ? (
+          <View style={styles.exerciseList}>
+            {workout.exercises.map((exercise) => (
+              <View key={exercise.id} style={styles.exerciseCard}>
+                <View style={styles.exerciseHeader}>
+                  <View style={styles.exerciseIcon}>
+                    <Ionicons color={theme.colors.primary} name="barbell-outline" size={18} />
+                  </View>
+                  <View style={styles.exerciseCopy}>
+                    <Text style={styles.exerciseName}>{exercise.name}</Text>
+                    <Text style={styles.exerciseSubtitle}>{exercise.subtitle}</Text>
+                    {exercise.blockName ? (
+                      <Text style={styles.exerciseMeta}>{exercise.blockName}</Text>
+                    ) : null}
+                  </View>
+                </View>
+
+                {exercise.notes ? (
+                  <View style={styles.exerciseNoteCard}>
+                    <Text style={styles.exerciseNoteLabel}>Coach Notes</Text>
+                    <Text style={styles.exerciseNoteBody}>{exercise.notes}</Text>
+                  </View>
+                ) : null}
+
+                <View style={styles.setList}>
+                  {exercise.sets.map((set) => (
+                    <View key={set.id} style={styles.setCard}>
+                      <View>
+                        <Text style={styles.setLabel}>{set.label}</Text>
+                        <Text style={styles.setValue}>{formatLoggedSet(set)}</Text>
+                      </View>
+                      <View style={styles.setBadge}>
+                        <Ionicons color={theme.colors.success} name="checkmark-circle" size={14} />
+                        <Text style={styles.setBadgeText}>Saved</Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            ))}
+          </View>
+        ) : (
+          <View style={styles.emptyCard}>
+            <Ionicons color={theme.colors.primary} name="reader-outline" size={20} />
+            <Text style={styles.emptyTitle}>No exercises were saved for this workout</Text>
+            <Text style={styles.emptyBody}>
+              The workout log still belongs to your account, but this session did not include exercise details.
+            </Text>
+          </View>
+        )}
+      </View>
+    </ScrollView>
+  );
+}
+
+const createStyles = (theme: ReturnType<typeof getTheme>) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    content: {
+      paddingHorizontal: 12,
+      paddingTop: 12,
+      paddingBottom: 132,
+      gap: 16,
+    },
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+    },
+    backButton: {
+      width: 36,
+      height: 36,
+      borderRadius: 999,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.colors.surface,
+      borderWidth: 1,
+      borderColor: theme.mode === "dark" ? theme.colors.borderSoft : "transparent",
+      ...theme.shadows.softCard,
+    },
+    headerBrand: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+    },
+    brandBadge: {
+      width: 18,
+      height: 18,
+      borderRadius: 999,
+      backgroundColor: theme.colors.primary,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    brandBadgeText: {
+      color: theme.colors.surface,
+      fontSize: 9,
+      fontWeight: "800",
+    },
+    brandText: {
+      color: theme.colors.primary,
+      fontSize: 20,
+      fontWeight: "800",
+      letterSpacing: -0.5,
+    },
+    heroCard: {
+      borderRadius: theme.radii.xlarge,
+      backgroundColor: theme.colors.primary,
+      padding: 22,
+      gap: 10,
+      ...theme.shadows.primary,
+    },
+    eyebrow: {
+      color: theme.colors.primarySoftText,
+      fontSize: 10,
+      fontWeight: "800",
+      letterSpacing: 1.2,
+      textTransform: "uppercase",
+    },
+    title: {
+      color: theme.colors.surface,
+      fontSize: 34,
+      fontWeight: "800",
+      letterSpacing: -1.2,
+    },
+    completedAt: {
+      color: theme.colors.primarySoftText,
+      fontSize: 13,
+      fontWeight: "600",
+    },
+    summary: {
+      color: theme.colors.surface,
+      fontSize: 15,
+      lineHeight: 22,
+    },
+    heroStats: {
+      flexDirection: "row",
+      gap: 10,
+      marginTop: 4,
+    },
+    heroStatCard: {
+      flex: 1,
+      borderRadius: theme.radii.large,
+      backgroundColor: "rgba(255, 255, 255, 0.14)",
+      padding: 14,
+      gap: 4,
+    },
+    heroStatLabel: {
+      color: theme.colors.primarySoftText,
+      fontSize: 11,
+      fontWeight: "700",
+      textTransform: "uppercase",
+      letterSpacing: 0.8,
+    },
+    heroStatValue: {
+      color: theme.colors.surface,
+      fontSize: 15,
+      fontWeight: "800",
+    },
+    section: {
+      gap: 12,
+    },
+    sectionTitle: {
+      color: theme.colors.textPrimary,
+      fontSize: 26,
+      fontWeight: "800",
+      letterSpacing: -0.6,
+    },
+    detailCard: {
+      borderRadius: theme.radii.large,
+      backgroundColor: theme.colors.surface,
+      padding: 18,
+      gap: 8,
+      borderWidth: 1,
+      borderColor: theme.mode === "dark" ? theme.colors.borderSoft : "transparent",
+      ...theme.shadows.card,
+    },
+    detailLabel: {
+      color: theme.colors.primary,
+      fontSize: 11,
+      fontWeight: "800",
+      letterSpacing: 1,
+      textTransform: "uppercase",
+    },
+    detailValue: {
+      color: theme.colors.textPrimary,
+      fontSize: 18,
+      fontWeight: "700",
+    },
+    detailBody: {
+      color: theme.colors.textSecondary,
+      fontSize: 15,
+      lineHeight: 22,
+    },
+    chipRow: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 8,
+    },
+    detailChip: {
+      borderRadius: 999,
+      backgroundColor: theme.colors.surfaceMuted,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+    },
+    detailChipText: {
+      color: theme.colors.textPrimary,
+      fontSize: 13,
+      fontWeight: "700",
+    },
+    tagChip: {
+      borderRadius: 999,
+      backgroundColor: theme.mode === "dark" ? "rgba(255, 90, 20, 0.12)" : "rgba(79, 117, 231, 0.16)",
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+    },
+    tagChipText: {
+      color: theme.colors.primary,
+      fontSize: 13,
+      fontWeight: "700",
+    },
+    sourceLink: {
+      color: theme.colors.primary,
+      fontSize: 15,
+      lineHeight: 22,
+      fontWeight: "700",
+    },
+    exerciseList: {
+      gap: 12,
+    },
+    exerciseCard: {
+      borderRadius: theme.radii.large,
+      backgroundColor: theme.colors.surface,
+      padding: 18,
+      gap: 14,
+      borderWidth: 1,
+      borderColor: theme.mode === "dark" ? theme.colors.borderSoft : "transparent",
+      ...theme.shadows.card,
+    },
+    exerciseHeader: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: 12,
+    },
+    exerciseIcon: {
+      width: 48,
+      height: 48,
+      borderRadius: 16,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.colors.surfaceMuted,
+    },
+    exerciseCopy: {
+      flex: 1,
+      gap: 4,
+    },
+    exerciseName: {
+      color: theme.colors.textPrimary,
+      fontSize: 28,
+      fontWeight: "800",
+      letterSpacing: -0.9,
+    },
+    exerciseSubtitle: {
+      color: theme.colors.textSecondary,
+      fontSize: 14,
+      fontWeight: "600",
+    },
+    exerciseMeta: {
+      color: theme.colors.primary,
+      fontSize: 12,
+      fontWeight: "700",
+    },
+    exerciseNoteCard: {
+      borderRadius: theme.radii.medium,
+      backgroundColor: theme.colors.surfaceMuted,
+      padding: 14,
+      gap: 6,
+    },
+    exerciseNoteLabel: {
+      color: theme.colors.primary,
+      fontSize: 11,
+      fontWeight: "800",
+      letterSpacing: 1,
+      textTransform: "uppercase",
+    },
+    exerciseNoteBody: {
+      color: theme.colors.textSecondary,
+      fontSize: 14,
+      lineHeight: 20,
+    },
+    setList: {
+      gap: 10,
+    },
+    setCard: {
+      borderRadius: theme.radii.medium,
+      backgroundColor: theme.colors.successSoft,
+      padding: 14,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 12,
+    },
+    setLabel: {
+      color: theme.colors.textPrimary,
+      fontSize: 16,
+      fontWeight: "800",
+    },
+    setValue: {
+      color: theme.colors.textSecondary,
+      fontSize: 14,
+      fontWeight: "600",
+    },
+    setBadge: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      borderRadius: 999,
+      backgroundColor: theme.colors.surface,
+      paddingHorizontal: 10,
+      paddingVertical: 8,
+    },
+    setBadgeText: {
+      color: theme.colors.success,
+      fontSize: 13,
+      fontWeight: "800",
+    },
+    emptyCard: {
+      borderRadius: theme.radii.large,
+      backgroundColor: theme.colors.surface,
+      padding: 24,
+      alignItems: "center",
+      gap: 10,
+      borderWidth: 1,
+      borderColor: theme.mode === "dark" ? theme.colors.borderSoft : "transparent",
+      ...theme.shadows.card,
+    },
+    emptyTitle: {
+      color: theme.colors.textPrimary,
+      fontSize: 20,
+      fontWeight: "800",
+      textAlign: "center",
+    },
+    emptyBody: {
+      color: theme.colors.textSecondary,
+      fontSize: 14,
+      lineHeight: 21,
+      textAlign: "center",
+    },
+  });

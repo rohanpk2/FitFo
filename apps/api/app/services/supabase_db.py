@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import re
+from datetime import datetime, timezone
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Iterable
@@ -64,14 +65,20 @@ def _require_bucket() -> str:
     return bucket or "raw-media"
 
 
+def _utc_now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
 def create_ingestion_job(
     source_url: str,
     *,
     provider_meta: dict[str, Any],
+    user_id: str,
 ) -> dict[str, Any]:
     """Insert a row into ingestion_jobs. Returns the inserted row (incl. id)."""
     supa = get_supabase()
     payload = {
+        "user_id": user_id,
         "source_url": source_url,
         "status": "pending",
         "provider_meta": provider_meta,
@@ -105,9 +112,12 @@ def update_ingestion_job(
     return result.data[0]
 
 
-def get_ingestion_job(job_id: str) -> dict[str, Any]:
+def get_ingestion_job(job_id: str, *, user_id: str | None = None) -> dict[str, Any]:
     supa = get_supabase()
-    result = supa.table("ingestion_jobs").select("*").eq("id", job_id).single().execute()
+    query = supa.table("ingestion_jobs").select("*").eq("id", job_id)
+    if user_id is not None:
+        query = query.eq("user_id", user_id)
+    result = query.single().execute()
     if not result.data:
         raise RuntimeError("Supabase select returned no data")
     return result.data
@@ -156,6 +166,7 @@ def get_transcript_by_job(job_id: str) -> dict[str, Any]:
 def create_workout(
     job_id: str,
     *,
+    user_id: str,
     title: str | None = None,
     plan: dict[str, Any],
     parser_model: str | None = None,
@@ -164,6 +175,7 @@ def create_workout(
     supa = get_supabase()
     payload: dict[str, Any] = {
         "job_id": job_id,
+        "user_id": user_id,
         "plan": plan,
         "schema_version": schema_version,
     }
@@ -177,11 +189,179 @@ def create_workout(
     return result.data[0]
 
 
-def get_workout_by_job(job_id: str) -> dict[str, Any]:
+def get_workout_by_job(job_id: str, *, user_id: str | None = None) -> dict[str, Any]:
     supa = get_supabase()
-    result = supa.table("workouts").select("*").eq("job_id", job_id).single().execute()
+    query = supa.table("workouts").select("*").eq("job_id", job_id)
+    if user_id is not None:
+        query = query.eq("user_id", user_id)
+    result = query.single().execute()
     if not result.data:
         raise RuntimeError(f"No workout found for job {job_id}")
+    return result.data
+
+
+def list_saved_workouts(user_id: str) -> list[dict[str, Any]]:
+    supa = get_supabase()
+    result = (
+        supa.table("saved_workouts")
+        .select("*")
+        .eq("user_id", user_id)
+        .order("saved_at", desc=True)
+        .execute()
+    )
+    return list(result.data or [])
+
+
+def create_or_update_saved_workout(
+    user_id: str,
+    *,
+    workout_id: str | None = None,
+    job_id: str | None = None,
+    source_url: str | None = None,
+    title: str,
+    description: str | None = None,
+    meta_left: str | None = None,
+    meta_right: str | None = None,
+    badge_label: str | None = None,
+    workout_plan: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    supa = get_supabase()
+    payload: dict[str, Any] = {
+        "user_id": user_id,
+        "title": title,
+        "description": description,
+        "meta_left": meta_left,
+        "meta_right": meta_right,
+        "badge_label": badge_label,
+        "workout_plan": workout_plan,
+        "source_url": source_url,
+        "saved_at": _utc_now_iso(),
+    }
+    if workout_id is not None:
+        payload["workout_id"] = workout_id
+    if job_id is not None:
+        payload["job_id"] = job_id
+
+    existing: dict[str, Any] | None = None
+    if workout_id is not None:
+        existing_result = (
+            supa.table("saved_workouts")
+            .select("*")
+            .eq("user_id", user_id)
+            .eq("workout_id", workout_id)
+            .limit(1)
+            .execute()
+        )
+        if existing_result.data:
+            existing = existing_result.data[0]
+
+    if existing is not None:
+        result = (
+            supa.table("saved_workouts")
+            .update(payload)
+            .eq("id", existing["id"])
+            .eq("user_id", user_id)
+            .execute()
+        )
+    else:
+        result = supa.table("saved_workouts").insert(payload).execute()
+
+    if not result.data:
+        raise RuntimeError("Supabase saved_workouts write returned no data")
+    return result.data[0]
+
+
+def delete_saved_workout(saved_workout_id: str, *, user_id: str) -> dict[str, Any]:
+    supa = get_supabase()
+    existing = (
+        supa.table("saved_workouts")
+        .select("*")
+        .eq("id", saved_workout_id)
+        .eq("user_id", user_id)
+        .limit(1)
+        .execute()
+    )
+    if not existing.data:
+        raise RuntimeError("Saved workout not found")
+
+    supa.table("saved_workouts").delete().eq("id", saved_workout_id).eq("user_id", user_id).execute()
+    return existing.data[0]
+
+
+def list_completed_workouts(user_id: str) -> list[dict[str, Any]]:
+    supa = get_supabase()
+    result = (
+        supa.table("completed_workouts")
+        .select("*")
+        .eq("user_id", user_id)
+        .order("completed_at", desc=True)
+        .execute()
+    )
+    return list(result.data or [])
+
+
+def create_completed_workout(
+    user_id: str,
+    *,
+    workout_id: str | None = None,
+    job_id: str | None = None,
+    source_url: str | None = None,
+    title: str,
+    description: str | None = None,
+    summary: str | None = None,
+    exercises: list[dict[str, Any]],
+    workout_plan: dict[str, Any] | None = None,
+    notes: str | None = None,
+    calories: int | None = None,
+    difficulty: str | None = None,
+    tags: list[str] | None = None,
+    average_rest_seconds: int | None = None,
+    started_at: str | None = None,
+    completed_at: str | None = None,
+) -> dict[str, Any]:
+    supa = get_supabase()
+    payload: dict[str, Any] = {
+        "user_id": user_id,
+        "title": title,
+        "description": description,
+        "summary": summary,
+        "exercises": exercises,
+        "workout_plan": workout_plan,
+        "notes": notes,
+        "calories": calories,
+        "difficulty": difficulty,
+        "tags": tags or [],
+        "average_rest_seconds": average_rest_seconds,
+    }
+    if workout_id is not None:
+        payload["workout_id"] = workout_id
+    if job_id is not None:
+        payload["job_id"] = job_id
+    if source_url is not None:
+        payload["source_url"] = source_url
+    if started_at is not None:
+        payload["started_at"] = started_at
+    if completed_at is not None:
+        payload["completed_at"] = completed_at
+
+    result = supa.table("completed_workouts").insert(payload).execute()
+    if not result.data:
+        raise RuntimeError("Supabase completed_workouts insert returned no data")
+    return result.data[0]
+
+
+def get_completed_workout(completed_workout_id: str, *, user_id: str) -> dict[str, Any]:
+    supa = get_supabase()
+    result = (
+        supa.table("completed_workouts")
+        .select("*")
+        .eq("id", completed_workout_id)
+        .eq("user_id", user_id)
+        .single()
+        .execute()
+    )
+    if not result.data:
+        raise RuntimeError("Completed workout not found")
     return result.data
 
 

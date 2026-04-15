@@ -12,7 +12,10 @@ interface UseIngestionJobReturn {
   error: string | null;
 }
 
-export function useIngestionJob(jobId: string | null): UseIngestionJobReturn {
+export function useIngestionJob(
+  jobId: string | null,
+  accessToken: string | null,
+): UseIngestionJobReturn {
   const [job, setJob] = useState<JobResponse | null>(null);
   const [workout, setWorkout] = useState<WorkoutRow | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -26,7 +29,7 @@ export function useIngestionJob(jobId: string | null): UseIngestionJobReturn {
   }, []);
 
   useEffect(() => {
-    if (!jobId) {
+    if (!jobId || !accessToken) {
       stopPolling();
       setJob(null);
       setWorkout(null);
@@ -40,12 +43,12 @@ export function useIngestionJob(jobId: string | null): UseIngestionJobReturn {
 
     const poll = async () => {
       try {
-        const data = await getJob(jobId);
+        const data = await getJob(jobId, accessToken);
         setJob(data);
 
         if (data.status === "complete") {
           try {
-            const workoutResponse = await getWorkoutByJob(jobId);
+            const workoutResponse = await getWorkoutByJob(jobId, accessToken);
             setWorkout(workoutResponse);
           } catch {
             setError("Workout data not found");
@@ -72,7 +75,7 @@ export function useIngestionJob(jobId: string | null): UseIngestionJobReturn {
     }, POLL_INTERVAL_MS);
 
     return stopPolling;
-  }, [jobId, stopPolling]);
+  }, [accessToken, jobId, stopPolling]);
 
   return { job, workout, error };
 }

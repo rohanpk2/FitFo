@@ -1,9 +1,9 @@
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from twilio.base.exceptions import TwilioRestException
 
+from app.routers.deps import require_access_payload
 from app.schemas.auth import (
     AccountStatusRequest,
     AccountStatusResponse,
@@ -16,7 +16,6 @@ from app.schemas.auth import (
 from app.services import jwt_auth, supabase_db, twilio_verify
 
 router = APIRouter(prefix="/auth", tags=["auth"])
-bearer_scheme = HTTPBearer(auto_error=False)
 
 
 def _normalize_and_lookup(phone: str) -> tuple[str, dict[str, Any] | None]:
@@ -30,28 +29,6 @@ def _clean_signup_name(full_name: str | None) -> str:
     if not clean_name:
         raise HTTPException(status_code=400, detail="Full name is required to sign up.")
     return clean_name
-
-
-def _require_access_payload(
-    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
-) -> dict[str, Any]:
-    if credentials is None or credentials.scheme.lower() != "bearer":
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing authentication token.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    try:
-        return jwt_auth.decode_access_token(credentials.credentials)
-    except jwt_auth.InvalidAccessTokenError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=str(exc),
-            headers={"WWW-Authenticate": "Bearer"},
-        ) from exc
-    except jwt_auth.JwtNotConfiguredError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 @router.post("/account-status", response_model=AccountStatusResponse)
@@ -183,7 +160,7 @@ def verify_otp(body: VerifyOtpRequest) -> VerifyOtpResponse:
 
 
 @router.get("/me", response_model=MeResponse)
-def me(payload: dict[str, Any] = Depends(_require_access_payload)) -> MeResponse:
+def me(payload: dict[str, Any] = Depends(require_access_payload)) -> MeResponse:
     try:
         profile_id = str(payload["sub"])
         profile = supabase_db.get_profile_by_id(profile_id)

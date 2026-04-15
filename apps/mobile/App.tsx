@@ -16,20 +16,28 @@ import {
   getStoredAuthSession,
   storeAuthSession,
 } from "./src/lib/authStorage";
+import { getStoredThemeMode, storeThemeMode } from "./src/lib/themeStorage";
 import {
   ApiError,
   checkAccountStatus,
+  createCompletedWorkout,
   createIngestionJob,
+  deleteSavedWorkout,
+  getCompletedWorkout,
   getCurrentUser,
+  listCompletedWorkouts,
+  listSavedWorkouts,
+  saveWorkoutForLater,
   sendOtp,
   verifyOtp,
 } from "./src/lib/api";
 import {
+  buildCompletedWorkoutRequest,
   createActiveSessionFromPlan,
   createDefaultActiveSession,
   createImportedRoutinePreview,
-  createManualRoutinePreview,
-} from "./src/lib/vaayu";
+  createSavedRoutinePreviewFromRecord,
+} from "./src/lib/fitfo";
 import { ActiveWorkoutScreen } from "./src/screens/ActiveWorkoutScreen";
 import { LoginScreen } from "./src/screens/LoginScreen";
 import { LogsScreen } from "./src/screens/LogsScreen";
@@ -37,21 +45,24 @@ import { OtpVerificationScreen } from "./src/screens/OtpVerificationScreen";
 import { ProfileScreen } from "./src/screens/ProfileScreen";
 import { SavedWorkoutsScreen } from "./src/screens/SavedWorkoutsScreen";
 import { SignUpScreen } from "./src/screens/SignUpScreen";
-import { colors } from "./src/theme";
+import { WorkoutSummaryScreen } from "./src/screens/WorkoutSummaryScreen";
+import { getTheme, type ThemeMode } from "./src/theme";
 import type {
   ActiveSessionPreview,
   AppTab,
   AuthMode,
+  CompletedWorkoutRecord,
   OtpIntent,
   PendingOtpChallenge,
   SavedRoutinePreview,
   UserProfile,
-  WorkoutRow,
 } from "./src/types";
 
 type AuthSubmitMode = "login" | "signup" | "otp" | "bootstrap";
 
 export default function App() {
+  const [themeMode, setThemeMode] = useState<ThemeMode>("light");
+  const [accessToken, setAccessToken] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [authMode, setAuthMode] = useState<AuthMode>("login");
   const [authError, setAuthError] = useState<string | null>(null);
@@ -68,22 +79,37 @@ export default function App() {
   const [activeSession, setActiveSession] = useState<ActiveSessionPreview | null>(
     null,
   );
+  const [isActiveWorkoutVisible, setIsActiveWorkoutVisible] = useState(false);
+  const [selectedCompletedWorkout, setSelectedCompletedWorkout] =
+    useState<CompletedWorkoutRecord | null>(null);
   const [isAddWorkoutVisible, setIsAddWorkoutVisible] = useState(false);
   const [isExtractSubmitting, setIsExtractSubmitting] = useState(false);
   const [jobId, setJobId] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [latestImportedWorkout, setLatestImportedWorkout] =
-    useState<WorkoutRow | null>(null);
-  const [importedWorkouts, setImportedWorkouts] = useState<SavedRoutinePreview[]>(
+  const [latestImportedRoutine, setLatestImportedRoutine] =
+    useState<SavedRoutinePreview | null>(null);
+  const [savedWorkouts, setSavedWorkouts] = useState<SavedRoutinePreview[]>([]);
+  const [savedWorkoutsLoading, setSavedWorkoutsLoading] = useState(false);
+  const [savedWorkoutsError, setSavedWorkoutsError] = useState<string | null>(null);
+  const [completedWorkouts, setCompletedWorkouts] = useState<CompletedWorkoutRecord[]>(
     [],
+  );
+  const [completedWorkoutsLoading, setCompletedWorkoutsLoading] = useState(false);
+  const [completedWorkoutsError, setCompletedWorkoutsError] = useState<string | null>(
+    null,
   );
 
   const handledImportedWorkoutId = useRef<string | null>(null);
-  const { job, workout, error: pollError } = useIngestionJob(jobId);
+  const importDescriptorCursor = useRef(0);
+  const { job, workout, error: pollError } = useIngestionJob(jobId, accessToken);
+  const theme = getTheme(themeMode);
+  const styles = createStyles(theme);
 
   const resetPostLoginState = useCallback(() => {
     setActiveTab("saved");
     setActiveSession(null);
+    setIsActiveWorkoutVisible(false);
+    setSelectedCompletedWorkout(null);
   }, []);
 
   useEffect(() => {
@@ -92,18 +118,20 @@ export default function App() {
     }
 
     handledImportedWorkoutId.current = workout.id;
-    setLatestImportedWorkout(workout);
-    setImportedWorkouts((current) => [
-      createImportedRoutinePreview(workout),
-      ...current,
-    ]);
-  }, [workout]);
+    setLatestImportedRoutine(
+      createImportedRoutinePreview(workout, {
+        descriptorIndex: importDescriptorCursor.current,
+        job,
+      }),
+    );
+    importDescriptorCursor.current += 1;
+  }, [job, workout]);
 
   const resetImportFlow = useCallback(() => {
     setIsExtractSubmitting(false);
     setJobId(null);
     setSubmitError(null);
-    setLatestImportedWorkout(null);
+    setLatestImportedRoutine(null);
     handledImportedWorkoutId.current = null;
   }, []);
 
@@ -117,14 +145,67 @@ export default function App() {
     resetImportFlow();
   }, [resetImportFlow]);
 
+  const loadSavedWorkouts = useCallback(async (token: string) => {
+    setSavedWorkoutsLoading(true);
+    setSavedWorkoutsError(null);
+
+    try {
+      // Saved workouts come from the signed-in account so the backend stays the source of truth.
+      const rows = await listSavedWorkouts(token);
+      setSavedWorkouts(rows.map(createSavedRoutinePreviewFromRecord));
+    } catch (error) {
+      setSavedWorkoutsError(
+        error instanceof Error ? error.message : "Unable to load saved workouts.",
+      );
+    } finally {
+      setSavedWorkoutsLoading(false);
+    }
+  }, []);
+
+  const loadCompletedWorkouts = useCallback(async (token: string) => {
+    setCompletedWorkoutsLoading(true);
+    setCompletedWorkoutsError(null);
+
+    try {
+      // Completed workout history is account-backed and should survive logout/login and device switches.
+      const rows = await listCompletedWorkouts(token);
+      setCompletedWorkouts(rows);
+    } catch (error) {
+      setCompletedWorkoutsError(
+        error instanceof Error ? error.message : "Unable to load workout history.",
+      );
+    } finally {
+      setCompletedWorkoutsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!currentUser || !accessToken) {
+      setSavedWorkouts([]);
+      setSavedWorkoutsError(null);
+      setCompletedWorkouts([]);
+      setCompletedWorkoutsError(null);
+      return;
+    }
+
+    // The backend/database is the source of truth for per-user workout data.
+    void loadSavedWorkouts(accessToken);
+    void loadCompletedWorkouts(accessToken);
+  }, [accessToken, currentUser, loadCompletedWorkouts, loadSavedWorkouts]);
+
   const handleExtractWorkout = useCallback(async (url: string) => {
+    if (!accessToken) {
+      setSubmitError("You need to be logged in to import workouts.");
+      return;
+    }
+
     setSubmitError(null);
-    setLatestImportedWorkout(null);
+    setLatestImportedRoutine(null);
     setJobId(null);
     setIsExtractSubmitting(true);
 
     try {
-      const response = await createIngestionJob(url);
+      const response = await createIngestionJob(url, accessToken);
 
       if (!response.ok || !response.job_id) {
         setSubmitError(response.error || "Failed to start extraction");
@@ -139,41 +220,136 @@ export default function App() {
     } finally {
       setIsExtractSubmitting(false);
     }
-  }, []);
+  }, [accessToken]);
 
   const handleStartSession = useCallback(
     (routine?: SavedRoutinePreview) => {
-      if (routine?.workoutPlan) {
-        setActiveSession(createActiveSessionFromPlan(routine.workoutPlan));
-      } else if (latestImportedWorkout?.plan) {
-        setActiveSession(createActiveSessionFromPlan(latestImportedWorkout.plan));
+      const sourceRoutine = routine || latestImportedRoutine;
+
+      if (sourceRoutine?.workoutPlan) {
+        setActiveSession(
+          createActiveSessionFromPlan(sourceRoutine.workoutPlan, {
+            description: sourceRoutine.description,
+            sourceJobId: sourceRoutine.jobId ?? null,
+            sourceUrl: sourceRoutine.sourceUrl ?? null,
+            sourceWorkoutId: sourceRoutine.workoutId ?? null,
+            title: sourceRoutine.title,
+          }),
+        );
       } else {
-        setActiveSession(createDefaultActiveSession());
+        setActiveSession(
+          createDefaultActiveSession({
+            description: sourceRoutine?.description,
+            sourceJobId: sourceRoutine?.jobId ?? null,
+            sourceUrl: sourceRoutine?.sourceUrl ?? null,
+            sourceWorkoutId: sourceRoutine?.workoutId ?? null,
+            title: sourceRoutine?.title,
+            workoutPlan: sourceRoutine?.workoutPlan ?? null,
+          }),
+        );
       }
 
       setActiveTab("logs");
+      setIsActiveWorkoutVisible(true);
+      setSelectedCompletedWorkout(null);
       setIsAddWorkoutVisible(false);
       resetImportFlow();
     },
-    [latestImportedWorkout, resetImportFlow],
+    [latestImportedRoutine, resetImportFlow],
   );
 
-  const handleCreateManualWorkout = useCallback(() => {
-    setImportedWorkouts((current) => [
-      createManualRoutinePreview(),
-      ...current,
-    ]);
-    setIsAddWorkoutVisible(false);
-    resetImportFlow();
-  }, [resetImportFlow]);
+  const handleSaveImportedWorkout = useCallback(async () => {
+    if (!accessToken || !latestImportedRoutine) {
+      return;
+    }
 
-  const handleFinishWorkout = useCallback(() => {
+    try {
+      const saved = await saveWorkoutForLater(accessToken, {
+        workout_id: workout?.id ?? latestImportedRoutine.workoutId ?? null,
+        job_id: job?.id ?? latestImportedRoutine.jobId ?? null,
+        source_url: job?.source_url ?? latestImportedRoutine.sourceUrl ?? null,
+        title: latestImportedRoutine.title,
+        description: latestImportedRoutine.description,
+        meta_left: latestImportedRoutine.metaLeft,
+        meta_right: latestImportedRoutine.metaRight,
+        badge_label: latestImportedRoutine.badgeLabel ?? null,
+        workout_plan: latestImportedRoutine.workoutPlan ?? null,
+      });
+      const preview = createSavedRoutinePreviewFromRecord(saved);
+      setSavedWorkouts((current) => {
+        const withoutDuplicate = current.filter((item) => item.id !== preview.id);
+        return [preview, ...withoutDuplicate];
+      });
+      setSavedWorkoutsError(null);
+      setSubmitError(null);
+      setActiveTab("saved");
+      setIsAddWorkoutVisible(false);
+      resetImportFlow();
+    } catch (error) {
+      setSubmitError(
+        error instanceof Error ? error.message : "Unable to save this workout right now.",
+      );
+    }
+  }, [accessToken, job, latestImportedRoutine, resetImportFlow, workout]);
+
+  const handleCreateManualWorkout = useCallback(async () => {
+    if (!accessToken) {
+      return;
+    }
+
+    try {
+      const saved = await saveWorkoutForLater(accessToken, {
+        title: "Custom Routine Draft",
+        description: "Fresh template for a manually created workout session.",
+        meta_left: "Draft",
+        meta_right: "Editable",
+        badge_label: "Saved",
+        workout_plan: null,
+      });
+      const preview = createSavedRoutinePreviewFromRecord(saved);
+      setSavedWorkouts((current) => {
+        const withoutDuplicate = current.filter((item) => item.id !== preview.id);
+        return [preview, ...withoutDuplicate];
+      });
+      setSavedWorkoutsError(null);
+      setSubmitError(null);
+      setIsAddWorkoutVisible(false);
+      resetImportFlow();
+    } catch (error) {
+      setSubmitError(
+        error instanceof Error ? error.message : "Unable to create that workout right now.",
+      );
+    }
+  }, [accessToken, resetImportFlow]);
+
+  const handleFinishWorkout = useCallback(async () => {
+    const session = activeSession;
     setActiveSession(null);
+    setIsActiveWorkoutVisible(false);
     setActiveTab("logs");
-  }, []);
 
-  const applyAuthenticatedProfile = useCallback(
-    (profile: UserProfile) => {
+    if (!session || !accessToken) {
+      return;
+    }
+
+    try {
+      // Persist the finished session to the current authenticated account before showing it in history.
+      const completed = await createCompletedWorkout(
+        accessToken,
+        buildCompletedWorkoutRequest(session),
+      );
+      setCompletedWorkouts((current) => [completed, ...current]);
+      setCompletedWorkoutsError(null);
+    } catch (error) {
+      setCompletedWorkoutsError(
+        error instanceof Error ? error.message : "Unable to save your workout log.",
+      );
+    }
+  }, [accessToken, activeSession]);
+
+  const applyAuthenticatedSession = useCallback(
+    (profile: UserProfile, token: string) => {
+      setAccessToken(token);
       setCurrentUser(profile);
       setAuthPrefillPhone(profile.phone);
       setAuthPrefillFullName(profile.full_name);
@@ -193,6 +369,11 @@ export default function App() {
       setAuthSubmittingMode("bootstrap");
 
       try {
+        const storedThemeMode = await getStoredThemeMode();
+        if (storedThemeMode && isMounted) {
+          setThemeMode(storedThemeMode);
+        }
+
         const storedSession = await getStoredAuthSession();
         if (!storedSession?.accessToken) {
           if (isMounted) {
@@ -205,7 +386,7 @@ export default function App() {
         await storeAuthSession(storedSession.accessToken, response.profile);
 
         if (isMounted) {
-          applyAuthenticatedProfile(response.profile);
+          applyAuthenticatedSession(response.profile, storedSession.accessToken);
         }
       } catch (error) {
         if (error instanceof ApiError && error.status === 401) {
@@ -213,6 +394,7 @@ export default function App() {
         }
 
         if (isMounted) {
+          setAccessToken(null);
           setCurrentUser(null);
           if (!(error instanceof ApiError && error.status === 401)) {
             setAuthError(
@@ -235,7 +417,7 @@ export default function App() {
     return () => {
       isMounted = false;
     };
-  }, [applyAuthenticatedProfile]);
+  }, [applyAuthenticatedSession]);
 
   const handleShowSignUp = useCallback((notice?: string) => {
     setAuthMode("signup");
@@ -372,7 +554,7 @@ export default function App() {
         });
 
         await storeAuthSession(response.access_token, response.profile);
-        applyAuthenticatedProfile(response.profile);
+        applyAuthenticatedSession(response.profile, response.access_token);
       } catch (error) {
         setAuthError(
           error instanceof Error ? error.message : "Unable to verify that code.",
@@ -381,7 +563,7 @@ export default function App() {
         setAuthSubmittingMode(null);
       }
     },
-    [applyAuthenticatedProfile, pendingOtpChallenge],
+    [applyAuthenticatedSession, pendingOtpChallenge],
   );
 
   const handleResendOtp = useCallback(async () => {
@@ -437,7 +619,12 @@ export default function App() {
         error instanceof Error ? error.message : "Unable to log out right now.",
       );
     } finally {
+      setAccessToken(null);
       setCurrentUser(null);
+      setSavedWorkouts([]);
+      setSavedWorkoutsError(null);
+      setCompletedWorkouts([]);
+      setCompletedWorkoutsError(null);
       setPendingOtpChallenge(null);
       setAuthMode("login");
       setAuthNotice(null);
@@ -449,12 +636,85 @@ export default function App() {
     }
   }, [handleCloseAddWorkout, resetPostLoginState]);
 
+  const handleResumeActiveWorkout = useCallback(() => {
+    if (!activeSession) {
+      return;
+    }
+
+    setSelectedCompletedWorkout(null);
+    setActiveTab("logs");
+    setIsActiveWorkoutVisible(true);
+  }, [activeSession]);
+
+  const handleToggleThemeMode = useCallback(async () => {
+    const nextMode: ThemeMode = themeMode === "dark" ? "light" : "dark";
+    setThemeMode(nextMode);
+    await storeThemeMode(nextMode).catch(() => undefined);
+  }, [themeMode]);
+
+  const handleRemoveSavedWorkout = useCallback(
+    async (savedWorkoutId: string) => {
+      if (!accessToken) {
+        return;
+      }
+
+      try {
+        await deleteSavedWorkout(accessToken, savedWorkoutId);
+        setSavedWorkouts((current) =>
+          current.filter(
+            (routine) =>
+              routine.id !== savedWorkoutId &&
+              routine.savedWorkoutId !== savedWorkoutId,
+          ),
+        );
+        setSavedWorkoutsError(null);
+      } catch (error) {
+        setSavedWorkoutsError(
+          error instanceof Error ? error.message : "Unable to remove that workout.",
+        );
+      }
+    },
+    [accessToken],
+  );
+
+  const handleOpenCompletedWorkout = useCallback(
+    async (record: CompletedWorkoutRecord) => {
+      setSelectedCompletedWorkout(record);
+
+      if (!accessToken) {
+        return;
+      }
+
+      try {
+        const freshRecord = await getCompletedWorkout(accessToken, record.id);
+        setSelectedCompletedWorkout(freshRecord);
+        setCompletedWorkouts((current) =>
+          current.map((item) => (item.id === freshRecord.id ? freshRecord : item)),
+        );
+      } catch {
+        // The list already contains enough data to render the summary screen.
+      }
+    },
+    [accessToken],
+  );
+
   const renderAuthenticatedScreen = () => {
-    if (activeSession) {
+    if (activeSession && isActiveWorkoutVisible) {
       return (
         <ActiveWorkoutScreen
           session={activeSession}
           onFinish={handleFinishWorkout}
+          themeMode={themeMode}
+        />
+      );
+    }
+
+    if (selectedCompletedWorkout) {
+      return (
+        <WorkoutSummaryScreen
+          workout={selectedCompletedWorkout}
+          onBack={() => setSelectedCompletedWorkout(null)}
+          themeMode={themeMode}
         />
       );
     }
@@ -462,19 +722,48 @@ export default function App() {
     if (activeTab === "saved") {
       return (
         <SavedWorkoutsScreen
-          importedWorkouts={importedWorkouts}
+          error={savedWorkoutsError}
+          importedWorkouts={savedWorkouts}
+          isLoading={savedWorkoutsLoading}
           onAddWorkout={handleOpenAddWorkout}
+          onRemoveWorkout={handleRemoveSavedWorkout}
+          onRetry={() => {
+            if (accessToken) {
+              void loadSavedWorkouts(accessToken);
+            }
+          }}
           onStartSession={handleStartSession}
+          themeMode={themeMode}
         />
       );
     }
 
     if (activeTab === "logs") {
-      return <LogsScreen />;
+      return (
+        <LogsScreen
+          activeWorkout={activeSession}
+          error={completedWorkoutsError}
+          isLoading={completedWorkoutsLoading}
+          onOpenWorkout={handleOpenCompletedWorkout}
+          onResumeWorkout={handleResumeActiveWorkout}
+          onRetry={() => {
+            if (accessToken) {
+              void loadCompletedWorkouts(accessToken);
+            }
+          }}
+          workouts={completedWorkouts}
+          themeMode={themeMode}
+        />
+      );
     }
 
     return currentUser ? (
-      <ProfileScreen onLogout={handleLogout} profile={currentUser} />
+      <ProfileScreen
+        onLogout={handleLogout}
+        onToggleThemeMode={handleToggleThemeMode}
+        profile={currentUser}
+        themeMode={themeMode}
+      />
     ) : null;
   };
 
@@ -482,12 +771,12 @@ export default function App() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="dark" />
+      <StatusBar style={themeMode === "dark" ? "light" : "dark"} />
       <View style={styles.appShell}>
         {!isAuthReady ? (
           <View style={styles.loadingScreen}>
-            <ActivityIndicator color={colors.primary} size="large" />
-            <Text style={styles.loadingTitle}>Connecting to Vaayu</Text>
+            <ActivityIndicator color={theme.colors.primary} size="large" />
+            <Text style={styles.loadingTitle}>Connecting to FitFo</Text>
             <Text style={styles.loadingBody}>
               Restoring your session and profile.
             </Text>
@@ -498,9 +787,11 @@ export default function App() {
             <BottomNav
               activeTab={activeTab}
               onChangeTab={(tab) => {
-                setActiveSession(null);
+                setIsActiveWorkoutVisible(false);
+                setSelectedCompletedWorkout(null);
                 setActiveTab(tab);
               }}
+              themeMode={themeMode}
             />
           </>
         ) : authMode === "otp" && pendingOtpChallenge ? (
@@ -515,6 +806,7 @@ export default function App() {
             onVerify={handleVerifyOtp}
             phone={pendingOtpChallenge.phone}
             sentAt={pendingOtpChallenge.sentAt}
+            themeMode={themeMode}
           />
         ) : authMode === "login" ? (
           <LoginScreen
@@ -524,6 +816,7 @@ export default function App() {
             notice={authNotice}
             onLogin={handleLogin}
             onSwitchToSignUp={() => handleShowSignUp()}
+            themeMode={themeMode}
           />
         ) : (
           <SignUpScreen
@@ -534,6 +827,7 @@ export default function App() {
             notice={authNotice}
             onCreateAccount={handleCreateAccount}
             onSwitchToLogin={() => handleShowLogin(undefined, authPrefillPhone)}
+            themeMode={themeMode}
           />
         )}
       </View>
@@ -544,42 +838,45 @@ export default function App() {
         job={job}
         onClose={handleCloseAddWorkout}
         onCreateManual={handleCreateManualWorkout}
+        onSaveImported={handleSaveImportedWorkout}
         onStartImported={() => handleStartSession()}
         onSubmit={handleExtractWorkout}
+        routine={latestImportedRoutine}
+        themeMode={themeMode}
         visible={isAddWorkoutVisible}
-        workout={latestImportedWorkout}
       />
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  appShell: {
-    flex: 1,
-  },
-  screenArea: {
-    flex: 1,
-  },
-  loadingScreen: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 12,
-    paddingHorizontal: 24,
-  },
-  loadingTitle: {
-    color: colors.textPrimary,
-    fontSize: 22,
-    fontWeight: "800",
-    textAlign: "center",
-  },
-  loadingBody: {
-    color: colors.textSecondary,
-    fontSize: 15,
-    textAlign: "center",
-  },
-});
+const createStyles = (theme: ReturnType<typeof getTheme>) =>
+  StyleSheet.create({
+    safeArea: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    appShell: {
+      flex: 1,
+    },
+    screenArea: {
+      flex: 1,
+    },
+    loadingScreen: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 12,
+      paddingHorizontal: 24,
+    },
+    loadingTitle: {
+      color: theme.colors.textPrimary,
+      fontSize: 22,
+      fontWeight: "800",
+      textAlign: "center",
+    },
+    loadingBody: {
+      color: theme.colors.textSecondary,
+      fontSize: 15,
+      textAlign: "center",
+    },
+  });

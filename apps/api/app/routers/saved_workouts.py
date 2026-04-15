@@ -1,0 +1,61 @@
+from fastapi import APIRouter, Depends, HTTPException, status
+
+from app.routers.deps import require_profile_id
+from app.schemas.workout_persistence import SavedWorkoutResponse, SavedWorkoutUpsertRequest
+from app.services import supabase_db
+
+router = APIRouter(prefix="/saved-workouts", tags=["saved-workouts"])
+
+
+@router.get("", response_model=list[SavedWorkoutResponse])
+def list_saved_workouts(profile_id: str = Depends(require_profile_id)) -> list[SavedWorkoutResponse]:
+    try:
+        # The signed-in profile id scopes every query so one user never sees another user's saved workouts.
+        rows = supabase_db.list_saved_workouts(profile_id)
+        return [SavedWorkoutResponse(**row) for row in rows]
+    except supabase_db.SupabaseNotConfiguredError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to load saved workouts: {exc}") from exc
+
+
+@router.post("", response_model=SavedWorkoutResponse, status_code=status.HTTP_201_CREATED)
+def save_workout_for_later(
+    body: SavedWorkoutUpsertRequest,
+    profile_id: str = Depends(require_profile_id),
+) -> SavedWorkoutResponse:
+    try:
+        # Save-for-later records are written against the authenticated account and become the backend source of truth.
+        row = supabase_db.create_or_update_saved_workout(
+            profile_id,
+            workout_id=body.workout_id,
+            job_id=body.job_id,
+            source_url=body.source_url,
+            title=body.title,
+            description=body.description,
+            meta_left=body.meta_left,
+            meta_right=body.meta_right,
+            badge_label=body.badge_label,
+            workout_plan=body.workout_plan,
+        )
+        return SavedWorkoutResponse(**row)
+    except supabase_db.SupabaseNotConfiguredError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to save workout: {exc}") from exc
+
+
+@router.delete("/{saved_workout_id}", response_model=SavedWorkoutResponse)
+def delete_saved_workout(
+    saved_workout_id: str,
+    profile_id: str = Depends(require_profile_id),
+) -> SavedWorkoutResponse:
+    try:
+        row = supabase_db.delete_saved_workout(saved_workout_id, user_id=profile_id)
+        return SavedWorkoutResponse(**row)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except supabase_db.SupabaseNotConfiguredError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to delete saved workout: {exc}") from exc
