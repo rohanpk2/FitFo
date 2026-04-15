@@ -1,0 +1,12 @@
+{
+  "name": "vaayu",
+  "private": true,
+  "version": "1.0.0",
+  "packageManager": "pnpm@10.33.0",
+  "scripts": {
+    "mobile:start": "pnpm --dir apps/mobile start",
+    "mobile:android": "pnpm --dir apps/mobile android",
+    "mobile:ios": "pnpm --dir apps/mobile ios",
+    "mobile:web": "pnpm --dir apps/mobile web"
+  }
+}
