@@ -169,6 +169,10 @@ export function SavedWorkoutsScreen({
       </Pressable>
 
       <View style={styles.section}>
+        <View style={styles.sectionDivider}>
+          <View style={styles.sectionDividerAccent} />
+          <View style={styles.sectionDividerLine} />
+        </View>
         <Text style={styles.sectionEyebrow}>Library</Text>
         <Text style={styles.sectionTitle}>Saved Workouts</Text>
         <Text style={styles.sectionBody}>
@@ -220,6 +224,10 @@ export function SavedWorkoutsScreen({
       </View>
 
       <View style={styles.section}>
+        <View style={styles.sectionDivider}>
+          <View style={styles.sectionDividerAccent} />
+          <View style={styles.sectionDividerLine} />
+        </View>
         <Text style={styles.sectionEyebrow}>Daily AI</Text>
         <Text style={styles.sectionTitle}>Today's 30-Minute Drops</Text>
         <Text style={styles.sectionBody}>
@@ -268,7 +276,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       paddingHorizontal: 20,
       paddingTop: 24,
       paddingBottom: 140,
-      gap: 36,
+      gap: 24,
     },
     header: {
       flexDirection: "row",
@@ -363,8 +371,27 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       fontWeight: "700",
     },
     section: {
-      gap: 18,
+      gap: 12,
       paddingHorizontal: 2,
+    },
+    sectionDivider: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 4,
+    },
+    sectionDividerAccent: {
+      width: 36,
+      height: 2,
+      borderRadius: 999,
+      backgroundColor: theme.colors.primaryBright,
+    },
+    sectionDividerLine: {
+      flex: 1,
+      height: StyleSheet.hairlineWidth,
+      backgroundColor:
+        theme.mode === "dark"
+          ? "rgba(255, 255, 255, 0.08)"
+          : "rgba(15, 23, 42, 0.08)",
     },
     sectionEyebrow: {
       color: theme.colors.primary,
@@ -372,9 +399,9 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       fontWeight: "800",
       letterSpacing: 1.4,
       textTransform: "uppercase",
+      marginBottom: -4,
     },
     sectionTitle: {
-      marginTop: -2,
       color: theme.colors.textPrimary,
       fontSize: 26,
       lineHeight: 30,
@@ -384,8 +411,9 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     sectionBody: {
       color: theme.colors.textSecondary,
       fontSize: 14,
-      lineHeight: 21,
-      marginBottom: 8,
+      lineHeight: 20,
+      marginTop: -4,
+      marginBottom: 0,
     },
     feedbackCard: {
       borderRadius: 24,
