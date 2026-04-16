@@ -3,6 +3,7 @@ import { Ionicons } from "@expo/vector-icons";
 
 import {
   formatCompletedWorkoutDate,
+  getRoutineDisplayTitle,
   getCompletedWorkoutMeta,
 } from "../lib/fitfo";
 import { getTheme, type ThemeMode } from "../theme";
@@ -72,6 +73,11 @@ export function WorkoutSummaryScreen({
   const theme = getTheme(themeMode);
   const styles = createStyles(theme);
   const meta = getCompletedWorkoutMeta(workout);
+  const displayTitle = getRoutineDisplayTitle({
+    sourceUrl: workout.source_url,
+    title: workout.title,
+    workoutPlan: workout.workout_plan,
+  });
   const detailChips = [
     workout.difficulty ? `Difficulty: ${workout.difficulty}` : null,
     workout.calories != null ? `${workout.calories} cal` : null,
@@ -100,7 +106,7 @@ export function WorkoutSummaryScreen({
 
       <View style={styles.heroCard}>
         <Text style={styles.eyebrow}>Workout Summary</Text>
-        <Text style={styles.title}>{workout.title}</Text>
+        <Text style={styles.title}>{displayTitle}</Text>
         <Text style={styles.completedAt}>
           Completed {formatCompletedWorkoutDate(workout.completed_at)}
         </Text>

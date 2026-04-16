@@ -1,12 +1,16 @@
 import type {
   AccountStatusRequest,
   AccountStatusResponse,
+  BodyWeightEntryCreateRequest,
+  BodyWeightEntryRecord,
   CompletedWorkoutCreateRequest,
   CompletedWorkoutRecord,
   IngestRequest,
   IngestResponse,
   JobResponse,
   MeResponse,
+  SaveOnboardingRequest,
+  SaveOnboardingResponse,
   SavedWorkoutRecord,
   SavedWorkoutUpsertRequest,
   SendOtpRequest,
@@ -132,6 +136,17 @@ export async function getCurrentUser(
   });
 }
 
+export async function saveOnboarding(
+  accessToken: string,
+  body: SaveOnboardingRequest,
+): Promise<SaveOnboardingResponse> {
+  return request<SaveOnboardingResponse>("/auth/onboarding", {
+    method: "PUT",
+    accessToken,
+    body: JSON.stringify(body),
+  });
+}
+
 export async function listSavedWorkouts(
   accessToken: string,
 ): Promise<SavedWorkoutRecord[]> {
@@ -186,6 +201,26 @@ export async function createCompletedWorkout(
   body: CompletedWorkoutCreateRequest,
 ): Promise<CompletedWorkoutRecord> {
   return request<CompletedWorkoutRecord>("/completed-workouts", {
+    method: "POST",
+    accessToken,
+    body: JSON.stringify(body),
+  });
+}
+
+export async function listBodyWeightEntries(
+  accessToken: string,
+): Promise<BodyWeightEntryRecord[]> {
+  return request<BodyWeightEntryRecord[]>("/body-weight", {
+    method: "GET",
+    accessToken,
+  });
+}
+
+export async function createBodyWeightEntry(
+  accessToken: string,
+  body: BodyWeightEntryCreateRequest,
+): Promise<BodyWeightEntryRecord> {
+  return request<BodyWeightEntryRecord>("/body-weight", {
     method: "POST",
     accessToken,
     body: JSON.stringify(body),

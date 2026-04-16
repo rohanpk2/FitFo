@@ -17,6 +17,7 @@ const tabs: Array<{
 }> = [
   { key: "saved", label: "Saved", icon: "bookmark" },
   { key: "logs", label: "Logs", icon: "bar-chart" },
+  { key: "charts", label: "Charts", icon: "pulse" },
   { key: "profile", label: "Profile", icon: "person" },
 ];
 
@@ -67,14 +68,13 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       bottom: 10,
       flexDirection: "row",
       justifyContent: "space-between",
-      paddingHorizontal: 10,
+      paddingHorizontal: 8,
       paddingTop: 10,
       paddingBottom: 14,
-      borderTopLeftRadius: 28,
-      borderTopRightRadius: 28,
-      backgroundColor: theme.colors.navShell,
-      borderWidth: theme.mode === "dark" ? 1 : 0,
-      borderColor: theme.mode === "dark" ? theme.colors.borderSoft : "transparent",
+      borderRadius: 28,
+      backgroundColor: theme.mode === "dark" ? theme.colors.navShell : theme.colors.surface,
+      borderWidth: 1,
+      borderColor: theme.mode === "dark" ? theme.colors.borderSoft : theme.colors.borderSoft,
       ...theme.shadows.nav,
     },
     item: {
@@ -82,8 +82,9 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       alignItems: "center",
       justifyContent: "center",
       gap: 4,
-      borderRadius: theme.radii.large,
+      borderRadius: 999,
       paddingVertical: 10,
+      marginHorizontal: 2,
     },
     itemActive: {
       backgroundColor: theme.colors.primaryBright,

@@ -69,6 +69,39 @@ export interface UserProfile {
   id: string;
   full_name: string;
   phone: string;
+  onboarding: UserOnboarding | null;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export type OnboardingGoal =
+  | "build_muscle"
+  | "lose_fat"
+  | "get_stronger"
+  | "improve_cardio"
+  | "stay_active"
+  | "athletic_performance";
+
+export type TrainingSplit =
+  | "ppl"
+  | "upper_lower"
+  | "bro_split"
+  | "full_body"
+  | "five_three_one"
+  | "arnold_split"
+  | "custom";
+
+export type ExperienceLevel = "beginner" | "intermediate" | "advanced";
+
+export interface UserOnboarding {
+  goals: OnboardingGoal[];
+  training_split: TrainingSplit;
+  days_per_week: number;
+  weight_lbs: number;
+  height_inches: number;
+  experience_level: ExperienceLevel;
+  age: number;
+  completed_at: string | null;
   created_at: string | null;
   updated_at: string | null;
 }
@@ -97,7 +130,7 @@ export interface SendOtpResponse {
   message: string;
 }
 
-export type AppTab = "saved" | "logs" | "profile";
+export type AppTab = "saved" | "logs" | "charts" | "profile";
 
 export type AuthMode = "login" | "signup" | "otp";
 
@@ -122,6 +155,36 @@ export interface VerifyOtpResponse {
 export interface MeResponse {
   ok: boolean;
   profile: UserProfile;
+}
+
+export interface SaveOnboardingRequest {
+  goals: OnboardingGoal[];
+  training_split: TrainingSplit;
+  days_per_week: number;
+  weight_lbs: number;
+  height_inches: number;
+  experience_level: ExperienceLevel;
+  age: number;
+}
+
+export interface SaveOnboardingResponse {
+  ok: boolean;
+  profile: UserProfile;
+  message: string;
+}
+
+export interface BodyWeightEntryRecord {
+  id: string;
+  user_id: string;
+  weight_lbs: number;
+  source: "onboarding" | "manual" | string;
+  recorded_at: string;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface BodyWeightEntryCreateRequest {
+  weight_lbs: number;
 }
 
 export interface PendingOtpChallenge {

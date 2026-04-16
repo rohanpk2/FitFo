@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 
 import {
   formatCompletedWorkoutDate,
+  getRoutineDisplayTitle,
   getCompletedWorkoutMeta,
   getCompletedWorkoutSetCount,
 } from "../lib/fitfo";
@@ -203,6 +204,11 @@ export function LogsScreen({
         <View style={styles.sessionList}>
           {workouts.map((item) => {
             const meta = getCompletedWorkoutMeta(item);
+            const displayTitle = getRoutineDisplayTitle({
+              sourceUrl: item.source_url,
+              title: item.title,
+              workoutPlan: item.workout_plan,
+            });
 
             return (
               <Pressable
@@ -218,7 +224,7 @@ export function LogsScreen({
                     <Text style={styles.sessionDate}>
                       {formatCompletedWorkoutDate(item.completed_at)}
                     </Text>
-                    <Text style={styles.sessionTitle}>{item.title}</Text>
+                    <Text style={styles.sessionTitle}>{displayTitle}</Text>
                     <Text style={styles.sessionSummary}>
                       {item.summary || item.description || "Tap to view the full workout summary."}
                     </Text>

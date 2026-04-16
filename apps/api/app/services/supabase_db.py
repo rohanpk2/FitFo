@@ -69,6 +69,16 @@ def _utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+PROFILE_SELECT_FIELDS = "id, full_name, phone, created_at, updated_at"
+PROFILE_ONBOARDING_SELECT_FIELDS = (
+    "user_id, goals, training_split, days_per_week, weight_lbs, height_inches, "
+    "experience_level, age, completed_at, created_at, updated_at"
+)
+BODY_WEIGHT_ENTRY_SELECT_FIELDS = (
+    "id, user_id, weight_lbs, source, recorded_at, created_at, updated_at"
+)
+
+
 def create_ingestion_job(
     source_url: str,
     *,
@@ -370,28 +380,48 @@ def get_profile_by_phone(phone: str) -> dict[str, Any] | None:
     normalized_phone = normalize_phone_number(phone)
     result = (
         supa.table("profiles")
-        .select("id, full_name, phone, created_at, updated_at")
+        .select(PROFILE_SELECT_FIELDS)
         .eq("phone", normalized_phone)
         .limit(1)
         .execute()
     )
     if not result.data:
         return None
-    return result.data[0]
+    return _attach_profile_onboarding(result.data[0])
 
 
 def get_profile_by_id(profile_id: str) -> dict[str, Any] | None:
     supa = get_supabase()
     result = (
         supa.table("profiles")
-        .select("id, full_name, phone, created_at, updated_at")
+        .select(PROFILE_SELECT_FIELDS)
         .eq("id", profile_id)
         .limit(1)
         .execute()
     )
     if not result.data:
         return None
+    return _attach_profile_onboarding(result.data[0])
+
+
+def get_profile_onboarding(user_id: str) -> dict[str, Any] | None:
+    supa = get_supabase()
+    result = (
+        supa.table("profile_onboarding")
+        .select(PROFILE_ONBOARDING_SELECT_FIELDS)
+        .eq("user_id", user_id)
+        .limit(1)
+        .execute()
+    )
+    if not result.data:
+        return None
     return result.data[0]
+
+
+def _attach_profile_onboarding(profile: dict[str, Any]) -> dict[str, Any]:
+    hydrated = dict(profile)
+    hydrated["onboarding"] = get_profile_onboarding(str(profile["id"]))
+    return hydrated
 
 
 def create_profile(*, full_name: str, phone: str) -> dict[str, Any]:
@@ -408,7 +438,120 @@ def create_profile(*, full_name: str, phone: str) -> dict[str, Any]:
     result = supa.table("profiles").insert(payload).execute()
     if not result.data:
         raise RuntimeError("Supabase insert (profiles) returned no data")
+    return _attach_profile_onboarding(result.data[0])
+
+
+def upsert_profile_onboarding(
+    user_id: str,
+    *,
+    goals: list[str],
+    training_split: str,
+    days_per_week: int,
+    weight_lbs: float,
+    height_inches: int,
+    experience_level: str,
+    age: int,
+) -> dict[str, Any]:
+    supa = get_supabase()
+    cleaned_goals = list(dict.fromkeys(goal.strip() for goal in goals if goal.strip()))
+    if not cleaned_goals:
+        raise ValueError("Select at least one goal")
+
+    payload: dict[str, Any] = {
+        "goals": cleaned_goals,
+        "training_split": training_split,
+        "days_per_week": days_per_week,
+        "weight_lbs": weight_lbs,
+        "height_inches": height_inches,
+        "experience_level": experience_level,
+        "age": age,
+    }
+
+    existing = get_profile_onboarding(user_id)
+    if existing is None:
+        result = (
+            supa.table("profile_onboarding")
+            .insert(
+                {
+                    "user_id": user_id,
+                    "completed_at": _utc_now_iso(),
+                    **payload,
+                }
+            )
+            .execute()
+        )
+    else:
+        result = (
+            supa.table("profile_onboarding")
+            .update(payload)
+            .eq("user_id", user_id)
+            .execute()
+        )
+
+    if not result.data:
+        raise RuntimeError("Supabase upsert (profile_onboarding) returned no data")
+    ensure_initial_body_weight_entry(
+        user_id,
+        weight_lbs=weight_lbs,
+        recorded_at=existing["completed_at"] if existing is not None else result.data[0]["completed_at"],
+    )
     return result.data[0]
+
+
+def list_body_weight_entries(user_id: str) -> list[dict[str, Any]]:
+    supa = get_supabase()
+    result = (
+        supa.table("body_weight_entries")
+        .select(BODY_WEIGHT_ENTRY_SELECT_FIELDS)
+        .eq("user_id", user_id)
+        .order("recorded_at", desc=False)
+        .execute()
+    )
+    return list(result.data or [])
+
+
+def create_body_weight_entry(
+    user_id: str,
+    *,
+    weight_lbs: float,
+    source: str = "manual",
+    recorded_at: str | None = None,
+) -> dict[str, Any]:
+    supa = get_supabase()
+    payload: dict[str, Any] = {
+        "user_id": user_id,
+        "weight_lbs": weight_lbs,
+        "source": source,
+        "recorded_at": recorded_at or _utc_now_iso(),
+    }
+    result = supa.table("body_weight_entries").insert(payload).execute()
+    if not result.data:
+        raise RuntimeError("Supabase insert (body_weight_entries) returned no data")
+    return result.data[0]
+
+
+def ensure_initial_body_weight_entry(
+    user_id: str,
+    *,
+    weight_lbs: float,
+    recorded_at: str | None = None,
+) -> dict[str, Any] | None:
+    supa = get_supabase()
+    existing = (
+        supa.table("body_weight_entries")
+        .select("id")
+        .eq("user_id", user_id)
+        .limit(1)
+        .execute()
+    )
+    if existing.data:
+        return None
+    return create_body_weight_entry(
+        user_id,
+        weight_lbs=weight_lbs,
+        source="onboarding",
+        recorded_at=recorded_at,
+    )
 
 
 def upload_bytes_to_storage(

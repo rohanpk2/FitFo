@@ -41,6 +41,8 @@ Run these SQL files in the Supabase SQL editor, in order:
 1. `sql/002_profiles.sql`
 2. `sql/004_profiles_backend_auth.sql`
 3. `sql/005_workout_persistence.sql`
+4. `sql/006_profile_onboarding.sql`
+5. `sql/007_body_weight_entries.sql`
 
 `sql/003_profiles_auth_link.sql` is legacy and only applies to an older `auth.users`-linked profile setup. The current backend OTP flow uses `sql/004_profiles_backend_auth.sql`, which preserves `profiles` data and detaches any stale `auth.users` linkage instead of dropping the table.
 
@@ -59,6 +61,7 @@ Run these SQL files in the Supabase SQL editor, in order:
 - `POST /auth/send-otp` sends the verification code
 - `POST /auth/verify-otp` verifies the code and returns the backend bearer token
 - `GET /auth/me` restores the current user from that bearer token
+- `PUT /auth/onboarding` saves the first-run onboarding profile for the authenticated user
 
 The mobile app stores only the auth session locally. Workout data now loads from the backend after login, so saved workouts and history survive logout/login and device changes.
 
@@ -75,6 +78,8 @@ These endpoints require the backend bearer token in `Authorization: Bearer <toke
 - `GET /completed-workouts`
 - `GET /completed-workouts/{completed_workout_id}`
 - `POST /completed-workouts`
+- `GET /body-weight`
+- `POST /body-weight`
 
 The backend uses the authenticated profile id to scope every workout read/write so users can only access their own saved workouts, imported workouts, and completed workout logs.
 
@@ -86,11 +91,11 @@ The backend uses the authenticated profile id to scope every workout read/write 
 brew install ffmpeg
 ```
 
-Demucs now runs before Whisper so TikTok speech is separated from background music. That means:
+The ingestion flow uses the original simpler pipeline:
 
-- `demucs`, `torch`, and `torchaudio` are installed in the API environment
-- the first Demucs run may download model weights
-- CPU imports and first-run ingestion will be heavier than the old ffmpeg-only setup
+- download the source video
+- extract the full audio track with `ffmpeg`
+- transcribe that audio directly with Whisper
 
 ## Docs
 

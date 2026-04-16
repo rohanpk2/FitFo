@@ -20,13 +20,16 @@ import { getStoredThemeMode, storeThemeMode } from "./src/lib/themeStorage";
 import {
   ApiError,
   checkAccountStatus,
+  createBodyWeightEntry,
   createCompletedWorkout,
   createIngestionJob,
   deleteSavedWorkout,
   getCompletedWorkout,
   getCurrentUser,
+  listBodyWeightEntries,
   listCompletedWorkouts,
   listSavedWorkouts,
+  saveOnboarding,
   saveWorkoutForLater,
   sendOtp,
   verifyOtp,
@@ -41,8 +44,10 @@ import {
 import { ActiveWorkoutScreen } from "./src/screens/ActiveWorkoutScreen";
 import { LoginScreen } from "./src/screens/LoginScreen";
 import { LogsScreen } from "./src/screens/LogsScreen";
+import { OnboardingScreen } from "./src/screens/OnboardingScreen";
 import { OtpVerificationScreen } from "./src/screens/OtpVerificationScreen";
 import { ProfileScreen } from "./src/screens/ProfileScreen";
+import { ProgressChartsScreen } from "./src/screens/ProgressChartsScreen";
 import { SavedWorkoutsScreen } from "./src/screens/SavedWorkoutsScreen";
 import { SignUpScreen } from "./src/screens/SignUpScreen";
 import { WorkoutSummaryScreen } from "./src/screens/WorkoutSummaryScreen";
@@ -51,9 +56,11 @@ import type {
   ActiveSessionPreview,
   AppTab,
   AuthMode,
+  BodyWeightEntryRecord,
   CompletedWorkoutRecord,
   OtpIntent,
   PendingOtpChallenge,
+  SaveOnboardingRequest,
   SavedRoutinePreview,
   UserProfile,
 } from "./src/types";
@@ -75,6 +82,11 @@ export default function App() {
     useState<PendingOtpChallenge | null>(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [isResendingOtp, setIsResendingOtp] = useState(false);
+  const [activeOnboardingUserId, setActiveOnboardingUserId] = useState<string | null>(
+    null,
+  );
+  const [isOnboardingSubmitting, setIsOnboardingSubmitting] = useState(false);
+  const [onboardingError, setOnboardingError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<AppTab>("saved");
   const [activeSession, setActiveSession] = useState<ActiveSessionPreview | null>(
     null,
@@ -98,9 +110,16 @@ export default function App() {
   const [completedWorkoutsError, setCompletedWorkoutsError] = useState<string | null>(
     null,
   );
+  const [bodyWeightEntries, setBodyWeightEntries] = useState<BodyWeightEntryRecord[]>(
+    [],
+  );
+  const [bodyWeightEntriesLoading, setBodyWeightEntriesLoading] = useState(false);
+  const [bodyWeightEntriesError, setBodyWeightEntriesError] = useState<string | null>(
+    null,
+  );
+  const [isBodyWeightSubmitting, setIsBodyWeightSubmitting] = useState(false);
 
   const handledImportedWorkoutId = useRef<string | null>(null);
-  const importDescriptorCursor = useRef(0);
   const { job, workout, error: pollError } = useIngestionJob(jobId, accessToken);
   const theme = getTheme(themeMode);
   const styles = createStyles(theme);
@@ -120,11 +139,9 @@ export default function App() {
     handledImportedWorkoutId.current = workout.id;
     setLatestImportedRoutine(
       createImportedRoutinePreview(workout, {
-        descriptorIndex: importDescriptorCursor.current,
         job,
       }),
     );
-    importDescriptorCursor.current += 1;
   }, [job, workout]);
 
   const resetImportFlow = useCallback(() => {
@@ -179,19 +196,38 @@ export default function App() {
     }
   }, []);
 
+  const loadBodyWeightEntries = useCallback(async (token: string) => {
+    setBodyWeightEntriesLoading(true);
+    setBodyWeightEntriesError(null);
+
+    try {
+      const rows = await listBodyWeightEntries(token);
+      setBodyWeightEntries(rows);
+    } catch (error) {
+      setBodyWeightEntriesError(
+        error instanceof Error ? error.message : "Unable to load body weight history.",
+      );
+    } finally {
+      setBodyWeightEntriesLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (!currentUser || !accessToken) {
       setSavedWorkouts([]);
       setSavedWorkoutsError(null);
       setCompletedWorkouts([]);
       setCompletedWorkoutsError(null);
+      setBodyWeightEntries([]);
+      setBodyWeightEntriesError(null);
       return;
     }
 
     // The backend/database is the source of truth for per-user workout data.
     void loadSavedWorkouts(accessToken);
     void loadCompletedWorkouts(accessToken);
-  }, [accessToken, currentUser, loadCompletedWorkouts, loadSavedWorkouts]);
+    void loadBodyWeightEntries(accessToken);
+  }, [accessToken, currentUser, loadBodyWeightEntries, loadCompletedWorkouts, loadSavedWorkouts]);
 
   const handleExtractWorkout = useCallback(async (url: string) => {
     if (!accessToken) {
@@ -355,12 +391,26 @@ export default function App() {
       setAuthPrefillFullName(profile.full_name);
       setAuthError(null);
       setAuthNotice(null);
+      setOnboardingError(null);
       setPendingOtpChallenge(null);
       setAuthMode("login");
       resetPostLoginState();
     },
     [resetPostLoginState],
   );
+
+  useEffect(() => {
+    if (!currentUser) {
+      setActiveOnboardingUserId(null);
+      setOnboardingError(null);
+      return;
+    }
+
+    if (!currentUser.onboarding && activeOnboardingUserId !== currentUser.id) {
+      setActiveOnboardingUserId(currentUser.id);
+      setOnboardingError(null);
+    }
+  }, [activeOnboardingUserId, currentUser]);
 
   useEffect(() => {
     let isMounted = true;
@@ -625,6 +675,12 @@ export default function App() {
       setSavedWorkoutsError(null);
       setCompletedWorkouts([]);
       setCompletedWorkoutsError(null);
+      setBodyWeightEntries([]);
+      setBodyWeightEntriesError(null);
+      setIsBodyWeightSubmitting(false);
+      setActiveOnboardingUserId(null);
+      setIsOnboardingSubmitting(false);
+      setOnboardingError(null);
       setPendingOtpChallenge(null);
       setAuthMode("login");
       setAuthNotice(null);
@@ -651,6 +707,71 @@ export default function App() {
     setThemeMode(nextMode);
     await storeThemeMode(nextMode).catch(() => undefined);
   }, [themeMode]);
+
+  const handleSaveOnboarding = useCallback(
+    async (payload: SaveOnboardingRequest) => {
+      if (!accessToken) {
+        const message = "You need to be logged in to save onboarding.";
+        setOnboardingError(message);
+        throw new Error(message);
+      }
+
+      setIsOnboardingSubmitting(true);
+      setOnboardingError(null);
+
+      try {
+        const response = await saveOnboarding(accessToken, payload);
+        setCurrentUser(response.profile);
+        setAuthPrefillPhone(response.profile.phone);
+        setAuthPrefillFullName(response.profile.full_name);
+        await storeAuthSession(accessToken, response.profile);
+        await loadBodyWeightEntries(accessToken);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Unable to save onboarding.";
+        setOnboardingError(message);
+        throw error instanceof Error ? error : new Error(message);
+      } finally {
+        setIsOnboardingSubmitting(false);
+      }
+    },
+    [accessToken, loadBodyWeightEntries],
+  );
+
+  const handleAddBodyWeightEntry = useCallback(
+    async (weightLbs: number) => {
+      if (!accessToken) {
+        throw new Error("You need to be logged in to save weight.");
+      }
+
+      setIsBodyWeightSubmitting(true);
+      setBodyWeightEntriesError(null);
+
+      try {
+        const created = await createBodyWeightEntry(accessToken, {
+          weight_lbs: weightLbs,
+        });
+        setBodyWeightEntries((current) => [...current, created].sort((left, right) => {
+          return (
+            new Date(left.recorded_at).getTime() - new Date(right.recorded_at).getTime()
+          );
+        }));
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Unable to save body weight.";
+        setBodyWeightEntriesError(message);
+        throw error instanceof Error ? error : new Error(message);
+      } finally {
+        setIsBodyWeightSubmitting(false);
+      }
+    },
+    [accessToken],
+  );
+
+  const handleDismissOnboarding = useCallback(() => {
+    setActiveOnboardingUserId(null);
+    setOnboardingError(null);
+  }, []);
 
   const handleRemoveSavedWorkout = useCallback(
     async (savedWorkoutId: string) => {
@@ -757,8 +878,31 @@ export default function App() {
       );
     }
 
+    if (activeTab === "charts") {
+      return currentUser ? (
+        <ProgressChartsScreen
+          bodyWeightError={bodyWeightEntriesError}
+          completedWorkouts={completedWorkouts}
+          error={bodyWeightEntriesError || completedWorkoutsError}
+          isLoading={bodyWeightEntriesLoading || completedWorkoutsLoading}
+          isSubmittingWeightEntry={isBodyWeightSubmitting}
+          onAddWeightEntry={handleAddBodyWeightEntry}
+          onRetry={() => {
+            if (accessToken) {
+              void loadCompletedWorkouts(accessToken);
+              void loadBodyWeightEntries(accessToken);
+            }
+          }}
+          profile={currentUser}
+          themeMode={themeMode}
+          weightEntries={bodyWeightEntries}
+        />
+      ) : null;
+    }
+
     return currentUser ? (
       <ProfileScreen
+        onEditOnboarding={() => setActiveOnboardingUserId(currentUser.id)}
         onLogout={handleLogout}
         onToggleThemeMode={handleToggleThemeMode}
         profile={currentUser}
@@ -782,18 +926,30 @@ export default function App() {
             </Text>
           </View>
         ) : currentUser ? (
-          <>
-            <View style={styles.screenArea}>{renderAuthenticatedScreen()}</View>
-            <BottomNav
-              activeTab={activeTab}
-              onChangeTab={(tab) => {
-                setIsActiveWorkoutVisible(false);
-                setSelectedCompletedWorkout(null);
-                setActiveTab(tab);
-              }}
+          !currentUser.onboarding || activeOnboardingUserId === currentUser.id ? (
+            <OnboardingScreen
+              error={onboardingError}
+              isSubmitting={isOnboardingSubmitting}
+              mode={currentUser.onboarding ? "edit" : "required"}
+              onDismiss={handleDismissOnboarding}
+              onSubmit={handleSaveOnboarding}
+              profile={currentUser}
               themeMode={themeMode}
             />
-          </>
+          ) : (
+            <>
+              <View style={styles.screenArea}>{renderAuthenticatedScreen()}</View>
+              <BottomNav
+                activeTab={activeTab}
+                onChangeTab={(tab) => {
+                  setIsActiveWorkoutVisible(false);
+                  setSelectedCompletedWorkout(null);
+                  setActiveTab(tab);
+                }}
+                themeMode={themeMode}
+              />
+            </>
+          )
         ) : authMode === "otp" && pendingOtpChallenge ? (
           <OtpVerificationScreen
             error={authError}

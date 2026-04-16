@@ -11,7 +11,7 @@ import type {
   WorkoutRow,
 } from "../types";
 
-const IMPORT_DESCRIPTORS = [
+const LEGACY_IMPORT_DESCRIPTORS = [
   "Killer",
   "Savage",
   "Explosive",
@@ -37,6 +37,10 @@ const IMPORT_DESCRIPTORS = [
   "Athletic",
   "Crushing",
 ];
+
+const LEGACY_IMPORT_DESCRIPTOR_SET = new Set(
+  LEGACY_IMPORT_DESCRIPTORS.map((descriptor) => descriptor.toLowerCase()),
+);
 
 const GENERIC_ROUTINE_TITLES = new Set([
   "workout",
@@ -89,8 +93,33 @@ function parseCreatorFromSourceUrl(sourceUrl: string | null | undefined): string
   }
 }
 
-function getImportDescriptor(index: number): string {
-  return IMPORT_DESCRIPTORS[index % IMPORT_DESCRIPTORS.length] || IMPORT_DESCRIPTORS[0];
+function normalizeTitleToken(value: string): string {
+  return value.replace(/^[^a-zA-Z]+|[^a-zA-Z-]+$/g, "").toLowerCase();
+}
+
+function stripLegacyImportDescriptor(title: string): string {
+  const words = title.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) {
+    return title;
+  }
+
+  const leadingDescriptor = normalizeTitleToken(words[0]);
+  if (LEGACY_IMPORT_DESCRIPTOR_SET.has(leadingDescriptor)) {
+    return words.slice(1).join(" ").trim();
+  }
+
+  for (let index = 0; index < words.length - 1; index += 1) {
+    const currentWord = words[index];
+    const nextWord = words[index + 1];
+    const hasPossessiveEnding = /('s|')$/i.test(currentWord);
+    const nextDescriptor = normalizeTitleToken(nextWord);
+
+    if (hasPossessiveEnding && LEGACY_IMPORT_DESCRIPTOR_SET.has(nextDescriptor)) {
+      return [...words.slice(0, index + 1), ...words.slice(index + 2)].join(" ").trim();
+    }
+  }
+
+  return title.trim();
 }
 
 function extractCreatorName(job?: JobResponse | null): string | null {
@@ -215,6 +244,69 @@ function getWorkoutFocus(workout: WorkoutRow, job?: JobResponse | null): string 
   }
 }
 
+function getWorkoutFocusFromPlan(plan: WorkoutPlan, fallbackTitle?: string | null): string | null {
+  const explicitTitle = asString(plan.title) || asString(fallbackTitle);
+  if (
+    explicitTitle &&
+    !GENERIC_ROUTINE_TITLES.has(explicitTitle.toLowerCase())
+  ) {
+    return stripLegacyImportDescriptor(humanizeWords(explicitTitle));
+  }
+
+  const primaryExercise = getPrimaryExerciseName(plan);
+  if (primaryExercise) {
+    const inferredFromExercise = inferFocusFromText(primaryExercise);
+    if (inferredFromExercise) {
+      return inferredFromExercise;
+    }
+
+    return primaryExercise;
+  }
+
+  switch (plan.workout_type) {
+    case "strength":
+      return "Strength Session";
+    case "cardio":
+      return "Cardio Session";
+    case "HIIT":
+      return "HIIT Blast";
+    case "flexibility":
+      return "Flexibility Flow";
+    case "mobility":
+      return "Mobility Flow";
+    case "mixed":
+      return "Full Body Session";
+    default:
+      return "Workout";
+  }
+}
+
+export function getRoutineDisplayTitle(input: {
+  sourceUrl?: string | null;
+  title: string;
+  workoutPlan?: WorkoutPlan | null;
+}): string {
+  const cleanedTitle = stripLegacyImportDescriptor(input.title);
+  if (
+    cleanedTitle &&
+    !GENERIC_ROUTINE_TITLES.has(cleanedTitle.toLowerCase())
+  ) {
+    return cleanedTitle;
+  }
+
+  const creatorSlug = parseCreatorFromSourceUrl(input.sourceUrl);
+  const creatorName = creatorSlug ? humanizeWords(creatorSlug) : null;
+  const focus = input.workoutPlan
+    ? getWorkoutFocusFromPlan(input.workoutPlan, cleanedTitle)
+    : null;
+
+  if (focus) {
+    return creatorName ? `${toPossessive(creatorName)} ${focus}` : focus;
+  }
+
+  return cleanedTitle || "Workout";
+}
+
 function getImportedDescription(
   workout: WorkoutRow,
   creatorName: string | null,
@@ -323,13 +415,11 @@ function computeAverageRestSeconds(plan: WorkoutPlan): number | null {
 export function createImportedRoutinePreview(
   workout: WorkoutRow,
   options?: {
-    descriptorIndex?: number;
     job?: JobResponse | null;
   },
 ): SavedRoutinePreview {
   const creatorName = extractCreatorName(options?.job);
   const focus = getWorkoutFocus(workout, options?.job);
-  const descriptor = getImportDescriptor(options?.descriptorIndex ?? 0);
   const exerciseCount = workout.plan.blocks.reduce(
     (count, block) => count + block.exercises.length,
     0,
@@ -341,8 +431,8 @@ export function createImportedRoutinePreview(
     jobId: workout.job_id,
     sourceUrl: options?.job?.source_url ?? null,
     title: creatorName
-      ? `${toPossessive(creatorName)} ${descriptor} ${focus}`
-      : `${descriptor} ${focus}`,
+      ? `${toPossessive(creatorName)} ${focus}`
+      : focus,
     description: getImportedDescription(workout, creatorName, focus),
     metaLeft: exerciseCount > 0 ? `${exerciseCount} exercises` : `${workout.plan.blocks.length} blocks`,
     metaRight: `${workout.plan.confidence} confidence`,
@@ -422,7 +512,11 @@ export function createSavedRoutinePreviewFromRecord(
     workoutId: record.workout_id,
     jobId: record.job_id,
     sourceUrl: record.source_url,
-    title: record.title,
+    title: getRoutineDisplayTitle({
+      sourceUrl: record.source_url,
+      title: record.title,
+      workoutPlan: record.workout_plan,
+    }),
     description: record.description || "Saved to your FitFo library.",
     metaLeft: record.meta_left || "Saved workout",
     metaRight: record.meta_right || "Ready",

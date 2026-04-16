@@ -5,6 +5,7 @@ import { getTheme, type ThemeMode } from "../theme";
 import type { UserProfile } from "../types";
 
 interface ProfileScreenProps {
+  onEditOnboarding: () => void;
   onLogout: () => void;
   onToggleThemeMode: () => void;
   profile: UserProfile;
@@ -25,6 +26,7 @@ const preferenceRows = [
 ];
 
 export function ProfileScreen({
+  onEditOnboarding,
   onLogout,
   onToggleThemeMode,
   profile,
@@ -103,6 +105,19 @@ export function ProfileScreen({
       </View>
 
       <View style={styles.infoList}>
+        <Pressable onPress={onEditOnboarding} style={styles.infoCard}>
+          <View style={styles.infoIcon}>
+            <Ionicons color={theme.colors.primary} name="create-outline" size={18} />
+          </View>
+          <View style={styles.infoCopy}>
+            <Text style={styles.infoTitle}>Edit training setup</Text>
+            <Text style={styles.infoBody}>
+              Update your goals, split, body stats, and experience whenever you need.
+            </Text>
+          </View>
+          <Ionicons color={theme.colors.textMuted} name="chevron-forward" size={18} />
+        </Pressable>
+
         {preferenceRows.map((row) => (
           <View key={row.title} style={styles.infoCard}>
             <View style={styles.infoIcon}>

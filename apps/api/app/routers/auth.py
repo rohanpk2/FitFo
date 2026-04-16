@@ -3,11 +3,13 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, status
 from twilio.base.exceptions import TwilioRestException
 
-from app.routers.deps import require_access_payload
+from app.routers.deps import require_access_payload, require_profile_id
 from app.schemas.auth import (
     AccountStatusRequest,
     AccountStatusResponse,
     MeResponse,
+    SaveOnboardingRequest,
+    SaveOnboardingResponse,
     SendOtpRequest,
     SendOtpResponse,
     VerifyOtpRequest,
@@ -29,6 +31,29 @@ def _clean_signup_name(full_name: str | None) -> str:
     if not clean_name:
         raise HTTPException(status_code=400, detail="Full name is required to sign up.")
     return clean_name
+
+
+def _clean_onboarding_payload(body: SaveOnboardingRequest) -> dict[str, Any]:
+    goals: list[str] = []
+    seen_goals: set[str] = set()
+    for goal in body.goals:
+        value = str(goal).strip()
+        if value and value not in seen_goals:
+            goals.append(value)
+            seen_goals.add(value)
+
+    if not goals:
+        raise HTTPException(status_code=400, detail="Pick at least one goal.")
+
+    return {
+        "goals": goals,
+        "training_split": str(body.training_split),
+        "days_per_week": body.days_per_week,
+        "weight_lbs": body.weight_lbs,
+        "height_inches": body.height_inches,
+        "experience_level": str(body.experience_level),
+        "age": body.age,
+    }
 
 
 @router.post("/account-status", response_model=AccountStatusResponse)
@@ -177,3 +202,34 @@ def me(payload: dict[str, Any] = Depends(require_access_payload)) -> MeResponse:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to load profile: {exc}") from exc
+
+
+@router.put("/onboarding", response_model=SaveOnboardingResponse)
+def save_onboarding(
+    body: SaveOnboardingRequest,
+    profile_id: str = Depends(require_profile_id),
+) -> SaveOnboardingResponse:
+    try:
+        supabase_db.upsert_profile_onboarding(
+            profile_id,
+            **_clean_onboarding_payload(body),
+        )
+        profile = supabase_db.get_profile_by_id(profile_id)
+        if profile is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Profile not found for this access token.",
+            )
+        return SaveOnboardingResponse(
+            ok=True,
+            profile=profile,
+            message="Onboarding saved.",
+        )
+    except HTTPException:
+        raise
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except supabase_db.SupabaseNotConfiguredError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to save onboarding: {exc}") from exc

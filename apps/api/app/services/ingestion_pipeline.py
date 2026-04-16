@@ -4,11 +4,10 @@ import os
 import subprocess
 import tempfile
 from pathlib import Path
-from typing import Any
 
 import httpx
 
-from app.services import demucs, supabase_db, tikwm, whisper, workout_parser
+from app.services import supabase_db, tikwm, whisper, workout_parser
 
 
 class IngestionPipelineError(RuntimeError):
@@ -47,7 +46,7 @@ def _run_ffmpeg(cmd: list[str], *, output_path: Path, error_prefix: str) -> None
 
 def _extract_audio_ffmpeg(video_path: Path, audio_path: Path) -> None:
     """
-    Extract mono 16kHz mp3 for mixed-audio fallback transcription.
+    Extract the full video audio track as mono 16kHz mp3 for transcription.
     """
     cmd = [
         "ffmpeg",
@@ -63,46 +62,7 @@ def _extract_audio_ffmpeg(video_path: Path, audio_path: Path) -> None:
         "64k",
         str(audio_path),
     ]
-    _run_ffmpeg(cmd, output_path=audio_path, error_prefix="ffmpeg mixed audio extraction failed")
-
-
-def _extract_demucs_input_ffmpeg(video_path: Path, audio_path: Path) -> None:
-    """
-    Extract stereo WAV for Demucs source separation.
-    """
-    cmd = [
-        "ffmpeg",
-        "-y",
-        "-i",
-        str(video_path),
-        "-vn",
-        "-ac",
-        "2",
-        "-ar",
-        "44100",
-        str(audio_path),
-    ]
-    _run_ffmpeg(cmd, output_path=audio_path, error_prefix="ffmpeg Demucs input extraction failed")
-
-
-def _encode_audio_ffmpeg(source_path: Path, audio_path: Path) -> None:
-    """
-    Convert any audio source to mono 16kHz mp3 for Whisper.
-    """
-    cmd = [
-        "ffmpeg",
-        "-y",
-        "-i",
-        str(source_path),
-        "-ac",
-        "1",
-        "-ar",
-        "16000",
-        "-b:a",
-        "64k",
-        str(audio_path),
-    ]
-    _run_ffmpeg(cmd, output_path=audio_path, error_prefix="ffmpeg transcription audio encoding failed")
+    _run_ffmpeg(cmd, output_path=audio_path, error_prefix="ffmpeg audio extraction failed")
 
 
 def _read_bytes(p: Path) -> bytes:
@@ -163,8 +123,7 @@ async def run_ingestion_job(job_id: str, source_url: str) -> None:
     - resolve via TikWM (metadata only)
     - update provider_meta + status
     - download mp4
-    - extract mixed audio via ffmpeg
-    - separate vocals with Demucs when available
+    - extract the full audio track via ffmpeg
     - upload to Supabase Storage bucket (raw-media)
     - update provider_meta with storage paths and mark status ready for transcription
     """
@@ -189,10 +148,7 @@ async def run_ingestion_job(job_id: str, source_url: str) -> None:
         with tempfile.TemporaryDirectory(prefix="liftsync_") as d:
             tmp = Path(d)
             video_path = tmp / "video.mp4"
-            mixed_audio_path = tmp / "audio.mp3"
-            demucs_input_path = tmp / "demucs_input.wav"
-            vocals_audio_path = tmp / "vocals.mp3"
-            demucs_output_dir = tmp / "demucs"
+            audio_path = tmp / "audio.mp3"
 
             await _download_to_file(download_url, video_path)
 
@@ -210,7 +166,6 @@ async def run_ingestion_job(job_id: str, source_url: str) -> None:
             bucket = _bucket()
             video_storage_path = f"jobs/{job_id}/video.mp4"
             audio_storage_path = f"jobs/{job_id}/audio.mp3"
-            vocals_storage_path = f"jobs/{job_id}/vocals.mp3"
 
             supabase_db.upload_bytes_to_storage(
                 bucket=bucket,
@@ -220,11 +175,11 @@ async def run_ingestion_job(job_id: str, source_url: str) -> None:
                 upsert=True,
             )
             try:
-                _extract_audio_ffmpeg(video_path, mixed_audio_path)
+                _extract_audio_ffmpeg(video_path, audio_path)
                 supabase_db.upload_bytes_to_storage(
                     bucket=bucket,
                     path=audio_storage_path,
-                    content=_read_bytes(mixed_audio_path),
+                    content=_read_bytes(audio_path),
                     content_type="audio/mpeg",
                     upsert=True,
                 )
@@ -240,57 +195,21 @@ async def run_ingestion_job(job_id: str, source_url: str) -> None:
                 supabase_db.update_ingestion_job(job_id, status="failed", error=str(exc), provider_meta=provider_meta)
                 return
 
-            transcription_audio_path = mixed_audio_path
-            transcription_audio_source = "mixed"
-            stored_vocals_path: str | None = None
-            demucs_meta: dict[str, Any] = {
-                "attempted": True,
-                "ok": False,
-                "model": demucs.DEFAULT_MODEL,
-                "error": None,
-                "fallback_used": True,
-            }
-
-            try:
-                _extract_demucs_input_ffmpeg(video_path, demucs_input_path)
-                vocals_wav_path = demucs.separate_vocals(
-                    demucs_input_path,
-                    demucs_output_dir,
-                    model=demucs.DEFAULT_MODEL,
-                )
-                _encode_audio_ffmpeg(vocals_wav_path, vocals_audio_path)
-                supabase_db.upload_bytes_to_storage(
-                    bucket=bucket,
-                    path=vocals_storage_path,
-                    content=_read_bytes(vocals_audio_path),
-                    content_type="audio/mpeg",
-                    upsert=True,
-                )
-                transcription_audio_path = vocals_audio_path
-                transcription_audio_source = "vocals"
-                stored_vocals_path = vocals_storage_path
-                demucs_meta["ok"] = True
-                demucs_meta["fallback_used"] = False
-            except Exception as exc:
-                demucs_meta["error"] = str(exc)
-
             provider_meta = supabase_db.merge_provider_meta(
                 provider_meta,
                 {
-                    "demucs": demucs_meta,
-                    "transcription_audio_source": transcription_audio_source,
+                    "transcription_audio_source": "audio",
                     "storage": {
                         "bucket": bucket,
                         "video_path": video_storage_path,
                         "audio_path": audio_storage_path,
-                        "vocals_path": stored_vocals_path,
                     }
                 },
             )
             supabase_db.update_ingestion_job(job_id, status="transcribing", provider_meta=provider_meta)
 
-            # --- Transcription stage (prefers separated vocals, falls back to mixed audio) ---
-            await _run_transcription(job_id, transcription_audio_path)
+            # --- Transcription stage (uses the full extracted audio track) ---
+            await _run_transcription(job_id, audio_path)
 
             # --- Parsing stage ---
             await _run_parsing(job_id)

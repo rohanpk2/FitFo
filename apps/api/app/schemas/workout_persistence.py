@@ -70,3 +70,17 @@ class CompletedWorkoutResponse(BaseModel):
     completed_at: str
     created_at: str | None = None
     updated_at: str | None = None
+
+
+class BodyWeightEntryCreateRequest(BaseModel):
+    weight_lbs: float = Field(..., gt=0, le=1000)
+
+
+class BodyWeightEntryResponse(BaseModel):
+    id: str
+    user_id: str
+    weight_lbs: float
+    source: str
+    recorded_at: str
+    created_at: str | None = None
+    updated_at: str | None = None
