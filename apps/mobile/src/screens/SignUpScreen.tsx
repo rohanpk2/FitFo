@@ -62,9 +62,6 @@ export function SignUpScreen({
         bounces={false}
       >
         <View style={styles.hero}>
-          <View style={styles.badge}>
-            <Ionicons color={theme.colors.surface} name="sparkles" size={16} />
-          </View>
           <Text style={styles.eyebrow}>Figure it the f*ck out</Text>
           <Text
             style={styles.title}
@@ -178,23 +175,13 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     },
     shell: {
       flexGrow: 1,
-      justifyContent: "space-between",
       paddingHorizontal: 24,
-      paddingTop: Platform.OS === "ios" ? 60 : 36,
+      paddingTop: Platform.OS === "ios" ? 48 : 32,
       paddingBottom: 24,
-      gap: 14,
+      gap: 20,
     },
     hero: {
       gap: 10,
-    },
-    badge: {
-      width: 48,
-      height: 48,
-      borderRadius: 999,
-      alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: theme.colors.primary,
-      marginBottom: 4,
     },
     eyebrow: {
       color: theme.colors.primary,
@@ -227,16 +214,17 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       maxWidth: 330,
     },
     card: {
-      borderRadius: 28,
+      borderRadius: 32,
       backgroundColor: theme.colors.surface,
-      padding: 18,
-      gap: 12,
+      paddingHorizontal: 24,
+      paddingVertical: 28,
+      gap: 18,
       borderWidth: 1,
       borderColor: theme.mode === "dark" ? theme.colors.borderSoft : "transparent",
       ...theme.shadows.card,
     },
     fieldGroup: {
-      gap: 8,
+      gap: 10,
     },
     label: {
       color: theme.colors.textMuted,
@@ -246,20 +234,20 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       textTransform: "uppercase",
     },
     inputShell: {
-      minHeight: 56,
-      borderRadius: 20,
+      minHeight: 64,
+      borderRadius: 22,
       backgroundColor: theme.colors.surfaceMuted,
       borderWidth: 1,
       borderColor: theme.colors.borderSoft,
       flexDirection: "row",
       alignItems: "center",
       gap: 12,
-      paddingHorizontal: 16,
+      paddingHorizontal: 18,
     },
     input: {
       flex: 1,
       color: theme.colors.textPrimary,
-      fontSize: 16,
+      fontSize: 17,
       fontWeight: "700",
     },
     termsRow: {
@@ -314,8 +302,8 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       fontWeight: "700",
     },
     primaryButton: {
-      minHeight: 60,
-      borderRadius: 22,
+      minHeight: 68,
+      borderRadius: 24,
       backgroundColor: theme.colors.primaryBright,
       flexDirection: "row",
       alignItems: "center",

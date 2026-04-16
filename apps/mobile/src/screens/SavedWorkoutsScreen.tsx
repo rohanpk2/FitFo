@@ -146,14 +146,6 @@ export function SavedWorkoutsScreen({
           </View>
           <Text style={styles.brandText}>FitFo</Text>
         </View>
-        <View style={styles.headerIcons}>
-          <View style={styles.headerIconBtn}>
-            <Ionicons color={theme.colors.primary} name="search" size={18} />
-          </View>
-          <View style={styles.headerIconBtn}>
-            <Ionicons color={theme.colors.primary} name="settings-outline" size={18} />
-          </View>
-        </View>
       </View>
 
       <View style={styles.titleBlock}>
@@ -307,22 +299,6 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       fontSize: 22,
       fontWeight: "800",
       letterSpacing: -0.5,
-    },
-    headerIcons: {
-      flexDirection: "row",
-      gap: 10,
-    },
-    headerIconBtn: {
-      width: 38,
-      height: 38,
-      borderRadius: 999,
-      backgroundColor: theme.colors.surface,
-      alignItems: "center",
-      justifyContent: "center",
-      borderWidth: 1,
-      borderColor:
-        theme.mode === "dark" ? theme.colors.borderSoft : "transparent",
-      ...theme.shadows.softCard,
     },
     titleBlock: {
       gap: 8,
