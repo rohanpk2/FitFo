@@ -274,6 +274,24 @@ export interface SavedWorkoutUpsertRequest {
   workout_plan?: WorkoutPlan | null;
 }
 
+export interface DailyWorkoutRecord {
+  id: string;
+  category: "cardio" | "core";
+  title: string;
+  description: string;
+  meta_left: string;
+  meta_right: string;
+  badge_label: string;
+  generated_for_date: string;
+  workout_plan: WorkoutPlan;
+}
+
+export interface DailyWorkoutsResponse {
+  generated_for_date: string;
+  source: "llm" | "fallback";
+  workouts: DailyWorkoutRecord[];
+}
+
 export interface CompletedWorkoutRecord {
   id: string;
   user_id: string;

@@ -3,6 +3,7 @@ import type {
   ActiveSessionPreview,
   CompletedWorkoutCreateRequest,
   CompletedWorkoutRecord,
+  DailyWorkoutRecord,
   JobResponse,
   SavedWorkoutRecord,
   SavedRoutinePreview,
@@ -522,6 +523,24 @@ export function createSavedRoutinePreviewFromRecord(
     metaRight: record.meta_right || "Ready",
     badgeLabel: record.badge_label || "Saved",
     workoutPlan: record.workout_plan || undefined,
+  };
+}
+
+export function createDailyRoutinePreview(
+  record: DailyWorkoutRecord,
+): SavedRoutinePreview {
+  return {
+    id: record.id,
+    title: getRoutineDisplayTitle({
+      sourceUrl: null,
+      title: record.title,
+      workoutPlan: record.workout_plan,
+    }),
+    description: record.description,
+    metaLeft: record.meta_left,
+    metaRight: record.meta_right,
+    badgeLabel: record.badge_label,
+    workoutPlan: record.workout_plan,
   };
 }
 

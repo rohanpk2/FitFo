@@ -15,7 +15,7 @@ const tabs: Array<{
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
 }> = [
-  { key: "saved", label: "Saved", icon: "bookmark" },
+  { key: "saved", label: "Workouts", icon: "barbell" },
   { key: "logs", label: "Logs", icon: "bar-chart" },
   { key: "charts", label: "Charts", icon: "pulse" },
   { key: "profile", label: "Profile", icon: "person" },

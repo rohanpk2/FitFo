@@ -217,6 +217,8 @@ function SetRow({
   styles,
   theme,
 }: SetRowProps) {
+  const isTimedSet = set.targetDurationSec != null;
+
   if (!isActive) {
     return (
       <View
@@ -248,8 +250,12 @@ function SetRow({
           </View>
           <Text style={styles.setRowHint}>
             {set.completed
-              ? "Tap to update your logged weight or reps."
-              : "Tap to open this set and log it."}
+              ? isTimedSet
+                ? "Tap to update your logged time."
+                : "Tap to update your logged weight or reps."
+              : isTimedSet
+                ? "Tap to open this interval and log your time."
+                : "Tap to open this set and log it."}
           </Text>
         </Pressable>
         {canRemove ? (
@@ -294,38 +300,55 @@ function SetRow({
       </View>
 
       <View style={styles.inputRow}>
-        <View style={styles.inputField}>
-          <Text style={styles.inputLabel}>Weight</Text>
-          <TextInput
-            keyboardType="decimal-pad"
-            onEndEditing={() => onMaybeComplete(exerciseId, set.id)}
-            onChangeText={(value) => onWeightChange(exerciseId, set.id, sanitizeWeight(value))}
-            placeholder="0"
-            placeholderTextColor={theme.colors.textMuted}
-            style={styles.input}
-            value={set.loggedWeight}
-          />
-        </View>
+        {isTimedSet ? (
+          <View style={[styles.inputField, styles.inputFieldFull]}>
+            <Text style={styles.inputLabel}>Time</Text>
+            <TextInput
+              keyboardType="number-pad"
+              onEndEditing={() => onMaybeComplete(exerciseId, set.id)}
+              onChangeText={(value) => onRepsChange(exerciseId, set.id, sanitizeReps(value))}
+              placeholder="Secs"
+              placeholderTextColor={theme.colors.textMuted}
+              style={styles.input}
+              value={set.loggedReps}
+            />
+          </View>
+        ) : (
+          <>
+            <View style={styles.inputField}>
+              <Text style={styles.inputLabel}>Weight</Text>
+              <TextInput
+                keyboardType="decimal-pad"
+                onEndEditing={() => onMaybeComplete(exerciseId, set.id)}
+                onChangeText={(value) => onWeightChange(exerciseId, set.id, sanitizeWeight(value))}
+                placeholder="0"
+                placeholderTextColor={theme.colors.textMuted}
+                style={styles.input}
+                value={set.loggedWeight}
+              />
+            </View>
 
-        <View style={styles.inputField}>
-          <Text style={styles.inputLabel}>Reps</Text>
-          <TextInput
-            keyboardType="number-pad"
-            onEndEditing={() => onMaybeComplete(exerciseId, set.id)}
-            onChangeText={(value) => onRepsChange(exerciseId, set.id, sanitizeReps(value))}
-            placeholder={set.targetDurationSec != null ? "Secs" : "0"}
-            placeholderTextColor={theme.colors.textMuted}
-            style={styles.input}
-            value={set.loggedReps}
-          />
-        </View>
+            <View style={styles.inputField}>
+              <Text style={styles.inputLabel}>Reps</Text>
+              <TextInput
+                keyboardType="number-pad"
+                onEndEditing={() => onMaybeComplete(exerciseId, set.id)}
+                onChangeText={(value) => onRepsChange(exerciseId, set.id, sanitizeReps(value))}
+                placeholder="0"
+                placeholderTextColor={theme.colors.textMuted}
+                style={styles.input}
+                value={set.loggedReps}
+              />
+            </View>
+          </>
+        )}
       </View>
 
       <Text style={styles.autoAdvanceText}>
         {set.completed
           ? "Adjust the numbers here any time and this set will stay saved."
           : set.targetDurationSec != null
-          ? "Enter your seconds and the next set will open."
+          ? "Enter your completed seconds and the next interval will open."
           : "Enter weight and reps, then the next set will open automatically."}
       </Text>
 
@@ -1492,6 +1515,9 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
     inputField: {
       flex: 1,
       gap: 6,
+    },
+    inputFieldFull: {
+      flex: 1,
     },
     inputLabel: {
       color: theme.colors.textMuted,

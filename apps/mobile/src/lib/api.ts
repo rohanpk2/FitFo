@@ -5,6 +5,7 @@ import type {
   BodyWeightEntryRecord,
   CompletedWorkoutCreateRequest,
   CompletedWorkoutRecord,
+  DailyWorkoutsResponse,
   IngestRequest,
   IngestResponse,
   JobResponse,
@@ -224,5 +225,14 @@ export async function createBodyWeightEntry(
     method: "POST",
     accessToken,
     body: JSON.stringify(body),
+  });
+}
+
+export async function listDailyWorkouts(
+  accessToken: string,
+): Promise<DailyWorkoutsResponse> {
+  return request<DailyWorkoutsResponse>("/daily-workouts", {
+    method: "GET",
+    accessToken,
   });
 }

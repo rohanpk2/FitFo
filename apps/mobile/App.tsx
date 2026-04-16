@@ -28,6 +28,7 @@ import {
   getCurrentUser,
   listBodyWeightEntries,
   listCompletedWorkouts,
+  listDailyWorkouts,
   listSavedWorkouts,
   saveOnboarding,
   saveWorkoutForLater,
@@ -37,6 +38,7 @@ import {
 import {
   buildCompletedWorkoutRequest,
   createActiveSessionFromPlan,
+  createDailyRoutinePreview,
   createDefaultActiveSession,
   createImportedRoutinePreview,
   createSavedRoutinePreviewFromRecord,
@@ -58,6 +60,7 @@ import type {
   AuthMode,
   BodyWeightEntryRecord,
   CompletedWorkoutRecord,
+  DailyWorkoutRecord,
   OtpIntent,
   PendingOtpChallenge,
   SaveOnboardingRequest,
@@ -103,6 +106,9 @@ export default function App() {
   const [savedWorkouts, setSavedWorkouts] = useState<SavedRoutinePreview[]>([]);
   const [savedWorkoutsLoading, setSavedWorkoutsLoading] = useState(false);
   const [savedWorkoutsError, setSavedWorkoutsError] = useState<string | null>(null);
+  const [dailyWorkouts, setDailyWorkouts] = useState<DailyWorkoutRecord[]>([]);
+  const [dailyWorkoutsLoading, setDailyWorkoutsLoading] = useState(false);
+  const [dailyWorkoutsError, setDailyWorkoutsError] = useState<string | null>(null);
   const [completedWorkouts, setCompletedWorkouts] = useState<CompletedWorkoutRecord[]>(
     [],
   );
@@ -179,6 +185,22 @@ export default function App() {
     }
   }, []);
 
+  const loadDailyWorkouts = useCallback(async (token: string) => {
+    setDailyWorkoutsLoading(true);
+    setDailyWorkoutsError(null);
+
+    try {
+      const response = await listDailyWorkouts(token);
+      setDailyWorkouts(response.workouts);
+    } catch (error) {
+      setDailyWorkoutsError(
+        error instanceof Error ? error.message : "Unable to load daily workouts.",
+      );
+    } finally {
+      setDailyWorkoutsLoading(false);
+    }
+  }, []);
+
   const loadCompletedWorkouts = useCallback(async (token: string) => {
     setCompletedWorkoutsLoading(true);
     setCompletedWorkoutsError(null);
@@ -216,6 +238,8 @@ export default function App() {
     if (!currentUser || !accessToken) {
       setSavedWorkouts([]);
       setSavedWorkoutsError(null);
+      setDailyWorkouts([]);
+      setDailyWorkoutsError(null);
       setCompletedWorkouts([]);
       setCompletedWorkoutsError(null);
       setBodyWeightEntries([]);
@@ -225,9 +249,17 @@ export default function App() {
 
     // The backend/database is the source of truth for per-user workout data.
     void loadSavedWorkouts(accessToken);
+    void loadDailyWorkouts(accessToken);
     void loadCompletedWorkouts(accessToken);
     void loadBodyWeightEntries(accessToken);
-  }, [accessToken, currentUser, loadBodyWeightEntries, loadCompletedWorkouts, loadSavedWorkouts]);
+  }, [
+    accessToken,
+    currentUser,
+    loadBodyWeightEntries,
+    loadCompletedWorkouts,
+    loadDailyWorkouts,
+    loadSavedWorkouts,
+  ]);
 
   const handleExtractWorkout = useCallback(async (url: string) => {
     if (!accessToken) {
@@ -673,6 +705,8 @@ export default function App() {
       setCurrentUser(null);
       setSavedWorkouts([]);
       setSavedWorkoutsError(null);
+      setDailyWorkouts([]);
+      setDailyWorkoutsError(null);
       setCompletedWorkouts([]);
       setCompletedWorkoutsError(null);
       setBodyWeightEntries([]);
@@ -843,14 +877,18 @@ export default function App() {
     if (activeTab === "saved") {
       return (
         <SavedWorkoutsScreen
+          dailyError={dailyWorkoutsError}
+          dailyWorkouts={dailyWorkouts.map(createDailyRoutinePreview)}
           error={savedWorkoutsError}
           importedWorkouts={savedWorkouts}
+          isDailyLoading={dailyWorkoutsLoading}
           isLoading={savedWorkoutsLoading}
           onAddWorkout={handleOpenAddWorkout}
           onRemoveWorkout={handleRemoveSavedWorkout}
           onRetry={() => {
             if (accessToken) {
               void loadSavedWorkouts(accessToken);
+              void loadDailyWorkouts(accessToken);
             }
           }}
           onStartSession={handleStartSession}

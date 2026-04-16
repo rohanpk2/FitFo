@@ -5,8 +5,11 @@ import { getTheme, type ThemeMode } from "../theme";
 import type { SavedRoutinePreview } from "../types";
 
 interface SavedWorkoutsScreenProps {
+  dailyError: string | null;
+  dailyWorkouts: SavedRoutinePreview[];
   error: string | null;
   importedWorkouts: SavedRoutinePreview[];
+  isDailyLoading: boolean;
   isLoading: boolean;
   onAddWorkout: () => void;
   onRemoveWorkout: (savedWorkoutId: string) => void;
@@ -15,9 +18,110 @@ interface SavedWorkoutsScreenProps {
   themeMode?: ThemeMode;
 }
 
+function FeedbackCard({
+  actionLabel,
+  body,
+  icon,
+  isLoading = false,
+  onAction,
+  theme,
+  title,
+}: {
+  actionLabel?: string;
+  body: string;
+  icon?: keyof typeof Ionicons.glyphMap;
+  isLoading?: boolean;
+  onAction?: () => void;
+  theme: ReturnType<typeof getTheme>;
+  title: string;
+}) {
+  const styles = createStyles(theme);
+
+  return (
+    <View style={styles.feedbackCard}>
+      {isLoading ? (
+        <ActivityIndicator color={theme.colors.primary} size="small" />
+      ) : icon ? (
+        <Ionicons color={theme.colors.primary} name={icon} size={20} />
+      ) : null}
+      <Text style={styles.feedbackTitle}>{title}</Text>
+      <Text style={styles.feedbackBody}>{body}</Text>
+      {actionLabel && onAction ? (
+        <Pressable onPress={onAction} style={styles.retryButton}>
+          <Text style={styles.retryButtonText}>{actionLabel}</Text>
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
+
+function WorkoutCard({
+  accent,
+  onRemove,
+  onStart,
+  routine,
+  theme,
+}: {
+  accent: "saved" | "daily";
+  onRemove?: () => void;
+  onStart: () => void;
+  routine: SavedRoutinePreview;
+  theme: ReturnType<typeof getTheme>;
+}) {
+  const styles = createStyles(theme);
+  const isDaily = accent === "daily";
+
+  return (
+    <View style={[styles.workoutCard, isDaily ? styles.dailyWorkoutCard : null]}>
+      <View style={styles.workoutHeader}>
+        <View
+          style={[
+            styles.workoutBadge,
+            isDaily ? styles.dailyWorkoutBadge : null,
+          ]}
+        >
+          <Text
+            style={[
+              styles.workoutBadgeText,
+              isDaily ? styles.dailyWorkoutBadgeText : null,
+            ]}
+          >
+            {routine.badgeLabel || (isDaily ? "Daily Drop" : "Saved")}
+          </Text>
+        </View>
+        {onRemove ? (
+          <Pressable onPress={onRemove} style={styles.removeButton}>
+            <Ionicons color={theme.colors.error} name="trash-outline" size={16} />
+          </Pressable>
+        ) : null}
+      </View>
+
+      <Text style={styles.workoutTitle}>{routine.title}</Text>
+      <Text style={styles.workoutDescription}>{routine.description}</Text>
+      <View style={styles.workoutMetaRow}>
+        <Text style={styles.workoutMeta}>{routine.metaLeft}</Text>
+        <Text style={styles.workoutMeta}>{routine.metaRight}</Text>
+      </View>
+      <View style={styles.actionRow}>
+        <Pressable onPress={onStart} style={styles.primaryButton}>
+          <Text style={styles.primaryButtonText}>Start Session</Text>
+        </Pressable>
+        {onRemove ? (
+          <Pressable onPress={onRemove} style={styles.secondaryButton}>
+            <Text style={styles.secondaryButtonText}>Unsave</Text>
+          </Pressable>
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
 export function SavedWorkoutsScreen({
+  dailyError,
+  dailyWorkouts,
   error,
   importedWorkouts,
+  isDailyLoading,
   isLoading,
   onAddWorkout,
   onRemoveWorkout,
@@ -27,7 +131,7 @@ export function SavedWorkoutsScreen({
 }: SavedWorkoutsScreenProps) {
   const theme = getTheme(themeMode);
   const styles = createStyles(theme);
-  const hasWorkouts = importedWorkouts.length > 0;
+  const hasSavedWorkouts = importedWorkouts.length > 0;
 
   return (
     <ScrollView
@@ -49,8 +153,8 @@ export function SavedWorkoutsScreen({
       </View>
 
       <View>
-        <Text style={styles.eyebrow}>Your Library</Text>
-        <Text style={styles.title}>Saved Workouts</Text>
+        <Text style={styles.eyebrow}>Your Hub</Text>
+        <Text style={styles.title}>Workouts</Text>
       </View>
 
       <Pressable onPress={onAddWorkout} style={styles.addCard}>
@@ -60,71 +164,92 @@ export function SavedWorkoutsScreen({
         <Text style={styles.addText}>Import or create a new routine</Text>
       </Pressable>
 
-      {isLoading ? (
-        <View style={styles.feedbackCard}>
-          <ActivityIndicator color={theme.colors.primary} size="small" />
-          <Text style={styles.feedbackTitle}>Loading your saved workouts</Text>
-          <Text style={styles.feedbackBody}>
-            Pulling your library from your FitFo account.
-          </Text>
-        </View>
-      ) : error ? (
-        <View style={styles.feedbackCard}>
-          <Ionicons color={theme.colors.error} name="alert-circle-outline" size={20} />
-          <Text style={styles.feedbackTitle}>Couldn&apos;t load saved workouts</Text>
-          <Text style={styles.feedbackBody}>{error}</Text>
-          <Pressable onPress={onRetry} style={styles.retryButton}>
-            <Text style={styles.retryButtonText}>Try Again</Text>
-          </Pressable>
-        </View>
-      ) : hasWorkouts ? (
-        importedWorkouts.map((routine) => (
-          <View key={routine.id} style={styles.importedCard}>
-            <View style={styles.importedHeader}>
-              <View style={styles.importedBadge}>
-                <Text style={styles.importedBadgeText}>{routine.badgeLabel || "Saved"}</Text>
-              </View>
-              {routine.savedWorkoutId ? (
-                <Pressable
-                  onPress={() => onRemoveWorkout(routine.savedWorkoutId || routine.id)}
-                  style={styles.removeButton}
-                >
-                  <Ionicons color={theme.colors.error} name="trash-outline" size={16} />
-                </Pressable>
-              ) : null}
+      <View style={styles.section}>
+        <Text style={styles.sectionEyebrow}>Library</Text>
+        <Text style={styles.sectionTitle}>Saved Workouts</Text>
+        <Text style={styles.sectionBody}>
+          Imported programs and drafts you want to keep around.
+        </Text>
+
+        {isLoading ? (
+          <FeedbackCard
+            body="Pulling your saved routines from your FitFo account."
+            isLoading
+            theme={theme}
+            title="Loading workouts"
+          />
+        ) : error ? (
+          <FeedbackCard
+            actionLabel="Try Again"
+            body={error}
+            icon="alert-circle-outline"
+            onAction={onRetry}
+            theme={theme}
+            title="Couldn't load saved workouts"
+          />
+        ) : hasSavedWorkouts ? (
+          importedWorkouts.map((routine) => (
+            <WorkoutCard
+              key={routine.id}
+              accent="saved"
+              onRemove={
+                routine.savedWorkoutId
+                  ? () => onRemoveWorkout(routine.savedWorkoutId || routine.id)
+                  : undefined
+              }
+              onStart={() => onStartSession(routine)}
+              routine={routine}
+              theme={theme}
+            />
+          ))
+        ) : (
+          <View style={styles.emptyStateCard}>
+            <View style={styles.emptyStateIcon}>
+              <Ionicons color={theme.colors.primary} name="barbell-outline" size={20} />
             </View>
-            <Text style={styles.importedTitle}>{routine.title}</Text>
-            <Text style={styles.importedDescription}>{routine.description}</Text>
-            <View style={styles.importedMetaRow}>
-              <Text style={styles.importedMeta}>{routine.metaLeft}</Text>
-              <Text style={styles.importedMeta}>{routine.metaRight}</Text>
-            </View>
-            <View style={styles.actionRow}>
-              <Pressable onPress={() => onStartSession(routine)} style={styles.importedButton}>
-                <Text style={styles.importedButtonText}>Start Session</Text>
-              </Pressable>
-              {routine.savedWorkoutId ? (
-                <Pressable
-                  onPress={() => onRemoveWorkout(routine.savedWorkoutId || routine.id)}
-                  style={styles.secondaryButton}
-                >
-                  <Text style={styles.secondaryButtonText}>Unsave</Text>
-                </Pressable>
-              ) : null}
-            </View>
+            <Text style={styles.emptyStateTitle}>No saved workouts yet</Text>
+            <Text style={styles.emptyStateBody}>
+              Your imported routines and manual drafts will live here once you save them.
+            </Text>
           </View>
-        ))
-      ) : (
-        <View style={styles.emptyStateCard}>
-          <View style={styles.emptyStateIcon}>
-            <Ionicons color={theme.colors.primary} name="barbell-outline" size={20} />
-          </View>
-          <Text style={styles.emptyStateTitle}>No saved workouts yet</Text>
-          <Text style={styles.emptyStateBody}>
-            Saved routines live in your account, so they&apos;ll still be here after you log out or switch devices.
-          </Text>
-        </View>
-      )}
+        )}
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionEyebrow}>Daily AI</Text>
+        <Text style={styles.sectionTitle}>Today's 30-Minute Drops</Text>
+        <Text style={styles.sectionBody}>
+          Two fresh starts each day: one cardio push and one core / abs session.
+        </Text>
+
+        {isDailyLoading ? (
+          <FeedbackCard
+            body="Cooking up today's cardio and core workouts."
+            isLoading
+            theme={theme}
+            title="Generating daily workouts"
+          />
+        ) : dailyError ? (
+          <FeedbackCard
+            actionLabel="Try Again"
+            body={dailyError}
+            icon="sparkles-outline"
+            onAction={onRetry}
+            theme={theme}
+            title="Couldn't load today's drops"
+          />
+        ) : (
+          dailyWorkouts.map((routine) => (
+            <WorkoutCard
+              key={routine.id}
+              accent="daily"
+              onStart={() => onStartSession(routine)}
+              routine={routine}
+              theme={theme}
+            />
+          ))
+        )}
+      </View>
     </ScrollView>
   );
 }
@@ -139,7 +264,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       paddingHorizontal: 12,
       paddingTop: 12,
       paddingBottom: 132,
-      gap: 14,
+      gap: 18,
     },
     header: {
       flexDirection: "row",
@@ -213,6 +338,29 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       fontSize: 13,
       fontWeight: "700",
     },
+    section: {
+      gap: 12,
+    },
+    sectionEyebrow: {
+      color: theme.colors.primary,
+      fontSize: 10,
+      fontWeight: "800",
+      letterSpacing: 1.1,
+      textTransform: "uppercase",
+    },
+    sectionTitle: {
+      marginTop: -2,
+      color: theme.colors.textPrimary,
+      fontSize: 28,
+      lineHeight: 32,
+      fontWeight: "800",
+      letterSpacing: -1,
+    },
+    sectionBody: {
+      color: theme.colors.textSecondary,
+      fontSize: 14,
+      lineHeight: 21,
+    },
     feedbackCard: {
       borderRadius: 24,
       backgroundColor: theme.colors.surface,
@@ -247,7 +395,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       fontSize: 13,
       fontWeight: "700",
     },
-    importedCard: {
+    workoutCard: {
       borderRadius: 24,
       backgroundColor: theme.colors.surface,
       padding: 18,
@@ -256,24 +404,34 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       borderColor: theme.mode === "dark" ? theme.colors.borderSoft : "transparent",
       ...theme.shadows.card,
     },
-    importedHeader: {
+    dailyWorkoutCard: {
+      borderColor: theme.mode === "dark" ? "rgba(255, 90, 20, 0.24)" : "rgba(41, 86, 215, 0.14)",
+    },
+    workoutHeader: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
       gap: 12,
     },
-    importedBadge: {
+    workoutBadge: {
       borderRadius: 999,
       backgroundColor: theme.colors.surfaceMuted,
       paddingHorizontal: 14,
       paddingVertical: 8,
     },
-    importedBadgeText: {
+    dailyWorkoutBadge: {
+      backgroundColor:
+        theme.mode === "dark" ? "rgba(255, 90, 20, 0.14)" : "rgba(79, 117, 231, 0.16)",
+    },
+    workoutBadgeText: {
       color: theme.colors.primary,
       fontSize: 11,
       fontWeight: "900",
       letterSpacing: 1.3,
       textTransform: "uppercase",
+    },
+    dailyWorkoutBadgeText: {
+      color: theme.colors.primaryBright,
     },
     removeButton: {
       width: 42,
@@ -283,23 +441,24 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       alignItems: "center",
       justifyContent: "center",
     },
-    importedTitle: {
+    workoutTitle: {
       color: theme.colors.textPrimary,
       fontSize: 26,
       lineHeight: 30,
       fontWeight: "800",
       letterSpacing: -1,
     },
-    importedDescription: {
+    workoutDescription: {
       color: theme.colors.textSecondary,
       fontSize: 14,
       lineHeight: 21,
     },
-    importedMetaRow: {
+    workoutMetaRow: {
       flexDirection: "row",
       gap: 24,
+      flexWrap: "wrap",
     },
-    importedMeta: {
+    workoutMeta: {
       color: theme.colors.textMuted,
       fontSize: 13,
       fontWeight: "800",
@@ -309,7 +468,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       gap: 10,
       marginTop: 8,
     },
-    importedButton: {
+    primaryButton: {
       borderRadius: 999,
       backgroundColor: theme.colors.primaryBright,
       paddingHorizontal: 18,
@@ -318,7 +477,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       alignItems: "center",
       justifyContent: "center",
     },
-    importedButtonText: {
+    primaryButtonText: {
       color: theme.colors.surface,
       fontSize: 15,
       fontWeight: "800",

@@ -9,7 +9,15 @@ load_dotenv(_BACKEND_ROOT / ".env", override=True)
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import auth, body_weight, completed_workouts, ingest, jobs, saved_workouts
+from app.routers import (
+    auth,
+    body_weight,
+    completed_workouts,
+    daily_workouts,
+    ingest,
+    jobs,
+    saved_workouts,
+)
 
 app = FastAPI(title="LiftSync API", version="0.1.0")
 
@@ -34,6 +42,7 @@ app.include_router(jobs.router)
 app.include_router(saved_workouts.router)
 app.include_router(completed_workouts.router)
 app.include_router(body_weight.router)
+app.include_router(daily_workouts.router)
 
 
 @app.get("/health")
