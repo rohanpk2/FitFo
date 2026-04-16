@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict, Optional
 
 import httpx
 
@@ -25,9 +25,9 @@ async def transcribe_file(
     audio_path: Path,
     *,
     model: str = DEFAULT_MODEL,
-    language: str | None = None,
+    language: Optional[str] = None,
     response_format: str = "verbose_json",
-) -> dict[str, Any]:
+) -> Dict[str, Any]:
     """
     Send an audio file to Groq Whisper and return the JSON response.
 
@@ -38,7 +38,7 @@ async def transcribe_file(
     headers = {"Authorization": f"Bearer {key}"}
     timeout = httpx.Timeout(120.0, connect=15.0)
 
-    data: dict[str, str] = {
+    data: Dict[str, str] = {
         "model": model,
         "response_format": response_format,
     }

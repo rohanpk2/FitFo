@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -25,25 +25,25 @@ ExperienceLevel = Literal["beginner", "intermediate", "advanced"]
 
 
 class UserOnboardingResponse(BaseModel):
-    goals: list[OnboardingGoal] = Field(default_factory=list)
+    goals: List[OnboardingGoal] = Field(default_factory=list)
     training_split: TrainingSplit
     days_per_week: int = Field(..., ge=1, le=7)
     weight_lbs: float = Field(..., gt=0, le=1000)
     height_inches: int = Field(..., ge=36, le=96)
     experience_level: ExperienceLevel
     age: int = Field(..., ge=13, le=120)
-    completed_at: str | None = None
-    created_at: str | None = None
-    updated_at: str | None = None
+    completed_at: Optional[str] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
 
 
 class UserProfileResponse(BaseModel):
     id: str
     full_name: str
     phone: str
-    onboarding: UserOnboardingResponse | None = None
-    created_at: str | None = None
-    updated_at: str | None = None
+    onboarding: Optional[UserOnboardingResponse] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
 
 
 class AccountStatusRequest(BaseModel):
@@ -60,7 +60,7 @@ class AccountStatusResponse(BaseModel):
 class SendOtpRequest(BaseModel):
     phone: str = Field(..., min_length=7, max_length=32)
     intent: AuthIntent
-    full_name: str | None = Field(default=None, min_length=1, max_length=120)
+    full_name: Optional[str] = Field(default=None, min_length=1, max_length=120)
 
 
 class SendOtpResponse(BaseModel):
@@ -74,7 +74,7 @@ class VerifyOtpRequest(BaseModel):
     phone: str = Field(..., min_length=7, max_length=32)
     code: str = Field(..., min_length=6, max_length=6, pattern=r"^\d{6}$")
     intent: AuthIntent
-    full_name: str | None = Field(default=None, min_length=1, max_length=120)
+    full_name: Optional[str] = Field(default=None, min_length=1, max_length=120)
 
 
 class VerifyOtpResponse(BaseModel):
@@ -92,7 +92,7 @@ class MeResponse(BaseModel):
 
 
 class SaveOnboardingRequest(BaseModel):
-    goals: list[OnboardingGoal] = Field(..., min_length=1, max_length=6)
+    goals: List[OnboardingGoal] = Field(..., min_length=1, max_length=6)
     training_split: TrainingSplit
     days_per_week: int = Field(..., ge=1, le=7)
     weight_lbs: float = Field(..., gt=0, le=1000)

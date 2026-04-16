@@ -1,3 +1,4 @@
+from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -15,9 +16,9 @@ class IngestRequest(BaseModel):
 class IngestCheckResponse(BaseModel):
     ok: bool
     source_url: str
-    normalized_url: str | None = None
+    normalized_url: Optional[str] = None
     format_ok: bool
-    reachable: bool | None = None
-    http_status: int | None = None
-    error: str | None = None
-    job_id: UUID | None = None
+    reachable: Optional[bool] = None
+    http_status: Optional[int] = None
+    error: Optional[str] = None
+    job_id: Optional[UUID] = None

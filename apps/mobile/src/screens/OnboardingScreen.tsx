@@ -11,6 +11,7 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 
 import { getTheme, type ThemeMode } from "../theme";
 import type {
@@ -191,59 +192,108 @@ export function OnboardingScreen({
     }
   };
 
-  const renderGoalsStep = () => (
-    <>
-      <View style={styles.hero}>
-        <Text style={styles.eyebrow}>Figure it the f*ck out</Text>
-        <Text style={styles.title}>
-          What&apos;s{"\n"}
-          Your{"\n"}
-          Goal
-          <Text style={styles.titleDot}>?</Text>
-        </Text>
-        <Text style={styles.wordmark}>FITFO</Text>
-        <Text style={styles.heroCopy}>
-          {isEditing
-            ? `${firstName}, update your goals whenever your training changes.`
-            : `${firstName}, let's dial in what you actually want this account to help you chase.`}
-        </Text>
-      </View>
+  const renderGoalsStep = () => {
+    const gradientColors: readonly [string, string, string] =
+      theme.mode === "dark"
+        ? ["#FF5A14", "#FF4D0A", "#9B2D00"]
+        : ["#4F75E7", "#2F58D9", "#1E3FA8"];
 
-      <View style={styles.contentCard}>
-        <Text style={styles.sectionLabel}>Pick all that apply</Text>
-        <View style={styles.chipGroup}>
-          {goalOptions.map((option) => {
-            const selected = goals.includes(option.value);
+    return (
+      <>
+        <View style={styles.heroGoals}>
+          <LinearGradient
+            colors={gradientColors}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.heroGradient}
+          >
+            <View style={styles.heroOrb1} />
+            <View style={styles.heroOrb2} />
+            <View style={styles.heroOrb3} />
 
-            return (
-              <Pressable
-                key={option.value}
-                onPress={() => toggleGoal(option.value)}
-                style={[
-                  styles.optionChip,
-                  selected ? styles.optionChipSelected : null,
-                ]}
-              >
-                <Ionicons
-                  color={selected ? theme.colors.surface : theme.colors.primary}
-                  name={option.icon}
-                  size={16}
-                />
-                <Text
+            <View style={styles.heroBadgeRow}>
+              <View style={styles.heroChip}>
+                <Ionicons color="#FFFFFF" name="sparkles" size={12} />
+                <Text style={styles.heroChipText}>Step 01 · Goals</Text>
+              </View>
+              <View style={styles.heroCounter}>
+                <Text style={styles.heroCounterText}>
+                  {goals.length}
+                  <Text style={styles.heroCounterTextMuted}>/6</Text>
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.heroTitleBlock}>
+              <Text style={styles.heroEyebrow}>Figure it the f*ck out</Text>
+              <Text style={styles.heroTitleNew}>
+                What drives{"\n"}
+                <Text style={styles.heroTitleAccent}>you</Text>
+                <Text style={styles.heroTitleDotNew}>?</Text>
+              </Text>
+              <Text style={styles.heroCopyNew}>
+                {isEditing
+                  ? `${firstName}, update your goals whenever your training changes.`
+                  : `Hey ${firstName} — pick every goal that fires you up. We'll tune the rest around you.`}
+              </Text>
+            </View>
+          </LinearGradient>
+        </View>
+
+        <View style={styles.goalsSection}>
+          <View style={styles.goalsHint}>
+            <Ionicons color={theme.colors.primary} name="hand-left-outline" size={14} />
+            <Text style={styles.goalsHintText}>
+              Tap all that apply · {goals.length === 0 ? "choose at least one" : `${goals.length} selected`}
+            </Text>
+          </View>
+
+          <View style={styles.goalGrid}>
+            {goalOptions.map((option) => {
+              const selected = goals.includes(option.value);
+
+              return (
+                <Pressable
+                  key={option.value}
+                  onPress={() => toggleGoal(option.value)}
                   style={[
-                    styles.optionChipText,
-                    selected ? styles.optionChipTextSelected : null,
+                    styles.goalCard,
+                    selected ? styles.goalCardSelected : null,
                   ]}
                 >
-                  {option.label}
-                </Text>
-              </Pressable>
-            );
-          })}
+                  {selected ? (
+                    <View style={styles.goalCheckBadge}>
+                      <Ionicons color="#FFFFFF" name="checkmark" size={14} />
+                    </View>
+                  ) : null}
+                  <View
+                    style={[
+                      styles.goalIconTile,
+                      selected ? styles.goalIconTileSelected : null,
+                    ]}
+                  >
+                    <Ionicons
+                      color={selected ? "#FFFFFF" : theme.colors.primary}
+                      name={option.icon}
+                      size={22}
+                    />
+                  </View>
+                  <Text
+                    style={[
+                      styles.goalCardText,
+                      selected ? styles.goalCardTextSelected : null,
+                    ]}
+                  >
+                    {option.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
         </View>
-      </View>
-    </>
-  );
+      </>
+    );
+  };
 
   const renderSplitStep = () => (
     <>
@@ -591,6 +641,196 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     },
     hero: {
       gap: 10,
+    },
+    heroGoals: {
+      borderRadius: 32,
+      overflow: "hidden",
+      shadowColor: theme.mode === "dark" ? "#FF4D0A" : "#2956D7",
+      shadowOpacity: theme.mode === "dark" ? 0.5 : 0.3,
+      shadowRadius: 24,
+      shadowOffset: { width: 0, height: 16 },
+      elevation: 12,
+    },
+    heroGradient: {
+      padding: 24,
+      paddingBottom: 28,
+      gap: 22,
+      overflow: "hidden",
+      borderRadius: 32,
+    },
+    heroOrb1: {
+      position: "absolute",
+      top: -80,
+      right: -60,
+      width: 240,
+      height: 240,
+      borderRadius: 999,
+      backgroundColor: "rgba(255, 255, 255, 0.18)",
+    },
+    heroOrb2: {
+      position: "absolute",
+      bottom: -100,
+      left: -70,
+      width: 220,
+      height: 220,
+      borderRadius: 999,
+      backgroundColor: "rgba(255, 255, 255, 0.12)",
+    },
+    heroOrb3: {
+      position: "absolute",
+      top: 40,
+      left: -30,
+      width: 90,
+      height: 90,
+      borderRadius: 999,
+      backgroundColor: "rgba(255, 255, 255, 0.08)",
+    },
+    heroBadgeRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+    },
+    heroChip: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      paddingHorizontal: 12,
+      paddingVertical: 7,
+      borderRadius: 999,
+      backgroundColor: "rgba(255, 255, 255, 0.18)",
+      borderWidth: 1,
+      borderColor: "rgba(255, 255, 255, 0.25)",
+    },
+    heroChipText: {
+      color: "#FFFFFF",
+      fontSize: 11,
+      fontWeight: "800",
+      letterSpacing: 0.6,
+    },
+    heroCounter: {
+      width: 44,
+      height: 44,
+      borderRadius: 999,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: "rgba(0, 0, 0, 0.22)",
+      borderWidth: 1,
+      borderColor: "rgba(255, 255, 255, 0.2)",
+    },
+    heroCounterText: {
+      color: "#FFFFFF",
+      fontSize: 16,
+      fontWeight: "900",
+    },
+    heroCounterTextMuted: {
+      color: "rgba(255, 255, 255, 0.6)",
+      fontSize: 12,
+      fontWeight: "800",
+    },
+    heroTitleBlock: {
+      gap: 10,
+    },
+    heroEyebrow: {
+      color: "rgba(255, 255, 255, 0.82)",
+      fontSize: 11,
+      fontWeight: "800",
+      letterSpacing: 1.8,
+      textTransform: "uppercase",
+    },
+    heroTitleNew: {
+      color: "#FFFFFF",
+      fontSize: 46,
+      lineHeight: 48,
+      fontWeight: "900",
+      letterSpacing: -2.2,
+    },
+    heroTitleAccent: {
+      color: "#FFFFFF",
+      fontStyle: "italic",
+      fontWeight: "900",
+    },
+    heroTitleDotNew: {
+      color: "#FFE59A",
+    },
+    heroCopyNew: {
+      color: "rgba(255, 255, 255, 0.88)",
+      fontSize: 15,
+      lineHeight: 22,
+      maxWidth: 340,
+    },
+    goalsSection: {
+      gap: 16,
+    },
+    goalsHint: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      paddingHorizontal: 4,
+    },
+    goalsHintText: {
+      color: theme.colors.textSecondary,
+      fontSize: 13,
+      fontWeight: "700",
+    },
+    goalGrid: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 12,
+    },
+    goalCard: {
+      width: "47.5%",
+      minHeight: 124,
+      borderRadius: 22,
+      padding: 16,
+      backgroundColor: theme.colors.surface,
+      borderWidth: 1.5,
+      borderColor: theme.mode === "dark" ? theme.colors.borderSoft : "rgba(41, 86, 215, 0.08)",
+      gap: 14,
+      justifyContent: "space-between",
+      ...theme.shadows.softCard,
+    },
+    goalCardSelected: {
+      backgroundColor: theme.colors.primary,
+      borderColor: theme.colors.primary,
+      shadowColor: theme.colors.primary,
+      shadowOpacity: 0.35,
+      shadowRadius: 14,
+      shadowOffset: { width: 0, height: 8 },
+      elevation: 6,
+    },
+    goalCheckBadge: {
+      position: "absolute",
+      top: 12,
+      right: 12,
+      width: 22,
+      height: 22,
+      borderRadius: 999,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: "rgba(255, 255, 255, 0.22)",
+      borderWidth: 1,
+      borderColor: "rgba(255, 255, 255, 0.4)",
+    },
+    goalIconTile: {
+      width: 44,
+      height: 44,
+      borderRadius: 14,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor:
+        theme.mode === "dark" ? "rgba(255, 90, 20, 0.14)" : "rgba(41, 86, 215, 0.10)",
+    },
+    goalIconTileSelected: {
+      backgroundColor: "rgba(255, 255, 255, 0.22)",
+    },
+    goalCardText: {
+      color: theme.colors.textPrimary,
+      fontSize: 15,
+      fontWeight: "800",
+      letterSpacing: -0.3,
+    },
+    goalCardTextSelected: {
+      color: "#FFFFFF",
     },
     eyebrow: {
       color: theme.colors.primary,

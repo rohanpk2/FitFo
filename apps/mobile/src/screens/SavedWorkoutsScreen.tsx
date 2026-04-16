@@ -147,12 +147,16 @@ export function SavedWorkoutsScreen({
           <Text style={styles.brandText}>FitFo</Text>
         </View>
         <View style={styles.headerIcons}>
-          <Ionicons color={theme.colors.primary} name="search" size={18} />
-          <Ionicons color={theme.colors.primary} name="settings" size={18} />
+          <View style={styles.headerIconBtn}>
+            <Ionicons color={theme.colors.primary} name="search" size={18} />
+          </View>
+          <View style={styles.headerIconBtn}>
+            <Ionicons color={theme.colors.primary} name="settings-outline" size={18} />
+          </View>
         </View>
       </View>
 
-      <View>
+      <View style={styles.titleBlock}>
         <Text style={styles.eyebrow}>Your Hub</Text>
         <Text style={styles.title}>Workouts</Text>
       </View>
@@ -261,24 +265,25 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       backgroundColor: theme.colors.background,
     },
     content: {
-      paddingHorizontal: 12,
-      paddingTop: 12,
-      paddingBottom: 132,
-      gap: 18,
+      paddingHorizontal: 20,
+      paddingTop: 24,
+      paddingBottom: 140,
+      gap: 36,
     },
     header: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
+      paddingHorizontal: 2,
     },
     brandRow: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 8,
+      gap: 10,
     },
     brandBadge: {
-      width: 18,
-      height: 18,
+      width: 22,
+      height: 22,
       borderRadius: 999,
       backgroundColor: theme.colors.primary,
       alignItems: "center",
@@ -286,35 +291,52 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     },
     brandBadgeText: {
       color: theme.colors.surface,
-      fontSize: 9,
+      fontSize: 10,
       fontWeight: "800",
     },
     brandText: {
       color: theme.colors.primary,
-      fontSize: 20,
+      fontSize: 22,
       fontWeight: "800",
       letterSpacing: -0.5,
     },
     headerIcons: {
       flexDirection: "row",
-      gap: 14,
+      gap: 10,
+    },
+    headerIconBtn: {
+      width: 38,
+      height: 38,
+      borderRadius: 999,
+      backgroundColor: theme.colors.surface,
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 1,
+      borderColor:
+        theme.mode === "dark" ? theme.colors.borderSoft : "transparent",
+      ...theme.shadows.softCard,
+    },
+    titleBlock: {
+      gap: 8,
+      paddingHorizontal: 2,
+      marginTop: 4,
     },
     eyebrow: {
       color: theme.colors.primary,
-      fontSize: 10,
+      fontSize: 11,
       fontWeight: "800",
-      letterSpacing: 1.1,
+      letterSpacing: 1.4,
       textTransform: "uppercase",
     },
     title: {
-      marginTop: 2,
       color: theme.colors.textPrimary,
-      fontSize: 42,
+      fontSize: 40,
+      lineHeight: 44,
       fontWeight: "800",
-      letterSpacing: -1.5,
+      letterSpacing: -1.6,
     },
     addCard: {
-      minHeight: 108,
+      minHeight: 124,
       borderRadius: theme.radii.large,
       borderWidth: 1.5,
       borderStyle: "dashed",
@@ -322,11 +344,13 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       backgroundColor: theme.colors.surfaceMuted,
       alignItems: "center",
       justifyContent: "center",
-      gap: 8,
+      gap: 12,
+      paddingVertical: 26,
+      paddingHorizontal: 24,
     },
     addCircle: {
-      width: 38,
-      height: 38,
+      width: 42,
+      height: 42,
       borderRadius: 999,
       backgroundColor:
         theme.mode === "dark" ? "rgba(255, 90, 20, 0.14)" : "rgba(79, 117, 231, 0.16)",
@@ -339,27 +363,29 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       fontWeight: "700",
     },
     section: {
-      gap: 12,
+      gap: 18,
+      paddingHorizontal: 2,
     },
     sectionEyebrow: {
       color: theme.colors.primary,
-      fontSize: 10,
+      fontSize: 11,
       fontWeight: "800",
-      letterSpacing: 1.1,
+      letterSpacing: 1.4,
       textTransform: "uppercase",
     },
     sectionTitle: {
       marginTop: -2,
       color: theme.colors.textPrimary,
-      fontSize: 28,
-      lineHeight: 32,
+      fontSize: 26,
+      lineHeight: 30,
       fontWeight: "800",
-      letterSpacing: -1,
+      letterSpacing: -0.8,
     },
     sectionBody: {
       color: theme.colors.textSecondary,
       fontSize: 14,
       lineHeight: 21,
+      marginBottom: 8,
     },
     feedbackCard: {
       borderRadius: 24,
@@ -398,8 +424,9 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     workoutCard: {
       borderRadius: 24,
       backgroundColor: theme.colors.surface,
-      padding: 18,
-      gap: 8,
+      paddingVertical: 22,
+      paddingHorizontal: 22,
+      gap: 12,
       borderWidth: 1,
       borderColor: theme.mode === "dark" ? theme.colors.borderSoft : "transparent",
       ...theme.shadows.card,
@@ -442,11 +469,12 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       justifyContent: "center",
     },
     workoutTitle: {
+      marginTop: 4,
       color: theme.colors.textPrimary,
-      fontSize: 26,
-      lineHeight: 30,
+      fontSize: 24,
+      lineHeight: 28,
       fontWeight: "800",
-      letterSpacing: -1,
+      letterSpacing: -0.8,
     },
     workoutDescription: {
       color: theme.colors.textSecondary,
@@ -457,6 +485,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       flexDirection: "row",
       gap: 24,
       flexWrap: "wrap",
+      marginTop: 2,
     },
     workoutMeta: {
       color: theme.colors.textMuted,
@@ -466,7 +495,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     actionRow: {
       flexDirection: "row",
       gap: 10,
-      marginTop: 8,
+      marginTop: 16,
     },
     primaryButton: {
       borderRadius: 999,

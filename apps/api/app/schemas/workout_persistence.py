@@ -1,75 +1,75 @@
-from typing import Any
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
 
 class SavedWorkoutUpsertRequest(BaseModel):
-    workout_id: str | None = None
-    job_id: str | None = None
-    source_url: str | None = Field(default=None, max_length=4096)
+    workout_id: Optional[str] = None
+    job_id: Optional[str] = None
+    source_url: Optional[str] = Field(default=None, max_length=4096)
     title: str = Field(..., min_length=1, max_length=200)
-    description: str | None = Field(default=None, max_length=2000)
-    meta_left: str | None = Field(default=None, max_length=120)
-    meta_right: str | None = Field(default=None, max_length=120)
-    badge_label: str | None = Field(default=None, max_length=60)
-    workout_plan: dict[str, Any] | None = None
+    description: Optional[str] = Field(default=None, max_length=2000)
+    meta_left: Optional[str] = Field(default=None, max_length=120)
+    meta_right: Optional[str] = Field(default=None, max_length=120)
+    badge_label: Optional[str] = Field(default=None, max_length=60)
+    workout_plan: Optional[Dict[str, Any]] = None
 
 
 class SavedWorkoutResponse(BaseModel):
     id: str
     user_id: str
-    workout_id: str | None = None
-    job_id: str | None = None
-    source_url: str | None = None
+    workout_id: Optional[str] = None
+    job_id: Optional[str] = None
+    source_url: Optional[str] = None
     title: str
-    description: str | None = None
-    meta_left: str | None = None
-    meta_right: str | None = None
-    badge_label: str | None = None
-    workout_plan: dict[str, Any] | None = None
-    saved_at: str | None = None
-    created_at: str | None = None
-    updated_at: str | None = None
+    description: Optional[str] = None
+    meta_left: Optional[str] = None
+    meta_right: Optional[str] = None
+    badge_label: Optional[str] = None
+    workout_plan: Optional[Dict[str, Any]] = None
+    saved_at: Optional[str] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
 
 
 class CompletedWorkoutCreateRequest(BaseModel):
-    workout_id: str | None = None
-    job_id: str | None = None
-    source_url: str | None = Field(default=None, max_length=4096)
+    workout_id: Optional[str] = None
+    job_id: Optional[str] = None
+    source_url: Optional[str] = Field(default=None, max_length=4096)
     title: str = Field(..., min_length=1, max_length=200)
-    description: str | None = Field(default=None, max_length=2000)
-    summary: str | None = Field(default=None, max_length=5000)
-    exercises: list[dict[str, Any]] = Field(default_factory=list)
-    workout_plan: dict[str, Any] | None = None
-    notes: str | None = Field(default=None, max_length=5000)
-    calories: int | None = Field(default=None, ge=0)
-    difficulty: str | None = Field(default=None, max_length=60)
-    tags: list[str] = Field(default_factory=list)
-    average_rest_seconds: int | None = Field(default=None, ge=0)
-    started_at: str | None = None
-    completed_at: str | None = None
+    description: Optional[str] = Field(default=None, max_length=2000)
+    summary: Optional[str] = Field(default=None, max_length=5000)
+    exercises: List[Dict[str, Any]] = Field(default_factory=list)
+    workout_plan: Optional[Dict[str, Any]] = None
+    notes: Optional[str] = Field(default=None, max_length=5000)
+    calories: Optional[int] = Field(default=None, ge=0)
+    difficulty: Optional[str] = Field(default=None, max_length=60)
+    tags: List[str] = Field(default_factory=list)
+    average_rest_seconds: Optional[int] = Field(default=None, ge=0)
+    started_at: Optional[str] = None
+    completed_at: Optional[str] = None
 
 
 class CompletedWorkoutResponse(BaseModel):
     id: str
     user_id: str
-    workout_id: str | None = None
-    job_id: str | None = None
-    source_url: str | None = None
+    workout_id: Optional[str] = None
+    job_id: Optional[str] = None
+    source_url: Optional[str] = None
     title: str
-    description: str | None = None
-    summary: str | None = None
-    exercises: list[dict[str, Any]]
-    workout_plan: dict[str, Any] | None = None
-    notes: str | None = None
-    calories: int | None = None
-    difficulty: str | None = None
-    tags: list[str] = Field(default_factory=list)
-    average_rest_seconds: int | None = None
-    started_at: str | None = None
+    description: Optional[str] = None
+    summary: Optional[str] = None
+    exercises: List[Dict[str, Any]]
+    workout_plan: Optional[Dict[str, Any]] = None
+    notes: Optional[str] = None
+    calories: Optional[int] = None
+    difficulty: Optional[str] = None
+    tags: List[str] = Field(default_factory=list)
+    average_rest_seconds: Optional[int] = None
+    started_at: Optional[str] = None
     completed_at: str
-    created_at: str | None = None
-    updated_at: str | None = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
 
 
 class BodyWeightEntryCreateRequest(BaseModel):
@@ -82,5 +82,5 @@ class BodyWeightEntryResponse(BaseModel):
     weight_lbs: float
     source: str
     recorded_at: str
-    created_at: str | None = None
-    updated_at: str | None = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None

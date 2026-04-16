@@ -5,7 +5,7 @@ import re
 from datetime import datetime, timezone
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 from dotenv import load_dotenv
 from supabase import Client, create_client
@@ -82,9 +82,9 @@ BODY_WEIGHT_ENTRY_SELECT_FIELDS = (
 def create_ingestion_job(
     source_url: str,
     *,
-    provider_meta: dict[str, Any],
+    provider_meta: Dict[str, Any],
     user_id: str,
-) -> dict[str, Any]:
+) -> Dict[str, Any]:
     """Insert a row into ingestion_jobs. Returns the inserted row (incl. id)."""
     supa = get_supabase()
     payload = {
@@ -102,12 +102,12 @@ def create_ingestion_job(
 def update_ingestion_job(
     job_id: str,
     *,
-    status: str | None = None,
-    error: str | None = None,
-    provider_meta: dict[str, Any] | None = None,
-) -> dict[str, Any]:
+    status: Optional[str] = None,
+    error: Optional[str] = None,
+    provider_meta: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
     supa = get_supabase()
-    patch: dict[str, Any] = {}
+    patch: Dict[str, Any] = {}
     if status is not None:
         patch["status"] = status
     if error is not None:
@@ -122,7 +122,7 @@ def update_ingestion_job(
     return result.data[0]
 
 
-def get_ingestion_job(job_id: str, *, user_id: str | None = None) -> dict[str, Any]:
+def get_ingestion_job(job_id: str, *, user_id: Optional[str] = None) -> Dict[str, Any]:
     supa = get_supabase()
     query = supa.table("ingestion_jobs").select("*").eq("id", job_id)
     if user_id is not None:
@@ -133,7 +133,7 @@ def get_ingestion_job(job_id: str, *, user_id: str | None = None) -> dict[str, A
     return result.data
 
 
-def merge_provider_meta(existing: dict[str, Any] | None, updates: dict[str, Any]) -> dict[str, Any]:
+def merge_provider_meta(existing: Optional[Dict[str, Any]], updates: Dict[str, Any]) -> Dict[str, Any]:
     base = dict(existing or {})
     for k, v in updates.items():
         base[k] = v
@@ -144,12 +144,12 @@ def create_transcript(
     job_id: str,
     *,
     text: str,
-    segments: list[dict[str, Any]] | None = None,
-    language: str | None = None,
-    model: str | None = None,
-) -> dict[str, Any]:
+    segments: Optional[List[Dict[str, Any]]] = None,
+    language: Optional[str] = None,
+    model: Optional[str] = None,
+) -> Dict[str, Any]:
     supa = get_supabase()
-    payload: dict[str, Any] = {
+    payload: Dict[str, Any] = {
         "job_id": job_id,
         "text": text,
     }
@@ -165,7 +165,7 @@ def create_transcript(
     return result.data[0]
 
 
-def get_transcript_by_job(job_id: str) -> dict[str, Any]:
+def get_transcript_by_job(job_id: str) -> Dict[str, Any]:
     supa = get_supabase()
     result = supa.table("transcripts").select("*").eq("job_id", job_id).single().execute()
     if not result.data:
@@ -177,13 +177,13 @@ def create_workout(
     job_id: str,
     *,
     user_id: str,
-    title: str | None = None,
-    plan: dict[str, Any],
-    parser_model: str | None = None,
+    title: Optional[str] = None,
+    plan: Dict[str, Any],
+    parser_model: Optional[str] = None,
     schema_version: int = 1,
-) -> dict[str, Any]:
+) -> Dict[str, Any]:
     supa = get_supabase()
-    payload: dict[str, Any] = {
+    payload: Dict[str, Any] = {
         "job_id": job_id,
         "user_id": user_id,
         "plan": plan,
@@ -199,7 +199,7 @@ def create_workout(
     return result.data[0]
 
 
-def get_workout_by_job(job_id: str, *, user_id: str | None = None) -> dict[str, Any]:
+def get_workout_by_job(job_id: str, *, user_id: Optional[str] = None) -> Dict[str, Any]:
     supa = get_supabase()
     query = supa.table("workouts").select("*").eq("job_id", job_id)
     if user_id is not None:
@@ -210,7 +210,7 @@ def get_workout_by_job(job_id: str, *, user_id: str | None = None) -> dict[str, 
     return result.data
 
 
-def list_saved_workouts(user_id: str) -> list[dict[str, Any]]:
+def list_saved_workouts(user_id: str) -> List[Dict[str, Any]]:
     supa = get_supabase()
     result = (
         supa.table("saved_workouts")
@@ -225,18 +225,18 @@ def list_saved_workouts(user_id: str) -> list[dict[str, Any]]:
 def create_or_update_saved_workout(
     user_id: str,
     *,
-    workout_id: str | None = None,
-    job_id: str | None = None,
-    source_url: str | None = None,
+    workout_id: Optional[str] = None,
+    job_id: Optional[str] = None,
+    source_url: Optional[str] = None,
     title: str,
-    description: str | None = None,
-    meta_left: str | None = None,
-    meta_right: str | None = None,
-    badge_label: str | None = None,
-    workout_plan: dict[str, Any] | None = None,
-) -> dict[str, Any]:
+    description: Optional[str] = None,
+    meta_left: Optional[str] = None,
+    meta_right: Optional[str] = None,
+    badge_label: Optional[str] = None,
+    workout_plan: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
     supa = get_supabase()
-    payload: dict[str, Any] = {
+    payload: Dict[str, Any] = {
         "user_id": user_id,
         "title": title,
         "description": description,
@@ -252,7 +252,7 @@ def create_or_update_saved_workout(
     if job_id is not None:
         payload["job_id"] = job_id
 
-    existing: dict[str, Any] | None = None
+    existing: Optional[Dict[str, Any]] = None
     if workout_id is not None:
         existing_result = (
             supa.table("saved_workouts")
@@ -281,7 +281,7 @@ def create_or_update_saved_workout(
     return result.data[0]
 
 
-def delete_saved_workout(saved_workout_id: str, *, user_id: str) -> dict[str, Any]:
+def delete_saved_workout(saved_workout_id: str, *, user_id: str) -> Dict[str, Any]:
     supa = get_supabase()
     existing = (
         supa.table("saved_workouts")
@@ -298,7 +298,7 @@ def delete_saved_workout(saved_workout_id: str, *, user_id: str) -> dict[str, An
     return existing.data[0]
 
 
-def list_completed_workouts(user_id: str) -> list[dict[str, Any]]:
+def list_completed_workouts(user_id: str) -> List[Dict[str, Any]]:
     supa = get_supabase()
     result = (
         supa.table("completed_workouts")
@@ -313,24 +313,24 @@ def list_completed_workouts(user_id: str) -> list[dict[str, Any]]:
 def create_completed_workout(
     user_id: str,
     *,
-    workout_id: str | None = None,
-    job_id: str | None = None,
-    source_url: str | None = None,
+    workout_id: Optional[str] = None,
+    job_id: Optional[str] = None,
+    source_url: Optional[str] = None,
     title: str,
-    description: str | None = None,
-    summary: str | None = None,
-    exercises: list[dict[str, Any]],
-    workout_plan: dict[str, Any] | None = None,
-    notes: str | None = None,
-    calories: int | None = None,
-    difficulty: str | None = None,
-    tags: list[str] | None = None,
-    average_rest_seconds: int | None = None,
-    started_at: str | None = None,
-    completed_at: str | None = None,
-) -> dict[str, Any]:
+    description: Optional[str] = None,
+    summary: Optional[str] = None,
+    exercises: List[Dict[str, Any]],
+    workout_plan: Optional[Dict[str, Any]] = None,
+    notes: Optional[str] = None,
+    calories: Optional[int] = None,
+    difficulty: Optional[str] = None,
+    tags: Optional[List[str]] = None,
+    average_rest_seconds: Optional[int] = None,
+    started_at: Optional[str] = None,
+    completed_at: Optional[str] = None,
+) -> Dict[str, Any]:
     supa = get_supabase()
-    payload: dict[str, Any] = {
+    payload: Dict[str, Any] = {
         "user_id": user_id,
         "title": title,
         "description": description,
@@ -360,7 +360,7 @@ def create_completed_workout(
     return result.data[0]
 
 
-def get_completed_workout(completed_workout_id: str, *, user_id: str) -> dict[str, Any]:
+def get_completed_workout(completed_workout_id: str, *, user_id: str) -> Dict[str, Any]:
     supa = get_supabase()
     result = (
         supa.table("completed_workouts")
@@ -375,7 +375,7 @@ def get_completed_workout(completed_workout_id: str, *, user_id: str) -> dict[st
     return result.data
 
 
-def get_profile_by_phone(phone: str) -> dict[str, Any] | None:
+def get_profile_by_phone(phone: str) -> Optional[Dict[str, Any]]:
     supa = get_supabase()
     normalized_phone = normalize_phone_number(phone)
     result = (
@@ -390,7 +390,7 @@ def get_profile_by_phone(phone: str) -> dict[str, Any] | None:
     return _attach_profile_onboarding(result.data[0])
 
 
-def get_profile_by_id(profile_id: str) -> dict[str, Any] | None:
+def get_profile_by_id(profile_id: str) -> Optional[Dict[str, Any]]:
     supa = get_supabase()
     result = (
         supa.table("profiles")
@@ -404,7 +404,7 @@ def get_profile_by_id(profile_id: str) -> dict[str, Any] | None:
     return _attach_profile_onboarding(result.data[0])
 
 
-def get_profile_onboarding(user_id: str) -> dict[str, Any] | None:
+def get_profile_onboarding(user_id: str) -> Optional[Dict[str, Any]]:
     supa = get_supabase()
     result = (
         supa.table("profile_onboarding")
@@ -418,13 +418,13 @@ def get_profile_onboarding(user_id: str) -> dict[str, Any] | None:
     return result.data[0]
 
 
-def _attach_profile_onboarding(profile: dict[str, Any]) -> dict[str, Any]:
+def _attach_profile_onboarding(profile: Dict[str, Any]) -> Dict[str, Any]:
     hydrated = dict(profile)
     hydrated["onboarding"] = get_profile_onboarding(str(profile["id"]))
     return hydrated
 
 
-def create_profile(*, full_name: str, phone: str) -> dict[str, Any]:
+def create_profile(*, full_name: str, phone: str) -> Dict[str, Any]:
     supa = get_supabase()
     clean_name = full_name.strip()
     if not clean_name:
@@ -444,20 +444,20 @@ def create_profile(*, full_name: str, phone: str) -> dict[str, Any]:
 def upsert_profile_onboarding(
     user_id: str,
     *,
-    goals: list[str],
+    goals: List[str],
     training_split: str,
     days_per_week: int,
     weight_lbs: float,
     height_inches: int,
     experience_level: str,
     age: int,
-) -> dict[str, Any]:
+) -> Dict[str, Any]:
     supa = get_supabase()
     cleaned_goals = list(dict.fromkeys(goal.strip() for goal in goals if goal.strip()))
     if not cleaned_goals:
         raise ValueError("Select at least one goal")
 
-    payload: dict[str, Any] = {
+    payload: Dict[str, Any] = {
         "goals": cleaned_goals,
         "training_split": training_split,
         "days_per_week": days_per_week,
@@ -498,7 +498,7 @@ def upsert_profile_onboarding(
     return result.data[0]
 
 
-def list_body_weight_entries(user_id: str) -> list[dict[str, Any]]:
+def list_body_weight_entries(user_id: str) -> List[Dict[str, Any]]:
     supa = get_supabase()
     result = (
         supa.table("body_weight_entries")
@@ -515,10 +515,10 @@ def create_body_weight_entry(
     *,
     weight_lbs: float,
     source: str = "manual",
-    recorded_at: str | None = None,
-) -> dict[str, Any]:
+    recorded_at: Optional[str] = None,
+) -> Dict[str, Any]:
     supa = get_supabase()
-    payload: dict[str, Any] = {
+    payload: Dict[str, Any] = {
         "user_id": user_id,
         "weight_lbs": weight_lbs,
         "source": source,
@@ -534,8 +534,8 @@ def ensure_initial_body_weight_entry(
     user_id: str,
     *,
     weight_lbs: float,
-    recorded_at: str | None = None,
-) -> dict[str, Any] | None:
+    recorded_at: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
     supa = get_supabase()
     existing = (
         supa.table("body_weight_entries")
@@ -560,8 +560,8 @@ def upload_bytes_to_storage(
     content: bytes,
     content_type: str,
     upsert: bool = True,
-    bucket: str | None = None,
-) -> dict[str, Any]:
+    bucket: Optional[str] = None,
+) -> Dict[str, Any]:
     """
     Upload bytes to Supabase Storage using the service role.
     Returns the storage API response dict.

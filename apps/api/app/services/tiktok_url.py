@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from typing import Optional, Tuple
 from urllib.parse import quote, urlparse, urlunparse
 
 import httpx
@@ -59,7 +60,7 @@ def _oembed_endpoint(page_url: str) -> str:
     return f"https://www.tiktok.com/oembed?url={quote(page_url, safe='')}"
 
 
-async def verify_video_via_oembed(page_url: str) -> tuple[bool, int | None, str | None]:
+async def verify_video_via_oembed(page_url: str) -> Tuple[bool, Optional[int], Optional[str]]:
     """
     Ask TikTok oEmbed whether this URL points to a real, public video.
     Fake or removed IDs get HTTP 400; the watch page alone often still returns 200 HTML.

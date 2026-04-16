@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from twilio.base.exceptions import TwilioRestException
@@ -20,22 +20,22 @@ from app.services import jwt_auth, supabase_db, twilio_verify
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-def _normalize_and_lookup(phone: str) -> tuple[str, dict[str, Any] | None]:
+def _normalize_and_lookup(phone: str) -> Tuple[str, Optional[Dict[str, Any]]]:
     normalized_phone = supabase_db.normalize_phone_number(phone)
     profile = supabase_db.get_profile_by_phone(normalized_phone)
     return normalized_phone, profile
 
 
-def _clean_signup_name(full_name: str | None) -> str:
+def _clean_signup_name(full_name: Optional[str]) -> str:
     clean_name = (full_name or "").strip()
     if not clean_name:
         raise HTTPException(status_code=400, detail="Full name is required to sign up.")
     return clean_name
 
 
-def _clean_onboarding_payload(body: SaveOnboardingRequest) -> dict[str, Any]:
-    goals: list[str] = []
-    seen_goals: set[str] = set()
+def _clean_onboarding_payload(body: SaveOnboardingRequest) -> Dict[str, Any]:
+    goals: List[str] = []
+    seen_goals: Set[str] = set()
     for goal in body.goals:
         value = str(goal).strip()
         if value and value not in seen_goals:
@@ -185,7 +185,7 @@ def verify_otp(body: VerifyOtpRequest) -> VerifyOtpResponse:
 
 
 @router.get("/me", response_model=MeResponse)
-def me(payload: dict[str, Any] = Depends(require_access_payload)) -> MeResponse:
+def me(payload: Dict[str, Any] = Depends(require_access_payload)) -> MeResponse:
     try:
         profile_id = str(payload["sub"])
         profile = supabase_db.get_profile_by_id(profile_id)

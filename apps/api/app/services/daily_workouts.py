@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import os
 from datetime import date, datetime
-from typing import Any, Literal
+from typing import Any, Dict, Literal, Optional
 
 import httpx
 
@@ -88,7 +88,7 @@ Rules:
 - Return JSON only.
 """
 
-_CACHE: dict[str, dict[str, Any]] = {}
+_CACHE: dict[str, Dict[str, Any]] = {}
 
 
 class DailyWorkoutGeneratorError(RuntimeError):
@@ -115,7 +115,7 @@ def _date_theme(target_date: date) -> tuple[str, str]:
     return themes[target_date.weekday()]
 
 
-def _profile_prompt_fragment(profile: dict[str, Any] | None) -> str:
+def _profile_prompt_fragment(profile: Optional[Dict[str, Any]]) -> str:
     onboarding = profile.get("onboarding") if isinstance(profile, dict) else None
     if not isinstance(onboarding, dict):
         return "No onboarding profile is available, so program for a general adult gym user."
@@ -131,7 +131,7 @@ def _profile_prompt_fragment(profile: dict[str, Any] | None) -> str:
     )
 
 
-def _profile_cache_fragment(profile: dict[str, Any] | None) -> str:
+def _profile_cache_fragment(profile: Optional[Dict[str, Any]]) -> str:
     if not isinstance(profile, dict):
         return "anonymous"
 
@@ -160,7 +160,7 @@ def _profile_cache_fragment(profile: dict[str, Any] | None) -> str:
     )
 
 
-def _estimate_plan_duration_minutes(plan: dict[str, Any]) -> float:
+def _estimate_plan_duration_minutes(plan: Dict[str, Any]) -> float:
     blocks = plan.get("blocks")
     if not isinstance(blocks, list):
         raise DailyWorkoutGeneratorError("Workout plan is missing blocks")
@@ -194,7 +194,7 @@ def _estimate_plan_duration_minutes(plan: dict[str, Any]) -> float:
     return total_seconds / 60
 
 
-def _normalize_plan(plan: dict[str, Any], *, category: Literal["cardio", "core"], title: str) -> dict[str, Any]:
+def _normalize_plan(plan: Dict[str, Any], *, category: Literal["cardio", "core"], title: str) -> Dict[str, Any]:
     normalized = dict(plan)
     normalized["title"] = str(normalized.get("title") or title).strip() or title
     workout_type = str(normalized.get("workout_type") or ("cardio" if category == "cardio" else "mixed")).strip()
@@ -206,7 +206,7 @@ def _normalize_plan(plan: dict[str, Any], *, category: Literal["cardio", "core"]
     return normalized
 
 
-def _normalize_workout_item(item: dict[str, Any], *, target_date: date) -> dict[str, Any]:
+def _normalize_workout_item(item: Dict[str, Any], *, target_date: date) -> Dict[str, Any]:
     category = str(item.get("category") or "").strip().lower()
     if category not in {"cardio", "core"}:
         raise DailyWorkoutGeneratorError("Daily workout category is invalid")
@@ -238,7 +238,7 @@ def _normalize_workout_item(item: dict[str, Any], *, target_date: date) -> dict[
     }
 
 
-def _fallback_cardio_plan(target_date: date) -> dict[str, Any]:
+def _fallback_cardio_plan(target_date: date) -> Dict[str, Any]:
     theme, weekday = _date_theme(target_date)
     return {
         "id": f"daily-{target_date.isoformat()}-cardio",
@@ -282,7 +282,7 @@ def _fallback_cardio_plan(target_date: date) -> dict[str, Any]:
     }
 
 
-def _fallback_core_plan(target_date: date) -> dict[str, Any]:
+def _fallback_core_plan(target_date: date) -> Dict[str, Any]:
     theme, weekday = _date_theme(target_date)
     return {
         "id": f"daily-{target_date.isoformat()}-core",
@@ -328,7 +328,7 @@ def _fallback_core_plan(target_date: date) -> dict[str, Any]:
     }
 
 
-def _fallback_daily_workouts(target_date: date) -> dict[str, Any]:
+def _fallback_daily_workouts(target_date: date) -> Dict[str, Any]:
     return {
         "generated_for_date": target_date.isoformat(),
         "source": "fallback",
@@ -339,7 +339,7 @@ def _fallback_daily_workouts(target_date: date) -> dict[str, Any]:
     }
 
 
-def _normalize_llm_response(payload: dict[str, Any], *, target_date: date) -> dict[str, Any]:
+def _normalize_llm_response(payload: Dict[str, Any], *, target_date: date) -> Dict[str, Any]:
     workouts = payload.get("workouts")
     if not isinstance(workouts, list) or len(workouts) != 2:
         raise DailyWorkoutGeneratorError("LLM did not return exactly two daily workouts")
@@ -360,7 +360,7 @@ def _normalize_llm_response(payload: dict[str, Any], *, target_date: date) -> di
     }
 
 
-async def _generate_with_llm(profile: dict[str, Any] | None, *, target_date: date, model: str) -> dict[str, Any]:
+async def _generate_with_llm(profile: Optional[Dict[str, Any]], *, target_date: date, model: str) -> Dict[str, Any]:
     key = _groq_api_key()
     headers = {
         "Authorization": f"Bearer {key}",
@@ -414,11 +414,11 @@ async def _generate_with_llm(profile: dict[str, Any] | None, *, target_date: dat
 
 
 async def generate_daily_workouts(
-    profile: dict[str, Any] | None,
+    profile: Optional[Dict[str, Any]],
     *,
-    target_date: date | None = None,
+    target_date: Optional[date] = None,
     model: str = DEFAULT_MODEL,
-) -> dict[str, Any]:
+) -> Dict[str, Any]:
     resolved_date = target_date or datetime.utcnow().date()
     cache_key = f"{resolved_date.isoformat()}::{_profile_cache_fragment(profile)}"
     if cache_key in _CACHE:

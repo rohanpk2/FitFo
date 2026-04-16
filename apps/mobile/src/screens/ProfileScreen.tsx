@@ -58,19 +58,24 @@ export function ProfileScreen({
       </View>
 
       <View style={styles.profileHero}>
-        <View style={styles.avatarRing}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{initials || "F"}</Text>
+        <View style={styles.profileIdentity}>
+          <View style={styles.avatarRing}>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{initials || "F"}</Text>
+            </View>
+          </View>
+
+          <View style={styles.profileCopy}>
+            <Text style={styles.profileName} numberOfLines={2}>
+              {profile.full_name}
+            </Text>
+            <Text style={styles.profilePhone}>{profile.phone}</Text>
           </View>
         </View>
 
-        <View style={styles.profileCopy}>
-          <Text style={styles.profileName}>{profile.full_name}</Text>
-          <Text style={styles.profilePhone}>{profile.phone}</Text>
-          <Text style={styles.profileBody}>
-            Figure it the f*ck out, then let FitFo keep the workouts, logs, and saved sessions attached to your account.
-          </Text>
-        </View>
+        <Text style={styles.profileBody}>
+          Figure it the f*ck out — FitFo keeps your workouts, logs, and saved sessions tied to your account.
+        </Text>
       </View>
 
       <View style={styles.themeCard}>
@@ -146,31 +151,32 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       backgroundColor: theme.colors.background,
     },
     content: {
-      paddingHorizontal: 16,
-      paddingTop: 18,
-      paddingBottom: 132,
-      gap: 16,
+      paddingHorizontal: 20,
+      paddingTop: 20,
+      paddingBottom: 140,
+      gap: 24,
     },
     header: {
       flexDirection: "row",
       alignItems: "flex-start",
       justifyContent: "space-between",
       gap: 12,
+      paddingHorizontal: 2,
     },
     eyebrow: {
       color: theme.colors.primary,
-      fontSize: 12,
-      fontWeight: "900",
-      letterSpacing: 2.8,
+      fontSize: 11,
+      fontWeight: "800",
+      letterSpacing: 1.3,
       textTransform: "uppercase",
     },
     title: {
       marginTop: 6,
       color: theme.colors.textPrimary,
-      fontSize: 40,
-      lineHeight: 42,
+      fontSize: 36,
+      lineHeight: 40,
       fontWeight: "900",
-      letterSpacing: -1.8,
+      letterSpacing: -1.6,
     },
     brandBadge: {
       width: 42,
@@ -186,25 +192,31 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       fontWeight: "900",
     },
     profileHero: {
-      borderRadius: 32,
+      borderRadius: 28,
       backgroundColor: theme.colors.surface,
-      padding: 22,
+      paddingVertical: 22,
+      paddingHorizontal: 22,
       gap: 18,
       borderWidth: 1,
       borderColor: theme.mode === "dark" ? theme.colors.borderSoft : "transparent",
       ...theme.shadows.card,
     },
+    profileIdentity: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 16,
+    },
     avatarRing: {
-      width: 88,
-      height: 88,
+      width: 72,
+      height: 72,
       borderRadius: 999,
       alignItems: "center",
       justifyContent: "center",
       backgroundColor: theme.colors.primary,
     },
     avatar: {
-      width: 76,
-      height: 76,
+      width: 62,
+      height: 62,
       borderRadius: 999,
       alignItems: "center",
       justifyContent: "center",
@@ -212,35 +224,36 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     },
     avatarText: {
       color: theme.colors.primary,
-      fontSize: 26,
+      fontSize: 22,
       fontWeight: "900",
-      letterSpacing: -1,
+      letterSpacing: -0.8,
     },
     profileCopy: {
-      gap: 6,
+      flex: 1,
+      gap: 4,
     },
     profileName: {
       color: theme.colors.textPrimary,
-      fontSize: 34,
-      lineHeight: 36,
-      fontWeight: "900",
-      letterSpacing: -1.4,
+      fontSize: 22,
+      lineHeight: 26,
+      fontWeight: "800",
+      letterSpacing: -0.8,
     },
     profilePhone: {
       color: theme.colors.textMuted,
-      fontSize: 16,
+      fontSize: 14,
       fontWeight: "700",
     },
     profileBody: {
-      marginTop: 6,
       color: theme.colors.textSecondary,
-      fontSize: 15,
-      lineHeight: 22,
+      fontSize: 14,
+      lineHeight: 21,
     },
     themeCard: {
-      borderRadius: 28,
+      borderRadius: 24,
       backgroundColor: theme.colors.primary,
-      padding: 20,
+      paddingVertical: 20,
+      paddingHorizontal: 22,
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
@@ -249,25 +262,25 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     },
     themeCopy: {
       flex: 1,
-      gap: 4,
+      gap: 6,
     },
     themeEyebrow: {
       color: theme.colors.primarySoftText,
       fontSize: 10,
-      fontWeight: "900",
-      letterSpacing: 2,
+      fontWeight: "800",
+      letterSpacing: 1.6,
       textTransform: "uppercase",
     },
     themeTitle: {
       color: theme.colors.surface,
-      fontSize: 28,
-      fontWeight: "900",
-      letterSpacing: -1,
+      fontSize: 22,
+      fontWeight: "800",
+      letterSpacing: -0.6,
     },
     themeBody: {
       color: theme.colors.primarySoftText,
-      fontSize: 14,
-      lineHeight: 20,
+      fontSize: 13,
+      lineHeight: 19,
     },
     toggleTrack: {
       width: 74,
@@ -291,22 +304,23 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       backgroundColor: theme.colors.primaryLight,
     },
     infoList: {
-      gap: 12,
+      gap: 14,
     },
     infoCard: {
-      borderRadius: 24,
+      borderRadius: 22,
       backgroundColor: theme.colors.surface,
-      padding: 18,
+      paddingVertical: 18,
+      paddingHorizontal: 18,
       flexDirection: "row",
-      alignItems: "flex-start",
-      gap: 12,
+      alignItems: "center",
+      gap: 14,
       borderWidth: 1,
       borderColor: theme.mode === "dark" ? theme.colors.borderSoft : "transparent",
       ...theme.shadows.softCard,
     },
     infoIcon: {
-      width: 38,
-      height: 38,
+      width: 40,
+      height: 40,
       borderRadius: 14,
       alignItems: "center",
       justifyContent: "center",
@@ -318,29 +332,31 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     },
     infoTitle: {
       color: theme.colors.textPrimary,
-      fontSize: 18,
+      fontSize: 16,
       fontWeight: "800",
-      letterSpacing: -0.4,
+      letterSpacing: -0.3,
     },
     infoBody: {
       color: theme.colors.textSecondary,
-      fontSize: 14,
-      lineHeight: 20,
+      fontSize: 13,
+      lineHeight: 19,
     },
     logoutButton: {
+      marginTop: 4,
       minHeight: 58,
-      borderRadius: 22,
+      borderRadius: 20,
       borderWidth: 1,
       borderColor: theme.colors.error,
       backgroundColor: theme.mode === "dark" ? "rgba(255, 101, 88, 0.08)" : theme.colors.errorSoft,
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "center",
-      gap: 8,
+      gap: 10,
     },
     logoutText: {
       color: theme.colors.error,
-      fontSize: 16,
-      fontWeight: "900",
+      fontSize: 15,
+      fontWeight: "800",
+      letterSpacing: 0.3,
     },
   });

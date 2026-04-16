@@ -53,7 +53,12 @@ export function LoginScreen({
             <Ionicons color={theme.colors.surface} name="sparkles" size={16} />
           </View>
           <Text style={styles.eyebrow}>Figure it the f*ck out</Text>
-          <Text style={styles.title}>
+          <Text
+            style={styles.title}
+            numberOfLines={2}
+            adjustsFontSizeToFit
+            minimumFontScale={0.7}
+          >
             Welcome{"\n"}
             Back
             <Text style={styles.titleDot}>.</Text>
@@ -166,10 +171,10 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     },
     title: {
       color: theme.colors.textPrimary,
-      fontSize: 68,
-      lineHeight: 68,
+      fontSize: 54,
+      lineHeight: 56,
       fontWeight: "900",
-      letterSpacing: -3.5,
+      letterSpacing: -2.4,
     },
     titleDot: {
       color: theme.colors.heroDot,
