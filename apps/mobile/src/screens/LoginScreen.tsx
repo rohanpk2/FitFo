@@ -4,6 +4,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -47,11 +48,13 @@ export function LoginScreen({
       style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      <View style={styles.shell}>
+      <ScrollView
+        contentContainerStyle={styles.shell}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+      >
         <View style={styles.hero}>
-          <View style={styles.badge}>
-            <Ionicons color={theme.colors.surface} name="sparkles" size={16} />
-          </View>
           <Text style={styles.eyebrow}>Figure it the f*ck out</Text>
           <Text
             style={styles.title}
@@ -123,16 +126,7 @@ export function LoginScreen({
             </Text>
           </Text>
         </View>
-
-        <View style={styles.legalArea}>
-          <Text style={styles.legalText}>Privacy Policy & Terms</Text>
-          <View style={styles.ecosystemRow}>
-            <View style={styles.line} />
-            <Text style={styles.ecosystemText}>FitFo Ecosystem</Text>
-            <View style={styles.line} />
-          </View>
-        </View>
-      </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
@@ -144,23 +138,15 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       backgroundColor: theme.colors.background,
     },
     shell: {
-      flex: 1,
-      justifyContent: "space-between",
+      flexGrow: 1,
+      justifyContent: "center",
       paddingHorizontal: 24,
-      paddingTop: Platform.OS === "ios" ? 76 : 48,
-      paddingBottom: 36,
+      paddingTop: Platform.OS === "ios" ? 48 : 32,
+      paddingBottom: 24,
+      gap: 28,
     },
     hero: {
-      gap: 14,
-    },
-    badge: {
-      width: 54,
-      height: 54,
-      borderRadius: 999,
-      alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: theme.colors.primary,
-      marginBottom: 8,
+      gap: 10,
     },
     eyebrow: {
       color: theme.colors.primary,
@@ -171,8 +157,8 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     },
     title: {
       color: theme.colors.textPrimary,
-      fontSize: 54,
-      lineHeight: 56,
+      fontSize: 50,
+      lineHeight: 52,
       fontWeight: "900",
       letterSpacing: -2.4,
     },
@@ -181,16 +167,17 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     },
     wordmark: {
       color: theme.colors.textMuted,
-      fontSize: 26,
+      fontSize: 22,
       fontWeight: "900",
-      letterSpacing: 2.4,
+      letterSpacing: 2.2,
       textTransform: "uppercase",
     },
     card: {
       borderRadius: 32,
       backgroundColor: theme.colors.surface,
-      padding: 22,
-      gap: 16,
+      paddingHorizontal: 28,
+      paddingVertical: 36,
+      gap: 22,
       borderWidth: 1,
       borderColor: theme.mode === "dark" ? theme.colors.borderSoft : "transparent",
       ...theme.shadows.card,
@@ -214,12 +201,12 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       flexDirection: "row",
       alignItems: "center",
       gap: 12,
-      paddingHorizontal: 18,
+      paddingHorizontal: 20,
     },
     input: {
       flex: 1,
       color: theme.colors.textPrimary,
-      fontSize: 20,
+      fontSize: 17,
       fontWeight: "700",
     },
     noticeCard: {
@@ -245,7 +232,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       fontWeight: "700",
     },
     primaryButton: {
-      minHeight: 78,
+      minHeight: 76,
       borderRadius: 24,
       backgroundColor: theme.colors.primaryBright,
       flexDirection: "row",
@@ -268,41 +255,12 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     },
     footerText: {
       color: theme.colors.textSecondary,
-      fontSize: 16,
+      fontSize: 14,
       fontWeight: "600",
       textAlign: "center",
     },
     footerLink: {
       color: theme.colors.primary,
       fontWeight: "900",
-    },
-    legalArea: {
-      alignItems: "center",
-      gap: 10,
-      paddingTop: 8,
-    },
-    legalText: {
-      color: theme.colors.textMuted,
-      fontSize: 13,
-      fontWeight: "700",
-      letterSpacing: 2,
-      textTransform: "uppercase",
-    },
-    ecosystemRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 10,
-    },
-    line: {
-      width: 52,
-      height: 1,
-      backgroundColor: theme.colors.borderSoft,
-    },
-    ecosystemText: {
-      color: theme.colors.textMuted,
-      fontSize: 10,
-      fontWeight: "800",
-      letterSpacing: 1.8,
-      textTransform: "uppercase",
     },
   });

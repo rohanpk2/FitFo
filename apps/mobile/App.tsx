@@ -16,7 +16,6 @@ import {
   getStoredAuthSession,
   storeAuthSession,
 } from "./src/lib/authStorage";
-import { getStoredThemeMode, storeThemeMode } from "./src/lib/themeStorage";
 import {
   ApiError,
   checkAccountStatus,
@@ -71,7 +70,7 @@ import type {
 type AuthSubmitMode = "login" | "signup" | "otp" | "bootstrap";
 
 export default function App() {
-  const [themeMode, setThemeMode] = useState<ThemeMode>("light");
+  const themeMode: ThemeMode = "dark";
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [authMode, setAuthMode] = useState<AuthMode>("login");
@@ -451,10 +450,6 @@ export default function App() {
       setAuthSubmittingMode("bootstrap");
 
       try {
-        const storedThemeMode = await getStoredThemeMode();
-        if (storedThemeMode && isMounted) {
-          setThemeMode(storedThemeMode);
-        }
 
         const storedSession = await getStoredAuthSession();
         if (!storedSession?.accessToken) {
@@ -736,11 +731,6 @@ export default function App() {
     setIsActiveWorkoutVisible(true);
   }, [activeSession]);
 
-  const handleToggleThemeMode = useCallback(async () => {
-    const nextMode: ThemeMode = themeMode === "dark" ? "light" : "dark";
-    setThemeMode(nextMode);
-    await storeThemeMode(nextMode).catch(() => undefined);
-  }, [themeMode]);
 
   const handleSaveOnboarding = useCallback(
     async (payload: SaveOnboardingRequest) => {
@@ -942,7 +932,6 @@ export default function App() {
       <ProfileScreen
         onEditOnboarding={() => setActiveOnboardingUserId(currentUser.id)}
         onLogout={handleLogout}
-        onToggleThemeMode={handleToggleThemeMode}
         profile={currentUser}
         themeMode={themeMode}
       />

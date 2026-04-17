@@ -7,7 +7,6 @@ import type { UserProfile } from "../types";
 interface ProfileScreenProps {
   onEditOnboarding: () => void;
   onLogout: () => void;
-  onToggleThemeMode: () => void;
   profile: UserProfile;
   themeMode?: ThemeMode;
 }
@@ -15,7 +14,6 @@ interface ProfileScreenProps {
 export function ProfileScreen({
   onEditOnboarding,
   onLogout,
-  onToggleThemeMode,
   profile,
   themeMode = "light",
 }: ProfileScreenProps) {
@@ -61,36 +59,6 @@ export function ProfileScreen({
         
       </View>
 
-      <View style={styles.themeCard}>
-        <View style={styles.themeCopy}>
-          <Text style={styles.themeEyebrow}>Appearance</Text>
-          <Text style={styles.themeTitle}>
-            {themeMode === "dark" ? "Dark Mode" : "Light Mode"}
-          </Text>
-          <Text style={styles.themeBody}>
-            {themeMode === "dark"
-              ? "Black and red is live across the app."
-              : "White and blue is live across the app."}
-          </Text>
-        </View>
-
-        <Pressable
-          accessibilityRole="switch"
-          accessibilityState={{ checked: themeMode === "dark" }}
-          onPress={onToggleThemeMode}
-          style={[
-            styles.toggleTrack,
-            themeMode === "dark" ? styles.toggleTrackOn : null,
-          ]}
-        >
-          <View
-            style={[
-              styles.toggleKnob,
-              themeMode === "dark" ? styles.toggleKnobOn : null,
-            ]}
-          />
-        </Pressable>
-      </View>
 
       <View style={styles.infoList}>
         <Pressable onPress={onEditOnboarding} style={styles.infoCard}>
@@ -219,60 +187,6 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       color: theme.colors.textSecondary,
       fontSize: 14,
       lineHeight: 21,
-    },
-    themeCard: {
-      borderRadius: 24,
-      backgroundColor: theme.colors.primary,
-      paddingVertical: 20,
-      paddingHorizontal: 22,
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      gap: 16,
-      ...theme.shadows.primary,
-    },
-    themeCopy: {
-      flex: 1,
-      gap: 6,
-    },
-    themeEyebrow: {
-      color: theme.colors.primarySoftText,
-      fontSize: 10,
-      fontWeight: "800",
-      letterSpacing: 1.6,
-      textTransform: "uppercase",
-    },
-    themeTitle: {
-      color: theme.colors.surface,
-      fontSize: 22,
-      fontWeight: "800",
-      letterSpacing: -0.6,
-    },
-    themeBody: {
-      color: theme.colors.primarySoftText,
-      fontSize: 13,
-      lineHeight: 19,
-    },
-    toggleTrack: {
-      width: 74,
-      height: 40,
-      borderRadius: 999,
-      backgroundColor: "rgba(255,255,255,0.18)",
-      padding: 4,
-      justifyContent: "center",
-    },
-    toggleTrackOn: {
-      backgroundColor: "rgba(0,0,0,0.28)",
-    },
-    toggleKnob: {
-      width: 32,
-      height: 32,
-      borderRadius: 999,
-      backgroundColor: theme.colors.surface,
-    },
-    toggleKnobOn: {
-      alignSelf: "flex-end",
-      backgroundColor: theme.colors.primaryLight,
     },
     infoList: {
       gap: 14,
