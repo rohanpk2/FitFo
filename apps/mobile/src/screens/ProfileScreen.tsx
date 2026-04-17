@@ -12,19 +12,6 @@ interface ProfileScreenProps {
   themeMode?: ThemeMode;
 }
 
-const preferenceRows = [
-  {
-    icon: "shield-checkmark-outline" as const,
-    title: "Account Security",
-    body: "Your login stays tied to your phone number and backend account.",
-  },
-  {
-    icon: "cloud-done-outline" as const,
-    title: "Workout Sync",
-    body: "Saved workouts and logs stay attached to your FitFo account.",
-  },
-];
-
 export function ProfileScreen({
   onEditOnboarding,
   onLogout,
@@ -117,19 +104,7 @@ export function ProfileScreen({
             </Text>
           </View>
           <Ionicons color={theme.colors.textMuted} name="chevron-forward" size={18} />
-        </Pressable>
-
-        {preferenceRows.map((row) => (
-          <View key={row.title} style={styles.infoCard}>
-            <View style={styles.infoIcon}>
-              <Ionicons color={theme.colors.primary} name={row.icon} size={18} />
-            </View>
-            <View style={styles.infoCopy}>
-              <Text style={styles.infoTitle}>{row.title}</Text>
-              <Text style={styles.infoBody}>{row.body}</Text>
-            </View>
-          </View>
-        ))}
+        </Pressable>        
       </View>
 
       <Pressable onPress={onLogout} style={styles.logoutButton}>

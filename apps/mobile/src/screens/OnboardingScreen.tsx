@@ -1,7 +1,6 @@
 import { useState } from "react";
 import {
   ActivityIndicator,
-  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -13,8 +12,6 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-
-const logoMark = require("../../assets/logo-no-bg.png");
 
 import { getTheme, type ThemeMode } from "../theme";
 import type {
@@ -378,7 +375,7 @@ export function OnboardingScreen({
       <View style={styles.hero}>
         <Text style={styles.eyebrow}>Figure it the f*ck out</Text>
         <Text style={styles.title}>
-          Your{"\n"}
+          Your 
           Stats
           <Text style={styles.titleDot}>.</Text>
         </Text>
@@ -491,19 +488,15 @@ export function OnboardingScreen({
   const renderDoneStep = () => (
     <View style={styles.doneScreen}>
       <View style={styles.doneBadge}>
-        <Ionicons color={theme.colors.surface} name="checkmark" size={26} />
+        <Ionicons color={theme.colors.surface} name="checkmark" size={20} />
       </View>
-      <Text style={styles.eyebrowCenter}>Figure it the f*ck out</Text>
       <Text style={styles.doneTitle}>
-        You&apos;re{"\n"}
-        Set
-        <Text style={styles.titleDot}>.</Text>
+        You're set<Text style={styles.titleDot}>.</Text>
       </Text>
-      <Text style={styles.wordmarkCenter}>FITFO</Text>
       <Text style={styles.doneBody}>
         {isEditing
-          ? "Your updates are saved to your account."
-          : "Your goals and setup are saved to your account. Time to figure it the f*ck out."}
+          ? "Your updates are saved."
+          : "Ready to figure it the f*ck out."}
       </Text>
     </View>
   );
@@ -518,10 +511,6 @@ export function OnboardingScreen({
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.brandMarkRow}>
-          <Image source={logoMark} style={styles.brandMark} resizeMode="contain" />
-        </View>
-
         <View style={styles.progressSection}>
           <Text style={styles.stepCount}>
             Step {Math.min(stepIndex + 1, 4)} of 4
@@ -619,14 +608,6 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       paddingTop: Platform.OS === "ios" ? 28 : 20,
       paddingBottom: 28,
       gap: 18,
-    },
-    brandMarkRow: {
-      alignItems: "center",
-      marginBottom: 4,
-    },
-    brandMark: {
-      width: 44,
-      height: 44,
     },
     progressSection: {
       gap: 10,
@@ -1028,56 +1009,30 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       flex: 1,
       alignItems: "center",
       justifyContent: "center",
-      paddingHorizontal: 18,
-      paddingVertical: 36,
-      borderRadius: 32,
-      backgroundColor: theme.colors.surface,
-      borderWidth: 1,
-      borderColor: theme.mode === "dark" ? theme.colors.borderSoft : "transparent",
-      ...theme.shadows.card,
+      gap: 16,
     },
     doneBadge: {
-      width: 64,
-      height: 64,
+      width: 48,
+      height: 48,
       borderRadius: 999,
       alignItems: "center",
       justifyContent: "center",
       backgroundColor: theme.colors.primary,
-      marginBottom: 18,
-    },
-    eyebrowCenter: {
-      color: theme.colors.primary,
-      fontSize: 12,
-      fontWeight: "900",
-      letterSpacing: 2.4,
-      textTransform: "uppercase",
-      textAlign: "center",
     },
     doneTitle: {
-      marginTop: 10,
       color: theme.colors.textPrimary,
-      fontSize: 50,
-      lineHeight: 48,
-      fontWeight: "900",
-      letterSpacing: -2.2,
-      textAlign: "center",
-    },
-    wordmarkCenter: {
-      marginTop: 6,
-      color: theme.colors.textMuted,
-      fontSize: 22,
-      fontWeight: "900",
-      letterSpacing: 2,
-      textTransform: "uppercase",
+      fontSize: 32,
+      lineHeight: 36,
+      fontWeight: "800",
+      letterSpacing: -1.2,
       textAlign: "center",
     },
     doneBody: {
-      marginTop: 18,
       color: theme.colors.textSecondary,
-      fontSize: 15,
-      lineHeight: 24,
+      fontSize: 16,
+      lineHeight: 22,
       textAlign: "center",
-      maxWidth: 280,
+      maxWidth: 240,
     },
     navRow: {
       flexDirection: "row",

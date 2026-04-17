@@ -1,6 +1,5 @@
 import {
   ActivityIndicator,
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -8,8 +7,6 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-
-const logoMark = require("../../assets/logo-no-bg.png");
 
 import { getTheme, type ThemeMode } from "../theme";
 import type { SavedRoutinePreview } from "../types";
@@ -284,9 +281,18 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       alignItems: "center",
       gap: 10,
     },
-    brandLogo: {
-      width: 28,
-      height: 28,
+    brandBadge: {
+      width: 22,
+      height: 22,
+      borderRadius: 999,
+      backgroundColor: theme.colors.primary,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    brandBadgeText: {
+      color: theme.colors.surface,
+      fontSize: 10,
+      fontWeight: "800",
     },
     brandText: {
       color: theme.colors.primary,
