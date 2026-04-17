@@ -50,11 +50,9 @@ export function ProfileScreen({
       <View style={styles.header}>
         <View>
           <Text style={styles.eyebrow}>Settings</Text>
-          <Text style={styles.title}>Your FitFo Account</Text>
+          <Text style={styles.title}>FitFo Account</Text>
         </View>
-        <View style={styles.brandBadge}>
-          <Text style={styles.brandBadgeText}>F</Text>
-        </View>
+        
       </View>
 
       <View style={styles.profileHero}>
@@ -73,9 +71,7 @@ export function ProfileScreen({
           </View>
         </View>
 
-        <Text style={styles.profileBody}>
-          Figure it the f*ck out — FitFo keeps your workouts, logs, and saved sessions tied to your account.
-        </Text>
+        
       </View>
 
       <View style={styles.themeCard}>
@@ -152,7 +148,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     },
     content: {
       paddingHorizontal: 20,
-      paddingTop: 20,
+      paddingTop: 24,
       paddingBottom: 140,
       gap: 24,
     },

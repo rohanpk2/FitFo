@@ -102,13 +102,13 @@ const createStyles = (theme: ReturnType<typeof getTheme>) => {
       borderRadius: 32,
       overflow: "hidden",
       backgroundColor: "transparent",
-      shadowColor: isDark ? "#000000" : "#0B1F5C",
-      shadowOpacity: isDark ? 0.5 : 0.28,
+      shadowColor: "#000000",
+      shadowOpacity: isDark ? 0.5 : 0.32,
       shadowRadius: 24,
       shadowOffset: { width: 0, height: 14 },
       elevation: 14,
     },
-    blurContainer: {
+    bar: {
       borderRadius: 32,
       overflow: "hidden",
       borderWidth: 1,
@@ -125,20 +125,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) => {
       backgroundColor: isDark
         ? "rgba(255, 255, 255, 0.03)"
         : "rgba(255, 255, 255, 0.06)",
-    },
-    glossHighlight: {
-      position: "absolute",
-      top: 0,
-      left: 0,
-      right: 0,
-      height: 22,
-      borderTopLeftRadius: 32,
-      borderTopRightRadius: 32,
-      backgroundColor: isDark
-        ? "rgba(255, 255, 255, 0.08)"
-        : "rgba(255, 255, 255, 0.16)",
-      opacity: 0.95,
-    },
+    },    
     row: {
       flexDirection: "row",
       justifyContent: "space-between",

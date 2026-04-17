@@ -199,12 +199,13 @@ function createStyles(
       backgroundColor: theme.colors.background,
     },
     content: {
-      paddingBottom: 150,
+      paddingHorizontal: 20,
+      paddingTop: 24,
+      paddingBottom: 140,
+      gap: 24,
     },
     header: {
-      paddingHorizontal: 20,
-      paddingTop: 18,
-      paddingBottom: 4,
+      paddingBottom: 0,
     },
     brandRow: {
       flexDirection: "row",
@@ -247,9 +248,6 @@ function createStyles(
       color: theme.colors.primaryBright,
     },
     quoteCard: {
-      marginHorizontal: 16,
-      marginTop: 8,
-      marginBottom: 22,
       paddingHorizontal: 20,
       paddingTop: 20,
       paddingBottom: 16,
@@ -302,8 +300,8 @@ function createStyles(
       backgroundColor: palette.quoteDotActive,
     },
     section: {
-      paddingHorizontal: 16,
-      marginBottom: 22,
+      paddingHorizontal: 0,
+      marginBottom: 0,
     },
     sectionTitle: {
       color: theme.colors.textPrimary,
@@ -1605,12 +1603,7 @@ export function ProgressChartsScreen({
           style={styles.container}
         >
           <View style={styles.header}>
-            <View style={styles.brandRow}>
-              <View style={styles.brandBadge}>
-                <Text style={styles.brandBadgeText}>F</Text>
-              </View>
-              <Text style={styles.brandText}>FitFo</Text>
-            </View>
+            
 
             <Text style={styles.eyebrow}>PROGRESS</Text>
             <Text style={styles.pageTitle}>
@@ -1618,7 +1611,6 @@ export function ProgressChartsScreen({
             </Text>
           </View>
 
-          <QuoteCard />
 
           {isLoading ? (
             <View style={styles.section}>
@@ -1642,7 +1634,7 @@ export function ProgressChartsScreen({
           ) : null}
 
           <View style={styles.section}>
-            <SectionHeader title="Your Best PRs 🏆" />
+            <SectionHeader title="Your Best PRs" />
             <View style={styles.prGrid}>
               {LIFT_META.map((lift) => (
                 <PRCard key={lift.key} {...personalRecords[lift.key]} />

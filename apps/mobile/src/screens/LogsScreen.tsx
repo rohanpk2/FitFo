@@ -93,26 +93,15 @@ export function LogsScreen({
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
-      <View style={styles.header}>
-        <View style={styles.brandRow}>
-          <View style={styles.brandBadge}>
-            <Text style={styles.brandBadgeText}>F</Text>
-          </View>
-          <Text style={styles.brandText}>FitFo</Text>
-        </View>
-        <View style={styles.headerIcons}>
-          <Ionicons color={theme.colors.primary} name="time-outline" size={18} />
-          <View style={styles.avatarShell}>
-            <Ionicons color={theme.colors.textMuted} name="person-circle" size={18} />
-          </View>
-        </View>
-      </View>
+      
 
-      <Text style={styles.eyebrow}>Workout History</Text>
-      <Text style={styles.title}>
-        Your Training{"\n"}
-        <Text style={styles.titleAccent}>Archive.</Text>
-      </Text>
+      <View style={styles.titleBlock}>
+        <Text style={styles.eyebrow}>Workout History</Text>
+        <Text style={styles.title}>
+          Your Training{"\n"}
+          <Text style={styles.titleAccent}>Archive.</Text>
+        </Text>
+      </View>
 
       <View style={styles.analysisCard}>
         <View style={styles.avgCard}>
@@ -264,10 +253,10 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       backgroundColor: theme.colors.background,
     },
     content: {
-      paddingHorizontal: 12,
-      paddingTop: 12,
-      paddingBottom: 132,
-      gap: 16,
+      paddingHorizontal: 20,
+      paddingTop: 24,
+      paddingBottom: 140,
+      gap: 24,
     },
     header: {
       flexDirection: "row",
@@ -311,13 +300,17 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       justifyContent: "center",
       backgroundColor: theme.colors.surfaceMuted,
     },
+    titleBlock: {
+      gap: 8,
+      paddingHorizontal: 2,
+      marginTop: 4,
+    },
     eyebrow: {
       color: theme.colors.primary,
       fontSize: 10,
       fontWeight: "800",
       letterSpacing: 1.1,
       textTransform: "uppercase",
-      marginTop: 4,
     },
     title: {
       color: theme.colors.textPrimary,

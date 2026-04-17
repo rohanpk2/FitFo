@@ -1,5 +1,15 @@
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+
+const logoMark = require("../../assets/logo-no-bg.png");
 
 import { getTheme, type ThemeMode } from "../theme";
 import type { SavedRoutinePreview } from "../types";
@@ -139,14 +149,7 @@ export function SavedWorkoutsScreen({
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
-      <View style={styles.header}>
-        <View style={styles.brandRow}>
-          <View style={styles.brandBadge}>
-            <Text style={styles.brandBadgeText}>F</Text>
-          </View>
-          <Text style={styles.brandText}>FitFo</Text>
-        </View>
-      </View>
+      
 
       <View style={styles.titleBlock}>
         <Text style={styles.eyebrow}>Your Hub</Text>
@@ -281,18 +284,9 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       alignItems: "center",
       gap: 10,
     },
-    brandBadge: {
-      width: 22,
-      height: 22,
-      borderRadius: 999,
-      backgroundColor: theme.colors.primary,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    brandBadgeText: {
-      color: theme.colors.surface,
-      fontSize: 10,
-      fontWeight: "800",
+    brandLogo: {
+      width: 28,
+      height: 28,
     },
     brandText: {
       color: theme.colors.primary,

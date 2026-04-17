@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "LiftSync",
-    "slug": "liftsync-mobile",
+    "name": "FitFo",
+    "slug": "fitfo-mobile",
     "version": "0.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -14,7 +14,8 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.liftsync.mobile"
+      "bundleIdentifier": "com.fitfo.mobile",
+      "buildNumber": "1"
     },
     "android": {
       "adaptiveIcon": {
@@ -23,7 +24,8 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.liftsync.mobile"
+      "package": "com.fitfo.mobile",
+      "versionCode": 1
     },
     "web": {
       "favicon": "./assets/favicon.png"

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
   ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -12,6 +13,8 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+
+const logoMark = require("../../assets/logo-no-bg.png");
 
 import { getTheme, type ThemeMode } from "../theme";
 import type {
@@ -515,6 +518,10 @@ export function OnboardingScreen({
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
+        <View style={styles.brandMarkRow}>
+          <Image source={logoMark} style={styles.brandMark} resizeMode="contain" />
+        </View>
+
         <View style={styles.progressSection}>
           <Text style={styles.stepCount}>
             Step {Math.min(stepIndex + 1, 4)} of 4
@@ -612,6 +619,14 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       paddingTop: Platform.OS === "ios" ? 28 : 20,
       paddingBottom: 28,
       gap: 18,
+    },
+    brandMarkRow: {
+      alignItems: "center",
+      marginBottom: 4,
+    },
+    brandMark: {
+      width: 44,
+      height: 44,
     },
     progressSection: {
       gap: 10,
