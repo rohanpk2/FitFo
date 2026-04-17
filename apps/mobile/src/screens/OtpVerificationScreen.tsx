@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
+  TouchableWithoutFeedback,
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -74,10 +77,17 @@ export function OtpVerificationScreen({
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={0}
     >
-      <View style={styles.shell}>
-        <View style={styles.hero}>
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+        <ScrollView
+          contentContainerStyle={styles.shell}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+        >
+          <View style={styles.hero}>
           <Pressable onPress={onBack} style={styles.backButton}>
             <Ionicons color={theme.colors.textMuted} name="chevron-back" size={18} />
             <Text style={styles.backText}>Back</Text>
@@ -181,7 +191,8 @@ export function OtpVerificationScreen({
 
           <Text style={styles.legalText}>Privacy Policy & Terms</Text>
         </View>
-      </View>
+        </ScrollView>
+      </TouchableWithoutFeedback>
     </KeyboardAvoidingView>
   );
 }
@@ -193,7 +204,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       backgroundColor: theme.colors.background,
     },
     shell: {
-      flex: 1,
+      flexGrow: 1,
       justifyContent: "space-between",
       paddingHorizontal: 24,
       paddingTop: Platform.OS === "ios" ? 32 : 20,
