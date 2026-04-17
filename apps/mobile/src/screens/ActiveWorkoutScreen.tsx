@@ -921,8 +921,6 @@ export function ActiveWorkoutScreen({
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <Header styles={styles} theme={theme} />
-
         <View style={styles.heroSection}>
           <Text style={styles.eyebrow}>Current Session</Text>
           <Text style={styles.heroTitle}>{session.title}</Text>
