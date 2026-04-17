@@ -22,7 +22,7 @@ export const lightColors = {
   warningSoft: "#E0F4FD",
   error: "#C51F2D",
   errorSoft: "#FFEDEE",
-  heroDot: "#2D5CE5",
+  heroDot: "#4F75E7",
   overlay: "rgba(18, 25, 48, 0.18)",
   navShell: "rgba(255, 255, 255, 0.92)",
 } as const;
@@ -49,7 +49,7 @@ export const darkColors = {
   warningSoft: "#2A1E0D",
   error: "#FF6558",
   errorSoft: "#2E1214",
-  heroDot: "#FF4D0A",
+  heroDot: "#FF7A45",
   overlay: "rgba(0, 0, 0, 0.56)",
   navShell: "rgba(16, 16, 16, 0.96)",
 } as const;
