@@ -298,6 +298,123 @@ def delete_saved_workout(saved_workout_id: str, *, user_id: str) -> Dict[str, An
     return existing.data[0]
 
 
+SCHEDULED_WORKOUT_FIELDS = (
+    "id, user_id, source_workout_id, workout_id, job_id, source_url, scheduled_for, "
+    "status, title, description, meta_left, meta_right, badge_label, workout_plan, "
+    "created_at, updated_at"
+)
+
+
+def list_scheduled_workouts(
+    user_id: str,
+    *,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+) -> List[Dict[str, Any]]:
+    supa = get_supabase()
+    query = (
+        supa.table("scheduled_workouts")
+        .select(SCHEDULED_WORKOUT_FIELDS)
+        .eq("user_id", user_id)
+    )
+    if start_date is not None:
+        query = query.gte("scheduled_for", start_date)
+    if end_date is not None:
+        query = query.lte("scheduled_for", end_date)
+    result = query.order("scheduled_for", desc=False).execute()
+    return list(result.data or [])
+
+
+def create_scheduled_workout(
+    user_id: str,
+    *,
+    scheduled_for: str,
+    title: str,
+    source_workout_id: Optional[str] = None,
+    workout_id: Optional[str] = None,
+    job_id: Optional[str] = None,
+    source_url: Optional[str] = None,
+    description: Optional[str] = None,
+    meta_left: Optional[str] = None,
+    meta_right: Optional[str] = None,
+    badge_label: Optional[str] = None,
+    workout_plan: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    supa = get_supabase()
+    payload: Dict[str, Any] = {
+        "user_id": user_id,
+        "scheduled_for": scheduled_for,
+        "title": title,
+        "description": description,
+        "meta_left": meta_left,
+        "meta_right": meta_right,
+        "badge_label": badge_label,
+        "workout_plan": workout_plan,
+        "source_url": source_url,
+        "status": "scheduled",
+    }
+    if source_workout_id is not None:
+        payload["source_workout_id"] = source_workout_id
+    if workout_id is not None:
+        payload["workout_id"] = workout_id
+    if job_id is not None:
+        payload["job_id"] = job_id
+
+    result = supa.table("scheduled_workouts").insert(payload).execute()
+    if not result.data:
+        raise RuntimeError("Supabase scheduled_workouts insert returned no data")
+    return result.data[0]
+
+
+def update_scheduled_workout(
+    scheduled_workout_id: str,
+    *,
+    user_id: str,
+    scheduled_for: Optional[str] = None,
+    status: Optional[str] = None,
+) -> Dict[str, Any]:
+    supa = get_supabase()
+    patch: Dict[str, Any] = {}
+    if scheduled_for is not None:
+        patch["scheduled_for"] = scheduled_for
+    if status is not None:
+        patch["status"] = status
+    if not patch:
+        raise ValueError("No fields to update")
+
+    result = (
+        supa.table("scheduled_workouts")
+        .update(patch)
+        .eq("id", scheduled_workout_id)
+        .eq("user_id", user_id)
+        .execute()
+    )
+    if not result.data:
+        raise RuntimeError("Scheduled workout not found")
+    return result.data[0]
+
+
+def delete_scheduled_workout(
+    scheduled_workout_id: str, *, user_id: str
+) -> Dict[str, Any]:
+    supa = get_supabase()
+    existing = (
+        supa.table("scheduled_workouts")
+        .select(SCHEDULED_WORKOUT_FIELDS)
+        .eq("id", scheduled_workout_id)
+        .eq("user_id", user_id)
+        .limit(1)
+        .execute()
+    )
+    if not existing.data:
+        raise RuntimeError("Scheduled workout not found")
+
+    supa.table("scheduled_workouts").delete().eq("id", scheduled_workout_id).eq(
+        "user_id", user_id
+    ).execute()
+    return existing.data[0]
+
+
 def list_completed_workouts(user_id: str) -> List[Dict[str, Any]]:
     supa = get_supabase()
     result = (

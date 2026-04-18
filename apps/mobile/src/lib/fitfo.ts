@@ -3,10 +3,10 @@ import type {
   ActiveSessionPreview,
   CompletedWorkoutCreateRequest,
   CompletedWorkoutRecord,
-  DailyWorkoutRecord,
   JobResponse,
   SavedWorkoutRecord,
   SavedRoutinePreview,
+  ScheduledWorkoutRecord,
   WorkoutExercise,
   WorkoutPlan,
   WorkoutRow,
@@ -92,6 +92,11 @@ function parseCreatorFromSourceUrl(sourceUrl: string | null | undefined): string
   } catch {
     return null;
   }
+}
+
+export function getCreatorHandle(sourceUrl: string | null | undefined): string | null {
+  const slug = parseCreatorFromSourceUrl(sourceUrl);
+  return slug ? `@${slug}` : null;
 }
 
 function normalizeTitleToken(value: string): string {
@@ -526,21 +531,27 @@ export function createSavedRoutinePreviewFromRecord(
   };
 }
 
-export function createDailyRoutinePreview(
-  record: DailyWorkoutRecord,
+export function createScheduledRoutinePreview(
+  record: ScheduledWorkoutRecord,
 ): SavedRoutinePreview {
   return {
     id: record.id,
+    scheduledWorkoutId: record.id,
+    savedWorkoutId: record.source_workout_id ?? undefined,
+    workoutId: record.workout_id,
+    jobId: record.job_id,
+    sourceUrl: record.source_url,
+    scheduledFor: record.scheduled_for,
     title: getRoutineDisplayTitle({
-      sourceUrl: null,
+      sourceUrl: record.source_url,
       title: record.title,
       workoutPlan: record.workout_plan,
     }),
-    description: record.description,
-    metaLeft: record.meta_left,
-    metaRight: record.meta_right,
-    badgeLabel: record.badge_label,
-    workoutPlan: record.workout_plan,
+    description: record.description || "Scheduled workout.",
+    metaLeft: record.meta_left || "Scheduled",
+    metaRight: record.meta_right || "Ready",
+    badgeLabel: record.badge_label || "Scheduled",
+    workoutPlan: record.workout_plan || undefined,
   };
 }
 

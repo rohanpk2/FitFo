@@ -1,0 +1,44 @@
+from typing import Any, Dict, Literal, Optional
+
+from pydantic import BaseModel, Field
+
+
+ScheduledWorkoutStatus = Literal["scheduled", "completed", "skipped", "cancelled"]
+
+
+class ScheduledWorkoutCreateRequest(BaseModel):
+    source_workout_id: Optional[str] = None
+    workout_id: Optional[str] = None
+    job_id: Optional[str] = None
+    source_url: Optional[str] = Field(default=None, max_length=4096)
+    scheduled_for: str = Field(..., min_length=10, max_length=10)
+    title: str = Field(..., min_length=1, max_length=200)
+    description: Optional[str] = Field(default=None, max_length=2000)
+    meta_left: Optional[str] = Field(default=None, max_length=120)
+    meta_right: Optional[str] = Field(default=None, max_length=120)
+    badge_label: Optional[str] = Field(default=None, max_length=60)
+    workout_plan: Optional[Dict[str, Any]] = None
+
+
+class ScheduledWorkoutUpdateRequest(BaseModel):
+    scheduled_for: Optional[str] = Field(default=None, min_length=10, max_length=10)
+    status: Optional[ScheduledWorkoutStatus] = None
+
+
+class ScheduledWorkoutResponse(BaseModel):
+    id: str
+    user_id: str
+    source_workout_id: Optional[str] = None
+    workout_id: Optional[str] = None
+    job_id: Optional[str] = None
+    source_url: Optional[str] = None
+    scheduled_for: str
+    status: ScheduledWorkoutStatus
+    title: str
+    description: Optional[str] = None
+    meta_left: Optional[str] = None
+    meta_right: Optional[str] = None
+    badge_label: Optional[str] = None
+    workout_plan: Optional[Dict[str, Any]] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None

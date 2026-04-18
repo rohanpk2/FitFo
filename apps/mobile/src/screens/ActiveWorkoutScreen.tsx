@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Image,
   Modal,
   Pressable,
   ScrollView,
@@ -165,26 +166,6 @@ function createExerciseDraft(options: {
 
 type ActiveWorkoutTheme = ReturnType<typeof getTheme>;
 type ActiveWorkoutStyles = ReturnType<typeof createStyles>;
-
-function Header({
-  styles,
-  theme,
-}: {
-  styles: ActiveWorkoutStyles;
-  theme: ActiveWorkoutTheme;
-}) {
-  return (
-    <View style={styles.header}>
-      <View style={styles.brandRow}>
-        <View style={styles.brandBadge}>
-          <Ionicons color={theme.colors.surface} name="flash" size={14} />
-        </View>
-        <Text style={styles.brandText}>FitFo</Text>
-      </View>
-      <Ionicons color={theme.colors.primary} name="barbell-outline" size={20} />
-    </View>
-  );
-}
 
 interface SetRowProps {
   exerciseId: string;
@@ -921,6 +902,14 @@ export function ActiveWorkoutScreen({
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
+        <View style={styles.header}>
+          <Image
+            resizeMode="contain"
+            source={require("../../assets/logo_white_no_bg.png")}
+            style={styles.brandLogo}
+          />
+        </View>
+
         <View style={styles.heroSection}>
           <Text style={styles.eyebrow}>Current Session</Text>
           <Text style={styles.heroTitle}>{session.title}</Text>
@@ -1178,29 +1167,14 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
       fontWeight: "800",
     },
     header: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      paddingHorizontal: 2,
-    },
-    brandRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 8,
-    },
-    brandBadge: {
-      height: 18,
-      width: 18,
-      borderRadius: 999,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: theme.colors.primary,
+      paddingTop: 4,
+      paddingBottom: 8,
     },
-    brandText: {
-      color: theme.colors.primary,
-      fontSize: 20,
-      fontWeight: "800",
-      letterSpacing: -0.5,
+    brandLogo: {
+      width: 168,
+      height: 60,
     },
     heroSection: {
       gap: 8,

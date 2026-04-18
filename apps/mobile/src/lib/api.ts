@@ -5,7 +5,6 @@ import type {
   BodyWeightEntryRecord,
   CompletedWorkoutCreateRequest,
   CompletedWorkoutRecord,
-  DailyWorkoutsResponse,
   IngestRequest,
   IngestResponse,
   JobResponse,
@@ -14,6 +13,9 @@ import type {
   SaveOnboardingResponse,
   SavedWorkoutRecord,
   SavedWorkoutUpsertRequest,
+  ScheduledWorkoutCreateRequest,
+  ScheduledWorkoutRecord,
+  ScheduledWorkoutUpdateRequest,
   SendOtpRequest,
   SendOtpResponse,
   VerifyOtpRequest,
@@ -228,11 +230,60 @@ export async function createBodyWeightEntry(
   });
 }
 
-export async function listDailyWorkouts(
+export async function listScheduledWorkouts(
   accessToken: string,
-): Promise<DailyWorkoutsResponse> {
-  return request<DailyWorkoutsResponse>("/daily-workouts", {
+  params?: { start?: string; end?: string },
+): Promise<ScheduledWorkoutRecord[]> {
+  const query = new URLSearchParams();
+  if (params?.start) {
+    query.set("start", params.start);
+  }
+  if (params?.end) {
+    query.set("end", params.end);
+  }
+  const suffix = query.toString();
+  const path = suffix ? `/scheduled-workouts?${suffix}` : "/scheduled-workouts";
+  return request<ScheduledWorkoutRecord[]>(path, {
     method: "GET",
     accessToken,
   });
+}
+
+export async function createScheduledWorkout(
+  accessToken: string,
+  body: ScheduledWorkoutCreateRequest,
+): Promise<ScheduledWorkoutRecord> {
+  return request<ScheduledWorkoutRecord>("/scheduled-workouts", {
+    method: "POST",
+    accessToken,
+    body: JSON.stringify(body),
+  });
+}
+
+export async function updateScheduledWorkout(
+  accessToken: string,
+  scheduledWorkoutId: string,
+  body: ScheduledWorkoutUpdateRequest,
+): Promise<ScheduledWorkoutRecord> {
+  return request<ScheduledWorkoutRecord>(
+    `/scheduled-workouts/${scheduledWorkoutId}`,
+    {
+      method: "PATCH",
+      accessToken,
+      body: JSON.stringify(body),
+    },
+  );
+}
+
+export async function deleteScheduledWorkout(
+  accessToken: string,
+  scheduledWorkoutId: string,
+): Promise<ScheduledWorkoutRecord> {
+  return request<ScheduledWorkoutRecord>(
+    `/scheduled-workouts/${scheduledWorkoutId}`,
+    {
+      method: "DELETE",
+      accessToken,
+    },
+  );
 }

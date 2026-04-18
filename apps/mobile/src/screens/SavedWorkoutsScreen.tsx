@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -12,17 +13,70 @@ import { getTheme, type ThemeMode } from "../theme";
 import type { SavedRoutinePreview } from "../types";
 
 interface SavedWorkoutsScreenProps {
-  dailyError: string | null;
-  dailyWorkouts: SavedRoutinePreview[];
   error: string | null;
   importedWorkouts: SavedRoutinePreview[];
-  isDailyLoading: boolean;
   isLoading: boolean;
+  isScheduleLoading: boolean;
   onAddWorkout: () => void;
   onRemoveWorkout: (savedWorkoutId: string) => void;
   onRetry: () => void;
   onStartSession: (routine?: SavedRoutinePreview) => void;
+  onUnschedule: (scheduledWorkoutId: string) => void;
+  scheduledError: string | null;
+  scheduledWorkouts: SavedRoutinePreview[];
   themeMode?: ThemeMode;
+}
+
+const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MONTH_LABELS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+
+function toIsoDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function buildCalendarDays(count: number): Date[] {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const days: Date[] = [];
+  for (let index = 0; index < count; index += 1) {
+    const next = new Date(today);
+    next.setDate(today.getDate() + index);
+    days.push(next);
+  }
+  return days;
+}
+
+function formatReadableDate(date: Date): string {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const reference = new Date(date);
+  reference.setHours(0, 0, 0, 0);
+  const diff = Math.round(
+    (reference.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
+  );
+  if (diff === 0) {
+    return "Today";
+  }
+  if (diff === 1) {
+    return "Tomorrow";
+  }
+  return `${DAY_LABELS[reference.getDay()]}, ${MONTH_LABELS[reference.getMonth()]} ${reference.getDate()}`;
 }
 
 function FeedbackCard({
@@ -66,34 +120,38 @@ function WorkoutCard({
   accent,
   onRemove,
   onStart,
+  removeLabel = "Unsave",
   routine,
   theme,
 }: {
-  accent: "saved" | "daily";
+  accent: "saved" | "scheduled";
   onRemove?: () => void;
   onStart: () => void;
+  removeLabel?: string;
   routine: SavedRoutinePreview;
   theme: ReturnType<typeof getTheme>;
 }) {
   const styles = createStyles(theme);
-  const isDaily = accent === "daily";
+  const isScheduled = accent === "scheduled";
 
   return (
-    <View style={[styles.workoutCard, isDaily ? styles.dailyWorkoutCard : null]}>
+    <View
+      style={[styles.workoutCard, isScheduled ? styles.scheduledWorkoutCard : null]}
+    >
       <View style={styles.workoutHeader}>
         <View
           style={[
             styles.workoutBadge,
-            isDaily ? styles.dailyWorkoutBadge : null,
+            isScheduled ? styles.scheduledWorkoutBadge : null,
           ]}
         >
           <Text
             style={[
               styles.workoutBadgeText,
-              isDaily ? styles.dailyWorkoutBadgeText : null,
+              isScheduled ? styles.scheduledWorkoutBadgeText : null,
             ]}
           >
-            {routine.badgeLabel || (isDaily ? "Daily Drop" : "Saved")}
+            {routine.badgeLabel || (isScheduled ? "Scheduled" : "Saved")}
           </Text>
         </View>
         {onRemove ? (
@@ -115,7 +173,7 @@ function WorkoutCard({
         </Pressable>
         {onRemove ? (
           <Pressable onPress={onRemove} style={styles.secondaryButton}>
-            <Text style={styles.secondaryButtonText}>Unsave</Text>
+            <Text style={styles.secondaryButtonText}>{removeLabel}</Text>
           </Pressable>
         ) : null}
       </View>
@@ -124,21 +182,50 @@ function WorkoutCard({
 }
 
 export function SavedWorkoutsScreen({
-  dailyError,
-  dailyWorkouts,
   error,
   importedWorkouts,
-  isDailyLoading,
   isLoading,
+  isScheduleLoading,
   onAddWorkout,
   onRemoveWorkout,
   onRetry,
   onStartSession,
+  onUnschedule,
+  scheduledError,
+  scheduledWorkouts,
   themeMode = "light",
 }: SavedWorkoutsScreenProps) {
   const theme = getTheme(themeMode);
   const styles = createStyles(theme);
   const hasSavedWorkouts = importedWorkouts.length > 0;
+
+  const calendarDays = useMemo(() => buildCalendarDays(14), []);
+  const todayIso = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return toIsoDate(today);
+  }, []);
+  const [selectedDate, setSelectedDate] = useState<string>(todayIso);
+
+  const scheduledByDate = useMemo(() => {
+    const map = new Map<string, SavedRoutinePreview[]>();
+    for (const routine of scheduledWorkouts) {
+      const key = routine.scheduledFor;
+      if (!key) {
+        continue;
+      }
+      const existing = map.get(key) || [];
+      existing.push(routine);
+      map.set(key, existing);
+    }
+    return map;
+  }, [scheduledWorkouts]);
+
+  const selectedDateObject = useMemo(() => {
+    const match = calendarDays.find((day) => toIsoDate(day) === selectedDate);
+    return match || calendarDays[0] || new Date();
+  }, [calendarDays, selectedDate]);
+  const scheduledForSelected = scheduledByDate.get(selectedDate) || [];
 
   return (
     <ScrollView
@@ -220,38 +307,118 @@ export function SavedWorkoutsScreen({
           <View style={styles.sectionDividerAccent} />
           <View style={styles.sectionDividerLine} />
         </View>
-        <Text style={styles.sectionEyebrow}>Daily AI</Text>
-        <Text style={styles.sectionTitle}>Today's 30-Minute Drops</Text>
+        <Text style={styles.sectionEyebrow}>Calendar</Text>
+        <Text style={styles.sectionTitle}>Scheduled Workouts</Text>
         <Text style={styles.sectionBody}>
-          Two fresh starts each day: one cardio push and one core / abs session.
+          Tap a day to see what you have planned. Schedule new ones from the import
+          screen.
         </Text>
 
-        {isDailyLoading ? (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.calendarStripContent}
+        >
+          {calendarDays.map((day) => {
+            const iso = toIsoDate(day);
+            const isSelected = selectedDate === iso;
+            const hasWorkout = (scheduledByDate.get(iso) || []).length > 0;
+            return (
+              <Pressable
+                key={iso}
+                onPress={() => setSelectedDate(iso)}
+                style={[
+                  styles.calendarPill,
+                  isSelected ? styles.calendarPillSelected : null,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.calendarPillLabel,
+                    isSelected ? styles.calendarPillLabelSelected : null,
+                  ]}
+                >
+                  {DAY_LABELS[day.getDay()].toUpperCase()}
+                </Text>
+                <Text
+                  style={[
+                    styles.calendarPillNumber,
+                    isSelected ? styles.calendarPillNumberSelected : null,
+                  ]}
+                >
+                  {day.getDate()}
+                </Text>
+                <Text
+                  style={[
+                    styles.calendarPillMonth,
+                    isSelected ? styles.calendarPillMonthSelected : null,
+                  ]}
+                >
+                  {MONTH_LABELS[day.getMonth()]}
+                </Text>
+                {hasWorkout ? (
+                  <View
+                    style={[
+                      styles.calendarPillDot,
+                      isSelected ? styles.calendarPillDotSelected : null,
+                    ]}
+                  />
+                ) : null}
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+
+        <Text style={styles.calendarSelectedLabel}>
+          {formatReadableDate(selectedDateObject)}
+        </Text>
+
+        {isScheduleLoading ? (
           <FeedbackCard
-            body="Cooking up today's cardio and core workouts."
+            body="Loading your scheduled workouts."
             isLoading
             theme={theme}
-            title="Generating daily workouts"
+            title="Loading schedule"
           />
-        ) : dailyError ? (
+        ) : scheduledError ? (
           <FeedbackCard
             actionLabel="Try Again"
-            body={dailyError}
-            icon="sparkles-outline"
+            body={scheduledError}
+            icon="alert-circle-outline"
             onAction={onRetry}
             theme={theme}
-            title="Couldn't load today's drops"
+            title="Couldn't load your schedule"
           />
-        ) : (
-          dailyWorkouts.map((routine) => (
+        ) : scheduledForSelected.length > 0 ? (
+          scheduledForSelected.map((routine) => (
             <WorkoutCard
               key={routine.id}
-              accent="daily"
+              accent="scheduled"
+              onRemove={
+                routine.scheduledWorkoutId
+                  ? () => onUnschedule(routine.scheduledWorkoutId || routine.id)
+                  : undefined
+              }
               onStart={() => onStartSession(routine)}
+              removeLabel="Unschedule"
               routine={routine}
               theme={theme}
             />
           ))
+        ) : (
+          <View style={styles.emptyStateCard}>
+            <View style={styles.emptyStateIcon}>
+              <Ionicons
+                color={theme.colors.primary}
+                name="calendar-outline"
+                size={20}
+              />
+            </View>
+            <Text style={styles.emptyStateTitle}>Nothing scheduled</Text>
+            <Text style={styles.emptyStateBody}>
+              Import a workout and tap Schedule Workout to plan it for this day.
+            </Text>
+          </View>
         )}
       </View>
     </ScrollView>
@@ -435,8 +602,71 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       borderColor: theme.mode === "dark" ? theme.colors.borderSoft : "transparent",
       ...theme.shadows.card,
     },
-    dailyWorkoutCard: {
+    scheduledWorkoutCard: {
       borderColor: theme.mode === "dark" ? "rgba(255, 90, 20, 0.24)" : "rgba(41, 86, 215, 0.14)",
+    },
+    calendarStripContent: {
+      gap: 8,
+      paddingVertical: 8,
+      paddingRight: 8,
+    },
+    calendarPill: {
+      minWidth: 62,
+      borderRadius: 18,
+      paddingVertical: 10,
+      paddingHorizontal: 10,
+      alignItems: "center",
+      backgroundColor: theme.colors.surface,
+      borderWidth: 1,
+      borderColor: theme.colors.borderSoft,
+    },
+    calendarPillSelected: {
+      backgroundColor: theme.colors.primary,
+      borderColor: theme.colors.primary,
+    },
+    calendarPillLabel: {
+      color: theme.colors.textMuted,
+      fontSize: 10,
+      fontWeight: "900",
+      letterSpacing: 1.1,
+    },
+    calendarPillLabelSelected: {
+      color: theme.colors.surface,
+    },
+    calendarPillNumber: {
+      marginTop: 2,
+      color: theme.colors.textPrimary,
+      fontSize: 20,
+      fontWeight: "800",
+    },
+    calendarPillNumberSelected: {
+      color: theme.colors.surface,
+    },
+    calendarPillMonth: {
+      marginTop: 2,
+      color: theme.colors.textMuted,
+      fontSize: 11,
+      fontWeight: "700",
+    },
+    calendarPillMonthSelected: {
+      color: theme.colors.surface,
+    },
+    calendarPillDot: {
+      marginTop: 6,
+      width: 6,
+      height: 6,
+      borderRadius: 999,
+      backgroundColor: theme.colors.primary,
+    },
+    calendarPillDotSelected: {
+      backgroundColor: theme.colors.surface,
+    },
+    calendarSelectedLabel: {
+      color: theme.colors.textPrimary,
+      fontSize: 18,
+      fontWeight: "800",
+      marginTop: 4,
+      marginBottom: 4,
     },
     workoutHeader: {
       flexDirection: "row",
@@ -450,7 +680,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       paddingHorizontal: 14,
       paddingVertical: 8,
     },
-    dailyWorkoutBadge: {
+    scheduledWorkoutBadge: {
       backgroundColor:
         theme.mode === "dark" ? "rgba(255, 90, 20, 0.14)" : "rgba(79, 117, 231, 0.16)",
     },
@@ -461,7 +691,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       letterSpacing: 1.3,
       textTransform: "uppercase",
     },
-    dailyWorkoutBadgeText: {
+    scheduledWorkoutBadgeText: {
       color: theme.colors.primaryBright,
     },
     removeButton: {

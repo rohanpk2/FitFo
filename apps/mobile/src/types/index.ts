@@ -202,9 +202,11 @@ export interface StoredAuthSession {
 export interface SavedRoutinePreview {
   id: string;
   savedWorkoutId?: string;
+  scheduledWorkoutId?: string;
   workoutId?: string | null;
   jobId?: string | null;
   sourceUrl?: string | null;
+  scheduledFor?: string;
   title: string;
   description: string;
   metaLeft: string;
@@ -274,22 +276,48 @@ export interface SavedWorkoutUpsertRequest {
   workout_plan?: WorkoutPlan | null;
 }
 
-export interface DailyWorkoutRecord {
+export type ScheduledWorkoutStatus =
+  | "scheduled"
+  | "completed"
+  | "skipped"
+  | "cancelled";
+
+export interface ScheduledWorkoutRecord {
   id: string;
-  category: "cardio" | "core";
+  user_id: string;
+  source_workout_id: string | null;
+  workout_id: string | null;
+  job_id: string | null;
+  source_url: string | null;
+  scheduled_for: string;
+  status: ScheduledWorkoutStatus;
   title: string;
-  description: string;
-  meta_left: string;
-  meta_right: string;
-  badge_label: string;
-  generated_for_date: string;
-  workout_plan: WorkoutPlan;
+  description: string | null;
+  meta_left: string | null;
+  meta_right: string | null;
+  badge_label: string | null;
+  workout_plan: WorkoutPlan | null;
+  created_at: string | null;
+  updated_at: string | null;
 }
 
-export interface DailyWorkoutsResponse {
-  generated_for_date: string;
-  source: "llm" | "fallback";
-  workouts: DailyWorkoutRecord[];
+export interface ScheduledWorkoutCreateRequest {
+  source_workout_id?: string | null;
+  workout_id?: string | null;
+  job_id?: string | null;
+  source_url?: string | null;
+  scheduled_for: string;
+  title: string;
+  description?: string | null;
+  meta_left?: string | null;
+  meta_right?: string | null;
+  badge_label?: string | null;
+  workout_plan?: WorkoutPlan | null;
+}
+
+export interface ScheduledWorkoutUpdateRequest {
+  scheduled_for?: string;
+  status?: ScheduledWorkoutStatus;
 }
 
 export interface CompletedWorkoutRecord {

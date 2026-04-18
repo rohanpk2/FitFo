@@ -1,10 +1,19 @@
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  Image,
+  Linking,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 import {
   formatCompletedWorkoutDate,
-  getRoutineDisplayTitle,
   getCompletedWorkoutMeta,
+  getCreatorHandle,
+  getRoutineDisplayTitle,
 } from "../lib/fitfo";
 import { getTheme, type ThemeMode } from "../theme";
 import type { ActiveSetPreview, CompletedWorkoutRecord } from "../types";
@@ -81,9 +90,7 @@ export function WorkoutSummaryScreen({
   const detailChips = [
     workout.difficulty ? `Difficulty: ${workout.difficulty}` : null,
     workout.calories != null ? `${workout.calories} cal` : null,
-    workout.average_rest_seconds != null
-      ? `${formatSeconds(workout.average_rest_seconds)} avg rest`
-      : null,
+    
   ].filter((value): value is string => Boolean(value));
 
   return (
@@ -96,12 +103,12 @@ export function WorkoutSummaryScreen({
         <Pressable onPress={onBack} style={styles.backButton}>
           <Ionicons color={theme.colors.primary} name="chevron-back" size={18} />
         </Pressable>
-        <View style={styles.headerBrand}>
-          <View style={styles.brandBadge}>
-            <Text style={styles.brandBadgeText}>F</Text>
-          </View>
-          <Text style={styles.brandText}>FitFo</Text>
-        </View>
+        <Image
+          resizeMode="contain"
+          source={require("../../assets/logo_white_no_bg.png")}
+          style={styles.brandLogo}
+        />
+        <View style={styles.headerSpacer} />
       </View>
 
       <View style={styles.heroCard}>
@@ -146,24 +153,32 @@ export function WorkoutSummaryScreen({
           </View>
         ) : null}
 
-        {workout.tags.length > 0 ? (
-          <View style={styles.detailCard}>
-            <Text style={styles.detailLabel}>Tags</Text>
-            <View style={styles.chipRow}>
-              {workout.tags.map((tag) => (
-                <View key={tag} style={styles.tagChip}>
-                  <Text style={styles.tagChipText}>{tag}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
-        ) : null}
+        
 
         {workout.source_url ? (
           <View style={styles.detailCard}>
             <Text style={styles.detailLabel}>Source</Text>
-            <Pressable onPress={() => void Linking.openURL(workout.source_url || "")}>
-              <Text style={styles.sourceLink}>{formatSourceUrl(workout.source_url)}</Text>
+            <Pressable
+              onPress={() => void Linking.openURL(workout.source_url || "")}
+              style={({ pressed }) => [
+                styles.sourceButton,
+                pressed ? styles.sourceButtonPressed : null,
+              ]}
+            >
+              <Ionicons
+                color={theme.colors.primary}
+                name="logo-tiktok"
+                size={16}
+              />
+              <Text style={styles.sourceButtonText}>
+                {getCreatorHandle(workout.source_url) ||
+                  formatSourceUrl(workout.source_url)}
+              </Text>
+              <Ionicons
+                color={theme.colors.primary}
+                name="open-outline"
+                size={14}
+              />
             </Pressable>
           </View>
         ) : null}
@@ -262,29 +277,13 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       borderColor: theme.mode === "dark" ? theme.colors.borderSoft : "transparent",
       ...theme.shadows.softCard,
     },
-    headerBrand: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 8,
+    brandLogo: {
+      width: 168,
+      height: 60,
     },
-    brandBadge: {
-      width: 18,
-      height: 18,
-      borderRadius: 999,
-      backgroundColor: theme.colors.primary,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    brandBadgeText: {
-      color: theme.colors.surface,
-      fontSize: 9,
-      fontWeight: "800",
-    },
-    brandText: {
-      color: theme.colors.primary,
-      fontSize: 20,
-      fontWeight: "800",
-      letterSpacing: -0.5,
+    headerSpacer: {
+      width: 36,
+      height: 36,
     },
     heroCard: {
       borderRadius: theme.radii.xlarge,
@@ -402,11 +401,26 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       fontSize: 13,
       fontWeight: "700",
     },
-    sourceLink: {
+    sourceButton: {
+      marginTop: 4,
+      alignSelf: "flex-start",
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      borderRadius: 999,
+      backgroundColor: theme.colors.surfaceMuted,
+      borderWidth: 1,
+      borderColor: theme.colors.borderSoft,
+    },
+    sourceButtonPressed: {
+      opacity: 0.85,
+    },
+    sourceButtonText: {
       color: theme.colors.primary,
-      fontSize: 15,
-      lineHeight: 22,
-      fontWeight: "700",
+      fontSize: 14,
+      fontWeight: "800",
     },
     exerciseList: {
       gap: 12,

@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -10,6 +11,7 @@ import {
 } from "react-native";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 
+import { getCreatorHandle } from "../lib/fitfo";
 import { getStatusInfo } from "../lib/status";
 import { getTheme, type ThemeMode } from "../theme";
 import type { JobResponse, SavedRoutinePreview } from "../types";
@@ -17,37 +19,95 @@ import type { JobResponse, SavedRoutinePreview } from "../types";
 interface AddWorkoutModalProps {
   visible: boolean;
   isSubmitting: boolean;
+  isScheduling?: boolean;
   job: JobResponse | null;
   routine: SavedRoutinePreview | null;
   error: string | null;
   onClose: () => void;
   onSubmit: (url: string) => void;
   onCreateManual: () => void;
-  onSaveImported: () => void;
+  onScheduleImported: (scheduledFor: string) => void;
   onStartImported: () => void;
   themeMode?: ThemeMode;
+}
+
+const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MONTH_LABELS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+
+function toIsoDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function buildUpcomingDates(count: number): Date[] {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const days: Date[] = [];
+  for (let index = 0; index < count; index += 1) {
+    const next = new Date(today);
+    next.setDate(today.getDate() + index);
+    days.push(next);
+  }
+  return days;
+}
+
+function formatReadableDate(date: Date): string {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const reference = new Date(date);
+  reference.setHours(0, 0, 0, 0);
+  const diffDays = Math.round(
+    (reference.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
+  );
+  if (diffDays === 0) {
+    return "Today";
+  }
+  if (diffDays === 1) {
+    return "Tomorrow";
+  }
+  return `${DAY_LABELS[reference.getDay()]}, ${MONTH_LABELS[reference.getMonth()]} ${reference.getDate()}`;
 }
 
 export function AddWorkoutModal({
   visible,
   isSubmitting,
+  isScheduling = false,
   job,
   routine,
   error,
   onClose,
   onSubmit,
   onCreateManual,
-  onSaveImported,
+  onScheduleImported,
   onStartImported,
   themeMode = "light",
 }: AddWorkoutModalProps) {
   const [url, setUrl] = useState("");
+  const [isPickingDate, setIsPickingDate] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const theme = getTheme(themeMode);
   const styles = createStyles(theme);
 
   useEffect(() => {
     if (!visible) {
       setUrl("");
+      setIsPickingDate(false);
+      setSelectedDate(null);
     }
   }, [visible]);
 
@@ -56,10 +116,43 @@ export function AddWorkoutModal({
   const info = getStatusInfo(job?.status ?? "pending", themeMode);
   const workoutPlan = routine?.workoutPlan ?? null;
   const hasImportedWorkout = workoutPlan != null;
-  const exerciseCount = useMemo(
-    () => workoutPlan?.blocks.reduce((count, block) => count + block.exercises.length, 0) ?? 0,
-    [workoutPlan],
+  const creatorHandle = useMemo(
+    () => getCreatorHandle(routine?.sourceUrl ?? null),
+    [routine?.sourceUrl],
   );
+  const upcomingDates = useMemo(() => buildUpcomingDates(14), []);
+  const defaultDateIso = upcomingDates[0] ? toIsoDate(upcomingDates[0]) : null;
+  const activeSelectedDate = selectedDate ?? defaultDateIso;
+  const readableSelectedDate = useMemo(() => {
+    if (!activeSelectedDate) {
+      return "Pick a date";
+    }
+    const match = upcomingDates.find((date) => toIsoDate(date) === activeSelectedDate);
+    if (!match) {
+      return activeSelectedDate;
+    }
+    return formatReadableDate(match);
+  }, [activeSelectedDate, upcomingDates]);
+
+  const handleBeginScheduling = () => {
+    if (isScheduling) {
+      return;
+    }
+    setSelectedDate(defaultDateIso);
+    setIsPickingDate(true);
+  };
+
+  const handleCancelScheduling = () => {
+    setIsPickingDate(false);
+    setSelectedDate(null);
+  };
+
+  const handleConfirmSchedule = () => {
+    if (!activeSelectedDate || isScheduling) {
+      return;
+    }
+    onScheduleImported(activeSelectedDate);
+  };
 
   return (
     <Modal
@@ -161,26 +254,140 @@ export function AddWorkoutModal({
               </View>
               <Text style={styles.previewTitle}>{routine?.title}</Text>
               <Text style={styles.previewDescription}>{routine?.description}</Text>
-              <View style={styles.previewTags}>
-                <View style={styles.previewChip}>
-                  <Text style={styles.previewChipText}>{workoutPlan?.workout_type}</Text>
+              {creatorHandle ? (
+                <View style={styles.previewTags}>
+                  <View style={styles.previewChip}>
+                    <Ionicons
+                      color={theme.colors.primary}
+                      name="person-circle-outline"
+                      size={14}
+                    />
+                    <Text style={styles.previewChipText}>{creatorHandle}</Text>
+                  </View>
                 </View>
-                <View style={styles.previewChip}>
-                  <Text style={styles.previewChipText}>{workoutPlan?.blocks.length} blocks</Text>
-                </View>
-                <View style={styles.previewChip}>
-                  <Text style={styles.previewChipText}>{exerciseCount} exercises</Text>
-                </View>
-              </View>
+              ) : null}
 
               <View style={styles.previewActionColumn}>
-                <Pressable onPress={onStartImported} style={styles.secondaryAction}>
-                  <Text style={styles.secondaryActionText}>Start Workout</Text>
-                </Pressable>
+                {!isPickingDate ? (
+                  <>
+                    <Pressable
+                      disabled={isScheduling}
+                      onPress={onStartImported}
+                      style={[
+                        styles.secondaryAction,
+                        isScheduling ? styles.actionDisabled : null,
+                      ]}
+                    >
+                      <Text style={styles.secondaryActionText}>Start Workout</Text>
+                    </Pressable>
 
-                <Pressable onPress={onSaveImported} style={styles.tertiaryAction}>
-                  <Text style={styles.tertiaryActionText}>Save for Later</Text>
-                </Pressable>
+                    <Pressable
+                      disabled={isScheduling}
+                      onPress={handleBeginScheduling}
+                      style={[
+                        styles.tertiaryAction,
+                        isScheduling ? styles.actionDisabled : null,
+                      ]}
+                    >
+                      <View style={styles.buttonRow}>
+                        <Ionicons
+                          color={theme.colors.primary}
+                          name="calendar-outline"
+                          size={16}
+                        />
+                        <Text style={styles.tertiaryActionText}>Schedule Workout</Text>
+                      </View>
+                    </Pressable>
+                  </>
+                ) : (
+                  <View style={styles.schedulerBlock}>
+                    <View style={styles.schedulerHeader}>
+                      <Text style={styles.schedulerEyebrow}>Pick a day</Text>
+                      <Text style={styles.schedulerSelectedText}>
+                        {readableSelectedDate}
+                      </Text>
+                    </View>
+
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={styles.dayStripContent}
+                    >
+                      {upcomingDates.map((date) => {
+                        const iso = toIsoDate(date);
+                        const isSelected = activeSelectedDate === iso;
+                        return (
+                          <Pressable
+                            key={iso}
+                            onPress={() => setSelectedDate(iso)}
+                            style={[
+                              styles.dayPill,
+                              isSelected ? styles.dayPillSelected : null,
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.dayPillLabel,
+                                isSelected ? styles.dayPillLabelSelected : null,
+                              ]}
+                            >
+                              {DAY_LABELS[date.getDay()].toUpperCase()}
+                            </Text>
+                            <Text
+                              style={[
+                                styles.dayPillNumber,
+                                isSelected ? styles.dayPillNumberSelected : null,
+                              ]}
+                            >
+                              {date.getDate()}
+                            </Text>
+                            <Text
+                              style={[
+                                styles.dayPillMonth,
+                                isSelected ? styles.dayPillMonthSelected : null,
+                              ]}
+                            >
+                              {MONTH_LABELS[date.getMonth()]}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </ScrollView>
+
+                    <Pressable
+                      disabled={!activeSelectedDate || isScheduling}
+                      onPress={handleConfirmSchedule}
+                      style={[
+                        styles.secondaryAction,
+                        (!activeSelectedDate || isScheduling)
+                          ? styles.actionDisabled
+                          : null,
+                      ]}
+                    >
+                      {isScheduling ? (
+                        <View style={styles.buttonRow}>
+                          <ActivityIndicator
+                            color={theme.colors.surface}
+                            size="small"
+                          />
+                          <Text style={styles.secondaryActionText}>Scheduling...</Text>
+                        </View>
+                      ) : (
+                        <Text style={styles.secondaryActionText}>
+                          Schedule for {readableSelectedDate}
+                        </Text>
+                      )}
+                    </Pressable>
+
+                    <Pressable
+                      disabled={isScheduling}
+                      onPress={handleCancelScheduling}
+                      style={styles.schedulerCancel}
+                    >
+                      <Text style={styles.schedulerCancelText}>Back</Text>
+                    </Pressable>
+                  </View>
+                )}
               </View>
             </View>
           ) : null}
@@ -410,6 +617,9 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       backgroundColor: theme.colors.surface,
       paddingHorizontal: 12,
       paddingVertical: 8,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
     },
     previewChipText: {
       color: theme.colors.primary,
@@ -445,6 +655,85 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       color: theme.colors.primary,
       fontSize: 15,
       fontWeight: "800",
+    },
+    actionDisabled: {
+      opacity: 0.55,
+    },
+    schedulerBlock: {
+      gap: 12,
+    },
+    schedulerHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "flex-end",
+    },
+    schedulerEyebrow: {
+      color: theme.colors.textMuted,
+      fontSize: 11,
+      fontWeight: "900",
+      letterSpacing: 1.4,
+      textTransform: "uppercase",
+    },
+    schedulerSelectedText: {
+      color: theme.colors.textPrimary,
+      fontSize: 15,
+      fontWeight: "800",
+    },
+    dayStripContent: {
+      gap: 8,
+      paddingVertical: 4,
+      paddingRight: 8,
+    },
+    dayPill: {
+      minWidth: 62,
+      borderRadius: 18,
+      paddingVertical: 10,
+      paddingHorizontal: 10,
+      alignItems: "center",
+      backgroundColor: theme.colors.surface,
+      borderWidth: 1,
+      borderColor: theme.colors.borderSoft,
+    },
+    dayPillSelected: {
+      backgroundColor: theme.colors.primary,
+      borderColor: theme.colors.primary,
+    },
+    dayPillLabel: {
+      color: theme.colors.textMuted,
+      fontSize: 10,
+      fontWeight: "900",
+      letterSpacing: 1.1,
+    },
+    dayPillLabelSelected: {
+      color: theme.colors.surface,
+    },
+    dayPillNumber: {
+      marginTop: 2,
+      color: theme.colors.textPrimary,
+      fontSize: 20,
+      fontWeight: "800",
+    },
+    dayPillNumberSelected: {
+      color: theme.colors.surface,
+    },
+    dayPillMonth: {
+      marginTop: 2,
+      color: theme.colors.textMuted,
+      fontSize: 11,
+      fontWeight: "700",
+    },
+    dayPillMonthSelected: {
+      color: theme.colors.surface,
+    },
+    schedulerCancel: {
+      alignItems: "center",
+      justifyContent: "center",
+      paddingVertical: 6,
+    },
+    schedulerCancelText: {
+      color: theme.colors.textMuted,
+      fontSize: 13,
+      fontWeight: "700",
     },
     orRow: {
       marginTop: 18,

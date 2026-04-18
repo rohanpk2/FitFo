@@ -22,13 +22,15 @@ import {
   createBodyWeightEntry,
   createCompletedWorkout,
   createIngestionJob,
+  createScheduledWorkout,
   deleteSavedWorkout,
+  deleteScheduledWorkout,
   getCompletedWorkout,
   getCurrentUser,
   listBodyWeightEntries,
   listCompletedWorkouts,
-  listDailyWorkouts,
   listSavedWorkouts,
+  listScheduledWorkouts,
   saveOnboarding,
   saveWorkoutForLater,
   sendOtp,
@@ -37,10 +39,10 @@ import {
 import {
   buildCompletedWorkoutRequest,
   createActiveSessionFromPlan,
-  createDailyRoutinePreview,
   createDefaultActiveSession,
   createImportedRoutinePreview,
   createSavedRoutinePreviewFromRecord,
+  createScheduledRoutinePreview,
 } from "./src/lib/fitfo";
 import { ActiveWorkoutScreen } from "./src/screens/ActiveWorkoutScreen";
 import { LoginScreen } from "./src/screens/LoginScreen";
@@ -59,11 +61,11 @@ import type {
   AuthMode,
   BodyWeightEntryRecord,
   CompletedWorkoutRecord,
-  DailyWorkoutRecord,
   OtpIntent,
   PendingOtpChallenge,
   SaveOnboardingRequest,
   SavedRoutinePreview,
+  ScheduledWorkoutRecord,
   UserProfile,
 } from "./src/types";
 
@@ -105,9 +107,14 @@ export default function App() {
   const [savedWorkouts, setSavedWorkouts] = useState<SavedRoutinePreview[]>([]);
   const [savedWorkoutsLoading, setSavedWorkoutsLoading] = useState(false);
   const [savedWorkoutsError, setSavedWorkoutsError] = useState<string | null>(null);
-  const [dailyWorkouts, setDailyWorkouts] = useState<DailyWorkoutRecord[]>([]);
-  const [dailyWorkoutsLoading, setDailyWorkoutsLoading] = useState(false);
-  const [dailyWorkoutsError, setDailyWorkoutsError] = useState<string | null>(null);
+  const [scheduledWorkouts, setScheduledWorkouts] = useState<
+    ScheduledWorkoutRecord[]
+  >([]);
+  const [scheduledWorkoutsLoading, setScheduledWorkoutsLoading] = useState(false);
+  const [scheduledWorkoutsError, setScheduledWorkoutsError] = useState<string | null>(
+    null,
+  );
+  const [isSchedulingWorkout, setIsSchedulingWorkout] = useState(false);
   const [completedWorkouts, setCompletedWorkouts] = useState<CompletedWorkoutRecord[]>(
     [],
   );
@@ -184,19 +191,21 @@ export default function App() {
     }
   }, []);
 
-  const loadDailyWorkouts = useCallback(async (token: string) => {
-    setDailyWorkoutsLoading(true);
-    setDailyWorkoutsError(null);
+  const loadScheduledWorkouts = useCallback(async (token: string) => {
+    setScheduledWorkoutsLoading(true);
+    setScheduledWorkoutsError(null);
 
     try {
-      const response = await listDailyWorkouts(token);
-      setDailyWorkouts(response.workouts);
+      const rows = await listScheduledWorkouts(token);
+      setScheduledWorkouts(rows);
     } catch (error) {
-      setDailyWorkoutsError(
-        error instanceof Error ? error.message : "Unable to load daily workouts.",
+      setScheduledWorkoutsError(
+        error instanceof Error
+          ? error.message
+          : "Unable to load scheduled workouts.",
       );
     } finally {
-      setDailyWorkoutsLoading(false);
+      setScheduledWorkoutsLoading(false);
     }
   }, []);
 
@@ -237,8 +246,8 @@ export default function App() {
     if (!currentUser || !accessToken) {
       setSavedWorkouts([]);
       setSavedWorkoutsError(null);
-      setDailyWorkouts([]);
-      setDailyWorkoutsError(null);
+      setScheduledWorkouts([]);
+      setScheduledWorkoutsError(null);
       setCompletedWorkouts([]);
       setCompletedWorkoutsError(null);
       setBodyWeightEntries([]);
@@ -248,7 +257,7 @@ export default function App() {
 
     // The backend/database is the source of truth for per-user workout data.
     void loadSavedWorkouts(accessToken);
-    void loadDailyWorkouts(accessToken);
+    void loadScheduledWorkouts(accessToken);
     void loadCompletedWorkouts(accessToken);
     void loadBodyWeightEntries(accessToken);
   }, [
@@ -256,8 +265,8 @@ export default function App() {
     currentUser,
     loadBodyWeightEntries,
     loadCompletedWorkouts,
-    loadDailyWorkouts,
     loadSavedWorkouts,
+    loadScheduledWorkouts,
   ]);
 
   const handleExtractWorkout = useCallback(async (url: string) => {
@@ -325,39 +334,98 @@ export default function App() {
     [latestImportedRoutine, resetImportFlow],
   );
 
-  const handleSaveImportedWorkout = useCallback(async () => {
-    if (!accessToken || !latestImportedRoutine) {
-      return;
-    }
+  const handleScheduleImportedWorkout = useCallback(
+    async (scheduledFor: string) => {
+      if (!accessToken || !latestImportedRoutine) {
+        return;
+      }
 
-    try {
-      const saved = await saveWorkoutForLater(accessToken, {
-        workout_id: workout?.id ?? latestImportedRoutine.workoutId ?? null,
-        job_id: job?.id ?? latestImportedRoutine.jobId ?? null,
-        source_url: job?.source_url ?? latestImportedRoutine.sourceUrl ?? null,
-        title: latestImportedRoutine.title,
-        description: latestImportedRoutine.description,
-        meta_left: latestImportedRoutine.metaLeft,
-        meta_right: latestImportedRoutine.metaRight,
-        badge_label: latestImportedRoutine.badgeLabel ?? null,
-        workout_plan: latestImportedRoutine.workoutPlan ?? null,
-      });
-      const preview = createSavedRoutinePreviewFromRecord(saved);
-      setSavedWorkouts((current) => {
-        const withoutDuplicate = current.filter((item) => item.id !== preview.id);
-        return [preview, ...withoutDuplicate];
-      });
-      setSavedWorkoutsError(null);
-      setSubmitError(null);
-      setActiveTab("saved");
-      setIsAddWorkoutVisible(false);
-      resetImportFlow();
-    } catch (error) {
-      setSubmitError(
-        error instanceof Error ? error.message : "Unable to save this workout right now.",
-      );
-    }
-  }, [accessToken, job, latestImportedRoutine, resetImportFlow, workout]);
+      setIsSchedulingWorkout(true);
+      try {
+        // Always mirror the imported workout into the saved library first so schedules
+        // point at a persistent source record that the user can edit or reuse later.
+        const saved = await saveWorkoutForLater(accessToken, {
+          workout_id: workout?.id ?? latestImportedRoutine.workoutId ?? null,
+          job_id: job?.id ?? latestImportedRoutine.jobId ?? null,
+          source_url: job?.source_url ?? latestImportedRoutine.sourceUrl ?? null,
+          title: latestImportedRoutine.title,
+          description: latestImportedRoutine.description,
+          meta_left: latestImportedRoutine.metaLeft,
+          meta_right: latestImportedRoutine.metaRight,
+          badge_label: latestImportedRoutine.badgeLabel ?? null,
+          workout_plan: latestImportedRoutine.workoutPlan ?? null,
+        });
+        const savedPreview = createSavedRoutinePreviewFromRecord(saved);
+        setSavedWorkouts((current) => {
+          const withoutDuplicate = current.filter(
+            (item) => item.id !== savedPreview.id,
+          );
+          return [savedPreview, ...withoutDuplicate];
+        });
+
+        const scheduled = await createScheduledWorkout(accessToken, {
+          source_workout_id: saved.id,
+          workout_id: saved.workout_id ?? null,
+          job_id: saved.job_id ?? null,
+          source_url: saved.source_url ?? null,
+          scheduled_for: scheduledFor,
+          title: latestImportedRoutine.title,
+          description: latestImportedRoutine.description,
+          meta_left: latestImportedRoutine.metaLeft,
+          meta_right: latestImportedRoutine.metaRight,
+          badge_label: latestImportedRoutine.badgeLabel ?? null,
+          workout_plan: latestImportedRoutine.workoutPlan ?? null,
+        });
+        setScheduledWorkouts((current) => {
+          const withoutDuplicate = current.filter(
+            (item) => item.id !== scheduled.id,
+          );
+          return [...withoutDuplicate, scheduled].sort((left, right) =>
+            left.scheduled_for.localeCompare(right.scheduled_for),
+          );
+        });
+
+        setSavedWorkoutsError(null);
+        setScheduledWorkoutsError(null);
+        setSubmitError(null);
+        setActiveTab("saved");
+        setIsAddWorkoutVisible(false);
+        resetImportFlow();
+      } catch (error) {
+        setSubmitError(
+          error instanceof Error
+            ? error.message
+            : "Unable to schedule this workout right now.",
+        );
+      } finally {
+        setIsSchedulingWorkout(false);
+      }
+    },
+    [accessToken, job, latestImportedRoutine, resetImportFlow, workout],
+  );
+
+  const handleUnscheduleWorkout = useCallback(
+    async (scheduledWorkoutId: string) => {
+      if (!accessToken) {
+        return;
+      }
+
+      try {
+        await deleteScheduledWorkout(accessToken, scheduledWorkoutId);
+        setScheduledWorkouts((current) =>
+          current.filter((item) => item.id !== scheduledWorkoutId),
+        );
+        setScheduledWorkoutsError(null);
+      } catch (error) {
+        setScheduledWorkoutsError(
+          error instanceof Error
+            ? error.message
+            : "Unable to remove that scheduled workout.",
+        );
+      }
+    },
+    [accessToken],
+  );
 
   const handleCreateManualWorkout = useCallback(async () => {
     if (!accessToken) {
@@ -700,8 +768,8 @@ export default function App() {
       setCurrentUser(null);
       setSavedWorkouts([]);
       setSavedWorkoutsError(null);
-      setDailyWorkouts([]);
-      setDailyWorkoutsError(null);
+      setScheduledWorkouts([]);
+      setScheduledWorkoutsError(null);
       setCompletedWorkouts([]);
       setCompletedWorkoutsError(null);
       setBodyWeightEntries([]);
@@ -867,21 +935,22 @@ export default function App() {
     if (activeTab === "saved") {
       return (
         <SavedWorkoutsScreen
-          dailyError={dailyWorkoutsError}
-          dailyWorkouts={dailyWorkouts.map(createDailyRoutinePreview)}
           error={savedWorkoutsError}
           importedWorkouts={savedWorkouts}
-          isDailyLoading={dailyWorkoutsLoading}
           isLoading={savedWorkoutsLoading}
+          isScheduleLoading={scheduledWorkoutsLoading}
           onAddWorkout={handleOpenAddWorkout}
           onRemoveWorkout={handleRemoveSavedWorkout}
           onRetry={() => {
             if (accessToken) {
               void loadSavedWorkouts(accessToken);
-              void loadDailyWorkouts(accessToken);
+              void loadScheduledWorkouts(accessToken);
             }
           }}
           onStartSession={handleStartSession}
+          onUnschedule={handleUnscheduleWorkout}
+          scheduledError={scheduledWorkoutsError}
+          scheduledWorkouts={scheduledWorkouts.map(createScheduledRoutinePreview)}
           themeMode={themeMode}
         />
       );
@@ -1017,11 +1086,12 @@ export default function App() {
 
       <AddWorkoutModal
         error={importError}
+        isScheduling={isSchedulingWorkout}
         isSubmitting={isExtractSubmitting}
         job={job}
         onClose={handleCloseAddWorkout}
         onCreateManual={handleCreateManualWorkout}
-        onSaveImported={handleSaveImportedWorkout}
+        onScheduleImported={handleScheduleImportedWorkout}
         onStartImported={() => handleStartSession()}
         onSubmit={handleExtractWorkout}
         routine={latestImportedRoutine}
