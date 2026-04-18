@@ -54,7 +54,9 @@ async def fetch_reel(source_url: str) -> dict[str, Any]:
     except httpx.RequestError as exc:
         raise ApifyReelError(str(exc)) from exc
 
-    if resp.status_code != 200:
+    # Apify's run-sync endpoint returns 201 Created because it spawns a new
+    # actor run. 200 is documented too, so accept the whole 2xx success band.
+    if resp.status_code < 200 or resp.status_code >= 300:
         body = resp.text[:400] if resp.text else "(empty)"
         raise ApifyReelError(f"Apify HTTP {resp.status_code}: {body}")
 
@@ -77,15 +79,16 @@ def pick_video_url(item: dict[str, Any]) -> str:
     Best-effort extraction of a downloadable video URL from an Apify dataset item.
     Field names shift across actor versions, so we defensively probe multiple keys.
     """
-    candidates = (
+    # Direct scalar URL fields, in order of preference.
+    direct_candidates = (
         item.get("videoUrl"),
         item.get("video_url"),
         item.get("videoPlayUrl"),
         item.get("downloadedVideoUrl"),
         item.get("videoDownloadUrl"),
-        item.get("displayUrl"),
+        item.get("videoSrc"),
     )
-    for value in candidates:
+    for value in direct_candidates:
         if isinstance(value, str) and value.startswith("http"):
             return value
 
@@ -98,7 +101,32 @@ def pick_video_url(item: dict[str, Any]) -> str:
                 if isinstance(url, str) and url.startswith("http"):
                     return url
 
-    raise ApifyReelError("Could not find a downloadable video URL in Apify response")
+    media = item.get("media")
+    if isinstance(media, dict):
+        for key in ("videoUrl", "playbackUrl", "url"):
+            value = media.get(key)
+            if isinstance(value, str) and value.startswith("http"):
+                return value
+
+    # displayUrl is usually an image thumbnail, not a video. Only fall back to
+    # it if the item clearly declares itself a video, to avoid handing a JPEG
+    # to ffmpeg.
+    item_type = str(item.get("type") or "").strip().lower()
+    if item_type == "video":
+        display_url = item.get("displayUrl")
+        if isinstance(display_url, str) and display_url.startswith("http"):
+            return display_url
+
+    if item_type and item_type != "video":
+        raise ApifyReelError(
+            f"This Instagram post is a {item_type}, not a video reel. "
+            "Paste an Instagram reel URL (instagram.com/reel/...)."
+        )
+
+    raise ApifyReelError(
+        "Apify returned no downloadable video URL for this post. "
+        "Try an Instagram reel URL (instagram.com/reel/...) instead."
+    )
 
 
 def pick_transcript(item: dict[str, Any]) -> Optional[str]:
