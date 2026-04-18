@@ -176,11 +176,12 @@ export function AddWorkoutModal({
           </View>
           <Text style={styles.title}>Import Workout</Text>
           <Text style={styles.subtitle}>
-            Paste a TikTok link to turn it into a workout you can start now or save for later.
+            Paste a TikTok or Instagram reel link to turn it into a workout you can
+            start now or save for later.
           </Text>
 
           <View style={styles.formBlock}>
-            <Text style={styles.label}>TikTok Link</Text>
+            <Text style={styles.label}>Video Link</Text>
             <View style={styles.inputShell}>
               <Ionicons color={theme.colors.textMuted} name="link-outline" size={18} />
               <TextInput
@@ -189,7 +190,7 @@ export function AddWorkoutModal({
                 editable={!isSubmitting && !isPolling && !hasImportedWorkout}
                 keyboardType="url"
                 onChangeText={setUrl}
-                placeholder="https://tiktok.com/@creator/video/..."
+                placeholder="tiktok.com/... or instagram.com/reel/..."
                 placeholderTextColor={theme.colors.textMuted}
                 style={styles.input}
                 value={url}
@@ -222,7 +223,7 @@ export function AddWorkoutModal({
               ) : (
                 <View style={styles.buttonRow}>
                   <Ionicons color={theme.colors.surface} name="flash" size={16} />
-                  <Text style={styles.primaryButtonText}>Import from TikTok</Text>
+                  <Text style={styles.primaryButtonText}>Import Workout</Text>
                 </View>
               )}
             </Pressable>

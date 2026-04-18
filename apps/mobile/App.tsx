@@ -44,6 +44,11 @@ import {
   createSavedRoutinePreviewFromRecord,
   createScheduledRoutinePreview,
 } from "./src/lib/fitfo";
+import {
+  cancelWorkoutReminder,
+  reconcileScheduledNotifications,
+  scheduleWorkoutReminder,
+} from "./src/lib/notifications";
 import { ActiveWorkoutScreen } from "./src/screens/ActiveWorkoutScreen";
 import { LoginScreen } from "./src/screens/LoginScreen";
 import { LogsScreen } from "./src/screens/LogsScreen";
@@ -199,6 +204,8 @@ export default function App() {
     try {
       const rows = await listScheduledWorkouts(token);
       setScheduledWorkouts(rows);
+      // Clear any local notifications whose schedule rows were removed elsewhere.
+      void reconcileScheduledNotifications(rows.map((row) => row.id));
     } catch (error) {
       setScheduledWorkoutsError(
         error instanceof Error
@@ -386,6 +393,9 @@ export default function App() {
           );
         });
 
+        // Fire-and-forget local notification for 30 min before the 7 AM workout.
+        void scheduleWorkoutReminder(scheduled);
+
         setSavedWorkoutsError(null);
         setScheduledWorkoutsError(null);
         setSubmitError(null);
@@ -459,6 +469,8 @@ export default function App() {
           current.filter((item) => item.id !== scheduledWorkoutId),
         );
         setScheduledWorkoutsError(null);
+        // Cancel the paired local notification (no-op if one wasn't scheduled).
+        void cancelWorkoutReminder(scheduledWorkoutId);
       } catch (error) {
         setScheduledWorkoutsError(
           error instanceof Error
