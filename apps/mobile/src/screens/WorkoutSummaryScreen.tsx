@@ -14,6 +14,7 @@ import {
   getCompletedWorkoutMeta,
   getCreatorHandle,
   getRoutineDisplayTitle,
+  titleCase,
 } from "../lib/fitfo";
 import { getTheme, type ThemeMode } from "../theme";
 import type { ActiveSetPreview, CompletedWorkoutRecord } from "../types";
@@ -208,7 +209,9 @@ export function WorkoutSummaryScreen({
                     <Ionicons color={theme.colors.primary} name="barbell-outline" size={18} />
                   </View>
                   <View style={styles.exerciseCopy}>
-                    <Text style={styles.exerciseName}>{exercise.name}</Text>
+                    <Text style={styles.exerciseName}>
+                      {titleCase(exercise.name) || exercise.name}
+                    </Text>
                     <Text style={styles.exerciseSubtitle}>{exercise.subtitle}</Text>
                     {exercise.blockName ? (
                       <Text style={styles.exerciseMeta}>{exercise.blockName}</Text>

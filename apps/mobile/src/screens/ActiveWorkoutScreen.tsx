@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
+import { titleCase } from "../lib/fitfo";
 import { getTheme, radii, type ThemeMode } from "../theme";
 import type {
   ActiveExercisePreview,
@@ -267,7 +268,9 @@ function SetRow({
               <Text style={styles.setDoneText}>Logged</Text>
             </View>
           ) : (
-            <Text style={styles.setExerciseName}>{exerciseName}</Text>
+            <Text style={styles.setExerciseName}>
+              {titleCase(exerciseName) || exerciseName}
+            </Text>
           )}
           {canRemove ? (
             <Pressable
@@ -398,7 +401,9 @@ function ExerciseCard({
               {exercise.blockName ? (
                 <Text style={styles.exerciseEyebrow}>{exercise.blockName}</Text>
               ) : null}
-              <Text style={styles.exerciseTitle}>{exercise.name}</Text>
+              <Text style={styles.exerciseTitle}>
+                {titleCase(exercise.name) || exercise.name}
+              </Text>
               <Text style={styles.exerciseSubtitle}>{exercise.subtitle}</Text>
             </View>
           </View>
