@@ -20,6 +20,7 @@ import type {
 
 interface ActiveWorkoutScreenProps {
   session: ActiveSessionPreview;
+  onBack: () => void;
   onFinish: () => void;
   themeMode?: ThemeMode;
 }
@@ -498,6 +499,7 @@ function ExerciseCard({
 
 export function ActiveWorkoutScreen({
   session,
+  onBack,
   onFinish,
   themeMode = "light",
 }: ActiveWorkoutScreenProps) {
@@ -903,11 +905,15 @@ export function ActiveWorkoutScreen({
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
+          <Pressable onPress={onBack} style={styles.backButton} hitSlop={10}>
+            <Ionicons color={theme.colors.primary} name="chevron-back" size={18} />
+          </Pressable>
           <Image
             resizeMode="contain"
             source={require("../../assets/logo_white_no_bg.png")}
             style={styles.brandLogo}
           />
+          <View style={styles.headerSpacer} />
         </View>
 
         <View style={styles.heroSection}>
@@ -924,25 +930,7 @@ export function ActiveWorkoutScreen({
           </Text>
         </View>
 
-        <View style={styles.statGrid}>
-          <View style={styles.statCardPrimary}>
-            <Ionicons color={theme.colors.primary} name="hourglass-outline" size={18} />
-            <Text style={styles.statValuePrimary}>
-              {restCountdownSeconds != null ? formatClock(restCountdownSeconds) : "Ready"}
-            </Text>
-            <Text style={styles.statLabelPrimary}>Current Rest</Text>
-          </View>
-
-          <View style={styles.statCardSoft}>
-            <Ionicons color={theme.colors.textSecondary} name="timer-outline" size={18} />
-            <Text style={styles.statValueSoft}>
-              {session.averageRestSeconds != null
-                ? formatClock(session.averageRestSeconds)
-                : "--"}
-            </Text>
-            <Text style={styles.statLabelSoft}>Avg Rest Time</Text>
-          </View>
-        </View>
+        
 
         <View style={styles.exerciseStack}>
           {exercises.length > 0 ? (
@@ -1167,14 +1155,29 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
       fontWeight: "800",
     },
     header: {
+      flexDirection: "row",
       alignItems: "center",
-      justifyContent: "center",
+      justifyContent: "space-between",
       paddingTop: 4,
       paddingBottom: 8,
     },
+    backButton: {
+      width: 36,
+      height: 36,
+      borderRadius: 999,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.colors.surface,
+      borderWidth: 1,
+      borderColor: theme.mode === "dark" ? theme.colors.borderSoft : "transparent",
+    },
+    headerSpacer: {
+      width: 36,
+      height: 36,
+    },
     brandLogo: {
-      width: 168,
-      height: 60,
+      width: 200,
+      height: 72,
     },
     heroSection: {
       gap: 8,

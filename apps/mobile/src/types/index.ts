@@ -51,8 +51,7 @@ export interface WorkoutPlan {
   workout_type: string;
   equipment: string[];
   blocks: WorkoutBlock[];
-  notes: string | null;
-  confidence: "high" | "medium" | "low";
+  notes: string | null;  
 }
 
 export interface WorkoutRow {

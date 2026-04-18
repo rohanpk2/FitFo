@@ -10,53 +10,48 @@ GROQ_CHAT_URL = "https://api.groq.com/openai/v1/chat/completions"
 DEFAULT_MODEL = "llama-3.3-70b-versatile"
 
 SYSTEM_PROMPT = """\
-You are an expert personal trainer and workout-plan extraction engine. You receive \
-a transcript from a short workout video and return **valid JSON only** — no markdown, \
-no explanation, no commentary.
+You are a strict transcript extractor for workout videos. You receive a \
+transcript and return **valid JSON only** — no markdown, no explanation.
 
 Return a single JSON object with this exact shape:
 
 {
-  "title": "<short descriptive title>",
+  "title": "<short descriptive title, or null if the transcript does not give one>",
   "workout_type": "<strength | cardio | HIIT | flexibility | mobility | mixed | other>",
   "equipment": ["<item>", ...],
   "blocks": [
     {
-      "name": "<optional block/round name or null>",
+      "name": "<block or round name if explicitly stated, else null>",
       "exercises": [
         {
-          "name": "<specific exercise name>",
-          "sets": <integer>,
-          "reps": <integer or null>,
-          "duration_sec": <integer or null>,
-          "rest_sec": <integer or null>,
-          "notes": "<any extra cues or null>"
+          "name": "<exercise name, as literally stated in the transcript>",
+          "sets": <integer, or null if not stated>,
+          "reps": <integer, or null if not stated>,
+          "duration_sec": <integer, or null if not stated>,
+          "rest_sec": <integer, or null if not stated>,
+          "notes": "<verbatim cue from the transcript, or null>"
         }
       ]
     }
   ],
-  "notes": "<any overall notes or null>",
-  "confidence": "<high | medium | low>"
+  "notes": "<overall notes only if stated in the transcript, else null>"
 }
 
-Rules:
-- You MUST be smart and infer like a real personal trainer would.
-- When the speaker says a generic category (e.g. "a fly", "a press", "a row"), \
-pick the single best specific exercise for that movement pattern and context. \
-Examples: "a fly" for chest → "low-to-high cable fly"; "an incline press" → \
-"incline dumbbell press"; "a lateral raise" → "dumbbell lateral raise"; \
-"a row" → "barbell row" or "T-bar row" depending on context.
-- When sets are not specified, default to 3-4 sets. Pick 3 for isolation moves, \
-4 for compounds.
-- When reps are not specified, infer from the exercise type: \
-strength/compound exercises → 6-8 reps; hypertrophy/isolation exercises → 10-12 reps.
-- Always fill in sets and reps — never leave them null unless the exercise is \
-purely time-based (then use duration_sec instead).
-- Normalize exercise names to standard gym English (e.g. "dumbbell lateral raise" \
-not "lateral raise with weights").
-- Include the most likely equipment in the equipment list based on the exercises chosen.
-- If the transcript has no workout content, return: \
-{"title":null,"workout_type":"other","equipment":[],"blocks":[],"notes":"No workout content found","confidence":"low"}
+Extraction rules (strict):
+- Only include information that is literally present in the transcript.
+- NEVER invent exercises. If the speaker says "a fly", the name is "fly", not \
+"low-to-high cable fly".
+- NEVER invent sets, reps, duration, or rest. If a value is not stated, use null.
+- NEVER invent equipment. Only list equipment that is explicitly mentioned. \
+If none is mentioned, return [].
+- NEVER add exercises that are not mentioned. The blocks array must reflect the \
+transcript exactly, in the order they are spoken.
+- Do not combine, split, or rephrase exercises beyond minor capitalization and \
+trimming whitespace.
+- workout_type should be chosen conservatively: use "other" if the transcript \
+does not clearly indicate a category.
+- If the transcript contains no workout content, return: \
+{"title":null,"workout_type":"other","equipment":[],"blocks":[],"notes":null}
 - Return ONLY the JSON object. No extra text before or after.\
 """
 
@@ -92,8 +87,9 @@ async def parse_transcript_to_workout(
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": transcript_text},
         ],
-        "temperature": 0.1,
+        "temperature": 0,
         "max_tokens": 2048,
+        "response_format": {"type": "json_object"},
     }
     timeout = httpx.Timeout(60.0, connect=15.0)
 

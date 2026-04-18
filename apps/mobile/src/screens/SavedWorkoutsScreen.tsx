@@ -79,6 +79,26 @@ function formatReadableDate(date: Date): string {
   return `${DAY_LABELS[reference.getDay()]}, ${MONTH_LABELS[reference.getMonth()]} ${reference.getDate()}`;
 }
 
+type WorkoutTypeFilter = "all" | string;
+
+const WORKOUT_TYPE_LABELS: Record<string, string> = {
+  strength: "Strength",
+  cardio: "Cardio",
+  HIIT: "HIIT",
+  hiit: "HIIT",
+  flexibility: "Flexibility",
+  mobility: "Mobility",
+  mixed: "Mixed",
+  other: "Other",
+};
+
+function formatWorkoutTypeLabel(type: string): string {
+  return (
+    WORKOUT_TYPE_LABELS[type] ||
+    type.charAt(0).toUpperCase() + type.slice(1).toLowerCase()
+  );
+}
+
 function FeedbackCard({
   actionLabel,
   body,
@@ -206,6 +226,30 @@ export function SavedWorkoutsScreen({
     return toIsoDate(today);
   }, []);
   const [selectedDate, setSelectedDate] = useState<string>(todayIso);
+  const [selectedTypeFilter, setSelectedTypeFilter] =
+    useState<WorkoutTypeFilter>("all");
+
+  const availableWorkoutTypes = useMemo(() => {
+    const set = new Set<string>();
+    for (const routine of importedWorkouts) {
+      const type = routine.workoutPlan?.workout_type;
+      if (type) {
+        set.add(type);
+      }
+    }
+    return Array.from(set);
+  }, [importedWorkouts]);
+
+  const filteredSavedWorkouts = useMemo(() => {
+    if (selectedTypeFilter === "all") {
+      return importedWorkouts;
+    }
+    return importedWorkouts.filter(
+      (routine) => routine.workoutPlan?.workout_type === selectedTypeFilter,
+    );
+  }, [importedWorkouts, selectedTypeFilter]);
+
+  const showTypeFilter = hasSavedWorkouts && availableWorkoutTypes.length > 0;
 
   const scheduledByDate = useMemo(() => {
     const map = new Map<string, SavedRoutinePreview[]>();
@@ -258,6 +302,43 @@ export function SavedWorkoutsScreen({
           Imported programs and drafts you want to keep around.
         </Text>
 
+        {showTypeFilter ? (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterStripContent}
+          >
+            {(["all", ...availableWorkoutTypes] as WorkoutTypeFilter[]).map(
+              (filterValue) => {
+                const isSelected = selectedTypeFilter === filterValue;
+                const label =
+                  filterValue === "all"
+                    ? "All"
+                    : formatWorkoutTypeLabel(filterValue);
+                return (
+                  <Pressable
+                    key={filterValue}
+                    onPress={() => setSelectedTypeFilter(filterValue)}
+                    style={[
+                      styles.filterChip,
+                      isSelected ? styles.filterChipSelected : null,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.filterChipText,
+                        isSelected ? styles.filterChipTextSelected : null,
+                      ]}
+                    >
+                      {label}
+                    </Text>
+                  </Pressable>
+                );
+              },
+            )}
+          </ScrollView>
+        ) : null}
+
         {isLoading ? (
           <FeedbackCard
             body="Pulling your saved routines from your FitFo account."
@@ -275,20 +356,38 @@ export function SavedWorkoutsScreen({
             title="Couldn't load saved workouts"
           />
         ) : hasSavedWorkouts ? (
-          importedWorkouts.map((routine) => (
-            <WorkoutCard
-              key={routine.id}
-              accent="saved"
-              onRemove={
-                routine.savedWorkoutId
-                  ? () => onRemoveWorkout(routine.savedWorkoutId || routine.id)
-                  : undefined
-              }
-              onStart={() => onStartSession(routine)}
-              routine={routine}
-              theme={theme}
-            />
-          ))
+          filteredSavedWorkouts.length > 0 ? (
+            filteredSavedWorkouts.map((routine) => (
+              <WorkoutCard
+                key={routine.id}
+                accent="saved"
+                onRemove={
+                  routine.savedWorkoutId
+                    ? () => onRemoveWorkout(routine.savedWorkoutId || routine.id)
+                    : undefined
+                }
+                onStart={() => onStartSession(routine)}
+                routine={routine}
+                theme={theme}
+              />
+            ))
+          ) : (
+            <View style={styles.emptyStateCard}>
+              <View style={styles.emptyStateIcon}>
+                <Ionicons
+                  color={theme.colors.primary}
+                  name="funnel-outline"
+                  size={20}
+                />
+              </View>
+              <Text style={styles.emptyStateTitle}>
+                No {formatWorkoutTypeLabel(selectedTypeFilter)} workouts
+              </Text>
+              <Text style={styles.emptyStateBody}>
+                Try a different filter to see your other saved routines.
+              </Text>
+            </View>
+          )
         ) : (
           <View style={styles.emptyStateCard}>
             <View style={styles.emptyStateIcon}>
@@ -604,6 +703,31 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     },
     scheduledWorkoutCard: {
       borderColor: theme.mode === "dark" ? "rgba(255, 90, 20, 0.24)" : "rgba(41, 86, 215, 0.14)",
+    },
+    filterStripContent: {
+      gap: 8,
+      paddingVertical: 6,
+      paddingRight: 8,
+    },
+    filterChip: {
+      borderRadius: 999,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      backgroundColor: theme.colors.surface,
+      borderWidth: 1,
+      borderColor: theme.colors.borderSoft,
+    },
+    filterChipSelected: {
+      backgroundColor: theme.colors.primary,
+      borderColor: theme.colors.primary,
+    },
+    filterChipText: {
+      color: theme.colors.textMuted,
+      fontSize: 13,
+      fontWeight: "800",
+    },
+    filterChipTextSelected: {
+      color: theme.colors.surface,
     },
     calendarStripContent: {
       gap: 8,

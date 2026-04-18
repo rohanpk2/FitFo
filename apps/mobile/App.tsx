@@ -115,6 +115,7 @@ export default function App() {
     null,
   );
   const [isSchedulingWorkout, setIsSchedulingWorkout] = useState(false);
+  const [isSavingImportedWorkout, setIsSavingImportedWorkout] = useState(false);
   const [completedWorkouts, setCompletedWorkouts] = useState<CompletedWorkoutRecord[]>(
     [],
   );
@@ -403,6 +404,48 @@ export default function App() {
     },
     [accessToken, job, latestImportedRoutine, resetImportFlow, workout],
   );
+
+  const handleSaveImportedWorkout = useCallback(async () => {
+    if (!accessToken || !latestImportedRoutine) {
+      return;
+    }
+
+    setIsSavingImportedWorkout(true);
+    try {
+      const saved = await saveWorkoutForLater(accessToken, {
+        workout_id: workout?.id ?? latestImportedRoutine.workoutId ?? null,
+        job_id: job?.id ?? latestImportedRoutine.jobId ?? null,
+        source_url: job?.source_url ?? latestImportedRoutine.sourceUrl ?? null,
+        title: latestImportedRoutine.title,
+        description: latestImportedRoutine.description,
+        meta_left: latestImportedRoutine.metaLeft,
+        meta_right: latestImportedRoutine.metaRight,
+        badge_label: latestImportedRoutine.badgeLabel ?? null,
+        workout_plan: latestImportedRoutine.workoutPlan ?? null,
+      });
+      const savedPreview = createSavedRoutinePreviewFromRecord(saved);
+      setSavedWorkouts((current) => {
+        const withoutDuplicate = current.filter(
+          (item) => item.id !== savedPreview.id,
+        );
+        return [savedPreview, ...withoutDuplicate];
+      });
+
+      setSavedWorkoutsError(null);
+      setSubmitError(null);
+      setActiveTab("saved");
+      setIsAddWorkoutVisible(false);
+      resetImportFlow();
+    } catch (error) {
+      setSubmitError(
+        error instanceof Error
+          ? error.message
+          : "Unable to save this workout right now.",
+      );
+    } finally {
+      setIsSavingImportedWorkout(false);
+    }
+  }, [accessToken, job, latestImportedRoutine, resetImportFlow, workout]);
 
   const handleUnscheduleWorkout = useCallback(
     async (scheduledWorkoutId: string) => {
@@ -916,6 +959,11 @@ export default function App() {
       return (
         <ActiveWorkoutScreen
           session={activeSession}
+          onBack={() => {
+            // Keep the session alive so the user can resume from the Logs tab.
+            setIsActiveWorkoutVisible(false);
+            setActiveTab("logs");
+          }}
           onFinish={handleFinishWorkout}
           themeMode={themeMode}
         />
@@ -1086,11 +1134,13 @@ export default function App() {
 
       <AddWorkoutModal
         error={importError}
+        isSaving={isSavingImportedWorkout}
         isScheduling={isSchedulingWorkout}
         isSubmitting={isExtractSubmitting}
         job={job}
         onClose={handleCloseAddWorkout}
         onCreateManual={handleCreateManualWorkout}
+        onSaveImported={handleSaveImportedWorkout}
         onScheduleImported={handleScheduleImportedWorkout}
         onStartImported={() => handleStartSession()}
         onSubmit={handleExtractWorkout}

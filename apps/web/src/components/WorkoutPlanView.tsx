@@ -20,19 +20,7 @@ export function WorkoutPlanView({ plan }: WorkoutPlanViewProps) {
               {plan.workout_type}
             </span>
           )}
-          {plan.confidence && (
-            <span
-              className={`inline-flex items-center rounded-lg px-2.5 py-1 text-xs font-medium ${
-                plan.confidence === "high"
-                  ? "bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                  : plan.confidence === "medium"
-                    ? "bg-yellow-50 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
-                    : "bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-              }`}
-            >
-              {plan.confidence} confidence
-            </span>
-          )}
+          
         </div>
       </div>
 

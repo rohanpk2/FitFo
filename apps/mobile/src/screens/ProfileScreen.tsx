@@ -35,7 +35,6 @@ export function ProfileScreen({
       <View style={styles.header}>
         <View>
           <Text style={styles.eyebrow}>Settings</Text>
-          <Text style={styles.title}>FitFo Account</Text>
         </View>
         
       </View>

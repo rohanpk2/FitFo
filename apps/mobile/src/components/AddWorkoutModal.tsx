@@ -20,12 +20,14 @@ interface AddWorkoutModalProps {
   visible: boolean;
   isSubmitting: boolean;
   isScheduling?: boolean;
+  isSaving?: boolean;
   job: JobResponse | null;
   routine: SavedRoutinePreview | null;
   error: string | null;
   onClose: () => void;
   onSubmit: (url: string) => void;
   onCreateManual: () => void;
+  onSaveImported: () => void;
   onScheduleImported: (scheduledFor: string) => void;
   onStartImported: () => void;
   themeMode?: ThemeMode;
@@ -87,12 +89,14 @@ export function AddWorkoutModal({
   visible,
   isSubmitting,
   isScheduling = false,
+  isSaving = false,
   job,
   routine,
   error,
   onClose,
   onSubmit,
   onCreateManual,
+  onSaveImported,
   onScheduleImported,
   onStartImported,
   themeMode = "light",
@@ -271,22 +275,22 @@ export function AddWorkoutModal({
                 {!isPickingDate ? (
                   <>
                     <Pressable
-                      disabled={isScheduling}
+                      disabled={isScheduling || isSaving}
                       onPress={onStartImported}
                       style={[
                         styles.secondaryAction,
-                        isScheduling ? styles.actionDisabled : null,
+                        isScheduling || isSaving ? styles.actionDisabled : null,
                       ]}
                     >
                       <Text style={styles.secondaryActionText}>Start Workout</Text>
                     </Pressable>
 
                     <Pressable
-                      disabled={isScheduling}
+                      disabled={isScheduling || isSaving}
                       onPress={handleBeginScheduling}
                       style={[
                         styles.tertiaryAction,
-                        isScheduling ? styles.actionDisabled : null,
+                        isScheduling || isSaving ? styles.actionDisabled : null,
                       ]}
                     >
                       <View style={styles.buttonRow}>
@@ -297,6 +301,34 @@ export function AddWorkoutModal({
                         />
                         <Text style={styles.tertiaryActionText}>Schedule Workout</Text>
                       </View>
+                    </Pressable>
+
+                    <Pressable
+                      disabled={isScheduling || isSaving}
+                      onPress={onSaveImported}
+                      style={[
+                        styles.tertiaryAction,
+                        isScheduling || isSaving ? styles.actionDisabled : null,
+                      ]}
+                    >
+                      {isSaving ? (
+                        <View style={styles.buttonRow}>
+                          <ActivityIndicator
+                            color={theme.colors.primary}
+                            size="small"
+                          />
+                          <Text style={styles.tertiaryActionText}>Saving...</Text>
+                        </View>
+                      ) : (
+                        <View style={styles.buttonRow}>
+                          <Ionicons
+                            color={theme.colors.primary}
+                            name="bookmark-outline"
+                            size={16}
+                          />
+                          <Text style={styles.tertiaryActionText}>Save for Later</Text>
+                        </View>
+                      )}
                     </Pressable>
                   </>
                 ) : (
