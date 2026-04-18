@@ -134,7 +134,10 @@ export function WorkoutSummaryScreen({
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Session Details</Text>
+        <View style={styles.sectionHeader}>
+          <View style={styles.sectionAccent} />
+          <Text style={styles.sectionTitle}>Session Details</Text>
+        </View>
 
         {workout.started_at ? (
           <View style={styles.detailCard}>
@@ -153,7 +156,6 @@ export function WorkoutSummaryScreen({
           </View>
         ) : null}
 
-        
 
         {workout.source_url ? (
           <View style={styles.detailCard}>
@@ -192,7 +194,10 @@ export function WorkoutSummaryScreen({
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Exercises</Text>
+        <View style={styles.sectionHeader}>
+          <View style={styles.sectionAccent} />
+          <Text style={styles.sectionTitle}>Exercises</Text>
+        </View>
 
         {workout.exercises.length > 0 ? (
           <View style={styles.exerciseList}>
@@ -259,7 +264,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       paddingHorizontal: 12,
       paddingTop: 12,
       paddingBottom: 132,
-      gap: 16,
+      gap: 28,
     },
     header: {
       flexDirection: "row",
@@ -340,7 +345,19 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       fontWeight: "800",
     },
     section: {
-      gap: 12,
+      gap: 14,
+    },
+    sectionHeader: {
+      gap: 10,
+      paddingTop: 4,
+    },
+    sectionAccent: {
+      height: 1,
+      width: "100%",
+      backgroundColor:
+        theme.mode === "dark"
+          ? "rgba(255, 255, 255, 0.08)"
+          : "rgba(15, 23, 42, 0.08)",
     },
     sectionTitle: {
       color: theme.colors.textPrimary,

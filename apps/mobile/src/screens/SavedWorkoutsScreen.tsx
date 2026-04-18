@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -9,6 +10,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
+import { getCreatorHandle } from "../lib/fitfo";
 import { getTheme, type ThemeMode } from "../theme";
 import type { SavedRoutinePreview } from "../types";
 
@@ -136,6 +138,50 @@ function FeedbackCard({
   );
 }
 
+function getSourcePlatform(
+  sourceUrl: string | null | undefined,
+): "tiktok" | "instagram" | "other" | null {
+  if (!sourceUrl) {
+    return null;
+  }
+  try {
+    const host = new URL(sourceUrl).host.toLowerCase();
+    if (host.includes("tiktok.com")) {
+      return "tiktok";
+    }
+    if (host.includes("instagram.com")) {
+      return "instagram";
+    }
+    return "other";
+  } catch {
+    return null;
+  }
+}
+
+function getSourceIconName(
+  platform: ReturnType<typeof getSourcePlatform>,
+): keyof typeof Ionicons.glyphMap {
+  if (platform === "tiktok") {
+    return "logo-tiktok";
+  }
+  if (platform === "instagram") {
+    return "logo-instagram";
+  }
+  return "link-outline";
+}
+
+function getSourceLabel(
+  platform: ReturnType<typeof getSourcePlatform>,
+): string {
+  if (platform === "tiktok") {
+    return "View on TikTok";
+  }
+  if (platform === "instagram") {
+    return "View on Instagram";
+  }
+  return "Open source";
+}
+
 function WorkoutCard({
   accent,
   onRemove,
@@ -153,6 +199,9 @@ function WorkoutCard({
 }) {
   const styles = createStyles(theme);
   const isScheduled = accent === "scheduled";
+  const creatorHandle = getCreatorHandle(routine.sourceUrl);
+  const sourceUrl = routine.sourceUrl || null;
+  const platform = getSourcePlatform(sourceUrl);
 
   return (
     <View
@@ -183,6 +232,43 @@ function WorkoutCard({
 
       <Text style={styles.workoutTitle}>{routine.title}</Text>
       <Text style={styles.workoutDescription}>{routine.description}</Text>
+
+      {creatorHandle || sourceUrl ? (
+        <View style={styles.sourceRow}>
+          {creatorHandle ? (
+            <View style={styles.creatorChip}>
+              <Ionicons
+                color={theme.colors.primary}
+                name="person-circle-outline"
+                size={13}
+              />
+              <Text style={styles.creatorChipText}>{creatorHandle}</Text>
+            </View>
+          ) : null}
+          {sourceUrl ? (
+            <Pressable
+              onPress={() => void Linking.openURL(sourceUrl)}
+              style={({ pressed }) => [
+                styles.sourceButton,
+                pressed ? styles.sourceButtonPressed : null,
+              ]}
+            >
+              <Ionicons
+                color={theme.colors.primary}
+                name={getSourceIconName(platform)}
+                size={13}
+              />
+              <Text style={styles.sourceButtonText}>{getSourceLabel(platform)}</Text>
+              <Ionicons
+                color={theme.colors.primary}
+                name="open-outline"
+                size={12}
+              />
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
+
       <View style={styles.workoutMetaRow}>
         <Text style={styles.workoutMeta}>{routine.metaLeft}</Text>
         <Text style={styles.workoutMeta}>{routine.metaRight}</Text>
@@ -838,6 +924,47 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       color: theme.colors.textSecondary,
       fontSize: 14,
       lineHeight: 21,
+    },
+    sourceRow: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 8,
+      marginTop: 4,
+    },
+    creatorChip: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 5,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 999,
+      backgroundColor: theme.colors.surfaceMuted,
+      borderWidth: 1,
+      borderColor: theme.colors.borderSoft,
+    },
+    creatorChipText: {
+      color: theme.colors.primary,
+      fontSize: 12,
+      fontWeight: "800",
+    },
+    sourceButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 999,
+      backgroundColor: theme.colors.surfaceMuted,
+      borderWidth: 1,
+      borderColor: theme.colors.borderSoft,
+    },
+    sourceButtonPressed: {
+      opacity: 0.85,
+    },
+    sourceButtonText: {
+      color: theme.colors.primary,
+      fontSize: 12,
+      fontWeight: "800",
     },
     workoutMetaRow: {
       flexDirection: "row",

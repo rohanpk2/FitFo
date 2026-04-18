@@ -76,6 +76,57 @@ function humanizeWords(value: string): string {
     .join(" ");
 }
 
+// Short acronyms we leave uppercase during title-casing (e.g. HIIT, EMOM, AMRAP).
+const PRESERVE_UPPERCASE_TOKENS = new Set([
+  "HIIT",
+  "EMOM",
+  "AMRAP",
+  "RPE",
+  "PR",
+  "DB",
+  "BB",
+  "KB",
+  "RDL",
+]);
+
+function titleCaseWord(word: string): string {
+  if (word.length === 0) {
+    return word;
+  }
+  const upper = word.toUpperCase();
+  if (PRESERVE_UPPERCASE_TOKENS.has(upper)) {
+    return upper;
+  }
+  // Respect tokens that are obviously not words (numbers, reps like "5x5").
+  if (/^[\d]/.test(word)) {
+    return word;
+  }
+  return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+}
+
+export function titleCase(value: string | null | undefined): string {
+  if (!value) {
+    return "";
+  }
+  return value
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map(titleCaseWord)
+    .join(" ");
+}
+
+export function sentenceCase(value: string | null | undefined): string {
+  if (!value) {
+    return "";
+  }
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    return trimmed;
+  }
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+}
+
 function toPossessive(name: string): string {
   return name.endsWith("s") ? `${name}'` : `${name}'s`;
 }
@@ -229,7 +280,7 @@ function getWorkoutFocus(workout: WorkoutRow, job?: JobResponse | null): string 
       return inferredFromExercise;
     }
 
-    return primaryExercise;
+    return titleCase(primaryExercise) || primaryExercise;
   }
 
   switch (workout.plan.workout_type) {
@@ -266,7 +317,7 @@ function getWorkoutFocusFromPlan(plan: WorkoutPlan, fallbackTitle?: string | nul
       return inferredFromExercise;
     }
 
-    return primaryExercise;
+    return titleCase(primaryExercise) || primaryExercise;
   }
 
   switch (plan.workout_type) {
@@ -297,7 +348,7 @@ export function getRoutineDisplayTitle(input: {
     cleanedTitle &&
     !GENERIC_ROUTINE_TITLES.has(cleanedTitle.toLowerCase())
   ) {
-    return cleanedTitle;
+    return titleCase(cleanedTitle) || cleanedTitle;
   }
 
   const creatorSlug = parseCreatorFromSourceUrl(input.sourceUrl);
@@ -310,7 +361,7 @@ export function getRoutineDisplayTitle(input: {
     return creatorName ? `${toPossessive(creatorName)} ${focus}` : focus;
   }
 
-  return cleanedTitle || "Workout";
+  return (cleanedTitle && (titleCase(cleanedTitle) || cleanedTitle)) || "Workout";
 }
 
 function getImportedDescription(
@@ -326,16 +377,19 @@ function getImportedDescription(
   const normalizedNotes = workout.plan.notes?.trim().toLowerCase() || "";
 
   if (workout.plan.notes && normalizedNotes !== "no workout content found") {
-    return workout.plan.notes;
+    return sentenceCase(workout.plan.notes) || workout.plan.notes;
   }
 
   if (exerciseCount > 0) {
+    const blockCount = workout.plan.blocks.length;
+    const exercisesPart = `${exerciseCount} ${exerciseCount === 1 ? "exercise" : "exercises"}`;
+    const blocksPart = `${blockCount} ${blockCount === 1 ? "block" : "blocks"}`;
     const equipmentPart =
       equipmentCount > 0
         ? ` using ${equipmentCount} ${equipmentCount === 1 ? "equipment tag" : "equipment tags"}`
         : "";
 
-    return `${exerciseCount} exercises across ${workout.plan.blocks.length} blocks${equipmentPart}.`;
+    return `${exercisesPart} across ${blocksPart}${equipmentPart}.`;
   }
 
   if (creatorName) {
@@ -385,10 +439,10 @@ function buildSessionExercises(plan: WorkoutPlan): ActiveExercisePreview[] {
   return plan.blocks.flatMap((block, blockIndex) =>
     block.exercises.map((exercise, exerciseIndex) => ({
       id: `${blockIndex + 1}-${exerciseIndex + 1}-${exercise.name}`,
-      name: exercise.name,
+      name: titleCase(exercise.name) || exercise.name,
       subtitle: formatExerciseSummary(exercise),
-      blockName: block.name,
-      notes: exercise.notes,
+      blockName: block.name ? titleCase(block.name) : null,
+      notes: exercise.notes ? sentenceCase(exercise.notes) : null,
       restSeconds: exercise.rest_sec,
       sets: createSessionSets(exercise, blockIndex * 100 + exerciseIndex),
     })),
@@ -491,11 +545,13 @@ export function createActiveSessionFromPlan(
     title?: string;
   },
 ): ActiveSessionPreview {
-  const title = overrides?.title || plan.title || "Imported Workout";
-  const description =
+  const rawTitle = overrides?.title || plan.title || "Imported Workout";
+  const title = titleCase(rawTitle) || rawTitle;
+  const rawDescription =
     overrides?.description ||
     plan.notes ||
     `Structured ${plan.workout_type.toLowerCase()} session tuned from your TikTok reference.`;
+  const description = sentenceCase(rawDescription) || rawDescription;
   const exercises = buildSessionExercises(plan);
 
   return {
