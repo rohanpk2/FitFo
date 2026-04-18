@@ -19,7 +19,7 @@ const tabs: Array<{
 }> = [
   { key: "saved", label: "Workouts", icon: "barbell-outline", activeIcon: "barbell" },
   { key: "logs", label: "Logs", icon: "bar-chart-outline", activeIcon: "bar-chart" },
-  { key: "charts", label: "Charts", icon: "pulse-outline", activeIcon: "pulse" },
+  // { key: "charts", label: "Charts", icon: "pulse-outline", activeIcon: "pulse" },
   { key: "profile", label: "Profile", icon: "person-outline", activeIcon: "person" },
 ];
 

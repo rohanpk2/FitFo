@@ -18,6 +18,7 @@ import {
 } from "./src/lib/authStorage";
 import {
   ApiError,
+  appleSignIn,
   checkAccountStatus,
   createBodyWeightEntry,
   createCompletedWorkout,
@@ -36,6 +37,7 @@ import {
   sendOtp,
   verifyOtp,
 } from "./src/lib/api";
+import { signInWithApple } from "./src/lib/appleAuth";
 import {
   buildCompletedWorkoutRequest,
   createActiveSessionFromPlan,
@@ -74,7 +76,7 @@ import type {
   UserProfile,
 } from "./src/types";
 
-type AuthSubmitMode = "login" | "signup" | "otp" | "bootstrap";
+type AuthSubmitMode = "login" | "signup" | "otp" | "apple" | "bootstrap";
 
 export default function App() {
   const themeMode: ThemeMode = "dark";
@@ -541,7 +543,7 @@ export default function App() {
     (profile: UserProfile, token: string) => {
       setAccessToken(token);
       setCurrentUser(profile);
-      setAuthPrefillPhone(profile.phone);
+      setAuthPrefillPhone(profile.phone ?? "");
       setAuthPrefillFullName(profile.full_name);
       setAuthError(null);
       setAuthNotice(null);
@@ -664,6 +666,38 @@ export default function App() {
     },
     [],
   );
+
+  const handleAppleSignIn = useCallback(async () => {
+    setAuthSubmittingMode("apple");
+    setAuthError(null);
+    setAuthNotice(null);
+
+    try {
+      const credential = await signInWithApple();
+      if (!credential) {
+        // User dismissed the Apple sheet — silent no-op.
+        return;
+      }
+
+      const response = await appleSignIn({
+        identity_token: credential.identityToken,
+        raw_nonce: credential.rawNonce,
+        full_name: credential.fullName ?? undefined,
+        email: credential.email ?? undefined,
+      });
+
+      await storeAuthSession(response.access_token, response.profile);
+      applyAuthenticatedSession(response.profile, response.access_token);
+    } catch (error) {
+      setAuthError(
+        error instanceof Error
+          ? error.message
+          : "Unable to sign in with Apple right now.",
+      );
+    } finally {
+      setAuthSubmittingMode(null);
+    }
+  }, [applyAuthenticatedSession]);
 
   const handleLogin = useCallback(
     async (phone: string) => {
@@ -869,7 +903,7 @@ export default function App() {
       try {
         const response = await saveOnboarding(accessToken, payload);
         setCurrentUser(response.profile);
-        setAuthPrefillPhone(response.profile.phone);
+        setAuthPrefillPhone(response.profile.phone ?? "");
         setAuthPrefillFullName(response.profile.full_name);
         await storeAuthSession(accessToken, response.profile);
         await loadBodyWeightEntries(accessToken);
@@ -1124,8 +1158,10 @@ export default function App() {
           <LoginScreen
             error={authError}
             initialPhoneNumber={authPrefillPhone}
+            isAppleSubmitting={authSubmittingMode === "apple"}
             isSubmitting={authSubmittingMode === "login"}
             notice={authNotice}
+            onAppleSignIn={handleAppleSignIn}
             onLogin={handleLogin}
             onSwitchToSignUp={() => handleShowSignUp()}
             themeMode={themeMode}
@@ -1135,8 +1171,10 @@ export default function App() {
             error={authError}
             initialFullName={authPrefillFullName}
             initialPhoneNumber={authPrefillPhone}
+            isAppleSubmitting={authSubmittingMode === "apple"}
             isSubmitting={authSubmittingMode === "signup"}
             notice={authNotice}
+            onAppleSignIn={handleAppleSignIn}
             onCreateAccount={handleCreateAccount}
             onSwitchToLogin={() => handleShowLogin(undefined, authPrefillPhone)}
             themeMode={themeMode}

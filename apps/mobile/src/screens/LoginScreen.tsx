@@ -12,24 +12,29 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
+import { AppleSignInButton } from "../components/AppleSignInButton";
 import { getTheme, type ThemeMode } from "../theme";
 
 interface LoginScreenProps {
   onLogin: (phone: string) => void;
+  onAppleSignIn: () => void;
   onSwitchToSignUp: () => void;
   notice?: string | null;
   error?: string | null;
   isSubmitting?: boolean;
+  isAppleSubmitting?: boolean;
   initialPhoneNumber?: string;
   themeMode?: ThemeMode;
 }
 
 export function LoginScreen({
   onLogin,
+  onAppleSignIn,
   onSwitchToSignUp,
   notice,
   error,
   isSubmitting = false,
+  isAppleSubmitting = false,
   initialPhoneNumber,
   themeMode = "light",
 }: LoginScreenProps) {
@@ -70,6 +75,18 @@ export function LoginScreen({
         </View>
 
         <View style={styles.card}>
+          <AppleSignInButton
+            disabled={isSubmitting || isAppleSubmitting}
+            onPress={onAppleSignIn}
+            themeMode={themeMode}
+          />
+
+          <View style={styles.orRow}>
+            <View style={styles.orLine} />
+            <Text style={styles.orText}>or</Text>
+            <View style={styles.orLine} />
+          </View>
+
           <View style={styles.fieldGroup}>
             <Text style={styles.label}>Phone Number</Text>
             <View style={styles.inputShell}>
@@ -171,6 +188,23 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       fontWeight: "900",
       letterSpacing: 2.2,
       textTransform: "uppercase",
+    },
+    orRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+    },
+    orLine: {
+      flex: 1,
+      height: 1,
+      backgroundColor: theme.colors.borderSoft,
+    },
+    orText: {
+      color: theme.colors.textMuted,
+      fontSize: 13,
+      fontWeight: "800",
+      textTransform: "uppercase",
+      letterSpacing: 1.2,
     },
     card: {
       borderRadius: 32,

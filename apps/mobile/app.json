@@ -16,7 +16,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.fitfo.mobile",
       "buildNumber": "1",
-      "icon": "./assets/logo.png"
+      "icon": "./assets/logo.png",
+      "usesAppleSignIn": true
     },
     "android": {
       "adaptiveIcon": {

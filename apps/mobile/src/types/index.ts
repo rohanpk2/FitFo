@@ -67,7 +67,9 @@ export interface WorkoutRow {
 export interface UserProfile {
   id: string;
   full_name: string;
-  phone: string;
+  phone: string | null;
+  email: string | null;
+  apple_user_id: string | null;
   onboarding: UserOnboarding | null;
   created_at: string | null;
   updated_at: string | null;
@@ -143,6 +145,22 @@ export interface VerifyOtpRequest {
 }
 
 export interface VerifyOtpResponse {
+  ok: boolean;
+  verified: boolean;
+  access_token: string;
+  token_type: "bearer";
+  profile: UserProfile;
+  message: string;
+}
+
+export interface AppleSignInRequest {
+  identity_token: string;
+  raw_nonce?: string;
+  full_name?: string;
+  email?: string;
+}
+
+export interface AppleSignInResponse {
   ok: boolean;
   verified: boolean;
   access_token: string;

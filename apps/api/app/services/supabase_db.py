@@ -69,7 +69,9 @@ def _utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-PROFILE_SELECT_FIELDS = "id, full_name, phone, created_at, updated_at"
+PROFILE_SELECT_FIELDS = (
+    "id, full_name, phone, email, apple_user_id, created_at, updated_at"
+)
 PROFILE_ONBOARDING_SELECT_FIELDS = (
     "user_id, goals, training_split, days_per_week, weight_lbs, height_inches, "
     "experience_level, age, completed_at, created_at, updated_at"
@@ -555,6 +557,72 @@ def create_profile(*, full_name: str, phone: str) -> Dict[str, Any]:
     result = supa.table("profiles").insert(payload).execute()
     if not result.data:
         raise RuntimeError("Supabase insert (profiles) returned no data")
+    return _attach_profile_onboarding(result.data[0])
+
+
+def get_profile_by_apple_user_id(apple_user_id: str) -> Optional[Dict[str, Any]]:
+    supa = get_supabase()
+    result = (
+        supa.table("profiles")
+        .select(PROFILE_SELECT_FIELDS)
+        .eq("apple_user_id", apple_user_id)
+        .limit(1)
+        .execute()
+    )
+    if not result.data:
+        return None
+    return _attach_profile_onboarding(result.data[0])
+
+
+def create_profile_with_apple(
+    *,
+    apple_user_id: str,
+    full_name: Optional[str] = None,
+    email: Optional[str] = None,
+) -> Dict[str, Any]:
+    supa = get_supabase()
+    clean_name = (full_name or "").strip() or "FitFo User"
+    clean_email = (email or "").strip() or None
+    payload: Dict[str, Any] = {
+        "full_name": clean_name,
+        "apple_user_id": apple_user_id.strip(),
+    }
+    if clean_email:
+        payload["email"] = clean_email
+    result = supa.table("profiles").insert(payload).execute()
+    if not result.data:
+        raise RuntimeError("Supabase insert (profiles via apple) returned no data")
+    return _attach_profile_onboarding(result.data[0])
+
+
+def update_profile_apple_fields(
+    profile_id: str,
+    *,
+    full_name: Optional[str] = None,
+    email: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
+    """
+    Patch nullable profile fields that may arrive on first Apple sign-in after
+    the profile already exists. No-op if nothing meaningful is supplied.
+    """
+    patch: Dict[str, Any] = {}
+    clean_name = (full_name or "").strip()
+    if clean_name and clean_name != "FitFo User":
+        patch["full_name"] = clean_name
+    clean_email = (email or "").strip()
+    if clean_email:
+        patch["email"] = clean_email
+    if not patch:
+        return None
+    supa = get_supabase()
+    result = (
+        supa.table("profiles")
+        .update(patch)
+        .eq("id", profile_id)
+        .execute()
+    )
+    if not result.data:
+        return None
     return _attach_profile_onboarding(result.data[0])
 
 

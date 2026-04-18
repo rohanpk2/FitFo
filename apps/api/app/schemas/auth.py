@@ -40,7 +40,9 @@ class UserOnboardingResponse(BaseModel):
 class UserProfileResponse(BaseModel):
     id: str
     full_name: str
-    phone: str
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    apple_user_id: Optional[str] = None
     onboarding: Optional[UserOnboardingResponse] = None
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
@@ -89,6 +91,22 @@ class VerifyOtpResponse(BaseModel):
 class MeResponse(BaseModel):
     ok: bool
     profile: UserProfileResponse
+
+
+class AppleSignInRequest(BaseModel):
+    identity_token: str = Field(..., min_length=1)
+    raw_nonce: Optional[str] = None
+    full_name: Optional[str] = Field(default=None, min_length=1, max_length=120)
+    email: Optional[str] = Field(default=None, max_length=320)
+
+
+class AppleSignInResponse(BaseModel):
+    ok: bool
+    verified: bool
+    access_token: str
+    token_type: str
+    profile: UserProfileResponse
+    message: str
 
 
 class SaveOnboardingRequest(BaseModel):

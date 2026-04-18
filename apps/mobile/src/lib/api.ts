@@ -1,6 +1,8 @@
 import type {
   AccountStatusRequest,
   AccountStatusResponse,
+  AppleSignInRequest,
+  AppleSignInResponse,
   BodyWeightEntryCreateRequest,
   BodyWeightEntryRecord,
   CompletedWorkoutCreateRequest,
@@ -125,6 +127,15 @@ export async function verifyOtp(
   body: VerifyOtpRequest,
 ): Promise<VerifyOtpResponse> {
   return request<VerifyOtpResponse>("/auth/verify-otp", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function appleSignIn(
+  body: AppleSignInRequest,
+): Promise<AppleSignInResponse> {
+  return request<AppleSignInResponse>("/auth/apple", {
     method: "POST",
     body: JSON.stringify(body),
   });

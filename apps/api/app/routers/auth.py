@@ -7,6 +7,8 @@ from app.routers.deps import require_access_payload, require_profile_id
 from app.schemas.auth import (
     AccountStatusRequest,
     AccountStatusResponse,
+    AppleSignInRequest,
+    AppleSignInResponse,
     MeResponse,
     SaveOnboardingRequest,
     SaveOnboardingResponse,
@@ -15,7 +17,7 @@ from app.schemas.auth import (
     VerifyOtpRequest,
     VerifyOtpResponse,
 )
-from app.services import jwt_auth, supabase_db, twilio_verify
+from app.services import apple_auth, jwt_auth, supabase_db, twilio_verify
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -182,6 +184,83 @@ def verify_otp(body: VerifyOtpRequest) -> VerifyOtpResponse:
         raise HTTPException(status_code=400, detail=detail) from exc
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to verify OTP: {exc}") from exc
+
+
+@router.post("/apple", response_model=AppleSignInResponse)
+def apple_sign_in(body: AppleSignInRequest) -> AppleSignInResponse:
+    """
+    Verify an Apple identity token, upsert the profile keyed by Apple's stable
+    `sub` claim, and return our own access token just like phone verify-otp does.
+    """
+    try:
+        payload = apple_auth.verify_identity_token(
+            body.identity_token,
+            raw_nonce=body.raw_nonce,
+        )
+    except apple_auth.AppleAuthConfigError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except apple_auth.AppleAuthError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    apple_user_id = str(payload.get("sub") or "").strip()
+    if not apple_user_id:
+        raise HTTPException(
+            status_code=400, detail="Apple identity token is missing a subject."
+        )
+
+    # Apple only returns email on the very first sign-in. Prefer the value from
+    # the token (verified) over what the client echoes back, but fall back to
+    # the client-supplied value on subsequent logins where the token omits it.
+    token_email = payload.get("email")
+    email = None
+    if isinstance(token_email, str) and token_email.strip():
+        email = token_email.strip()
+    elif body.email:
+        email = body.email.strip()
+
+    try:
+        existing = supabase_db.get_profile_by_apple_user_id(apple_user_id)
+        if existing is not None:
+            # Patch any fields Apple might have sent on this sign-in that we
+            # didn't have before (e.g. user re-authorized after revoking).
+            updated = supabase_db.update_profile_apple_fields(
+                str(existing["id"]),
+                full_name=body.full_name,
+                email=email,
+            )
+            profile = updated or existing
+            message = "Welcome back."
+        else:
+            profile = supabase_db.create_profile_with_apple(
+                apple_user_id=apple_user_id,
+                full_name=body.full_name,
+                email=email,
+            )
+            message = "Account created."
+
+        access_token = jwt_auth.create_access_token(
+            subject=str(profile["id"]),
+            phone=str(profile.get("phone") or ""),
+        )
+        return AppleSignInResponse(
+            ok=True,
+            verified=True,
+            access_token=access_token,
+            token_type="bearer",
+            profile=profile,
+            message=message,
+        )
+    except HTTPException:
+        raise
+    except (
+        supabase_db.SupabaseNotConfiguredError,
+        jwt_auth.JwtNotConfiguredError,
+    ) as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to sign in with Apple: {exc}"
+        ) from exc
 
 
 @router.get("/me", response_model=MeResponse)

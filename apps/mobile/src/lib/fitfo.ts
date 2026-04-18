@@ -440,7 +440,10 @@ export function createImportedRoutinePreview(
       ? `${toPossessive(creatorName)} ${focus}`
       : focus,
     description: getImportedDescription(workout, creatorName, focus),
-    metaLeft: exerciseCount > 0 ? `${exerciseCount} exercises` : `${workout.plan.blocks.length} blocks`,    
+    metaLeft: exerciseCount > 0 ? `${exerciseCount} exercises` : `${workout.plan.blocks.length} blocks`,
+    metaRight: workout.plan.blocks.length === 1
+      ? `${workout.plan.blocks.length} block`
+      : `${workout.plan.blocks.length} blocks`,
     badgeLabel: "Imported",
     workoutPlan: workout.plan,
   };

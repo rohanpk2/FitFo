@@ -12,27 +12,32 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
+import { AppleSignInButton } from "../components/AppleSignInButton";
 import { getTheme, type ThemeMode } from "../theme";
 
 interface SignUpScreenProps {
   onCreateAccount: (fullName: string, phone: string) => void;
+  onAppleSignIn: () => void;
   onSwitchToLogin: () => void;
   error?: string | null;
   notice?: string | null;
   initialFullName?: string;
   initialPhoneNumber?: string;
   isSubmitting?: boolean;
+  isAppleSubmitting?: boolean;
   themeMode?: ThemeMode;
 }
 
 export function SignUpScreen({
   onCreateAccount,
+  onAppleSignIn,
   onSwitchToLogin,
   error,
   notice,
   initialFullName,
   initialPhoneNumber,
   isSubmitting = false,
+  isAppleSubmitting = false,
   themeMode = "light",
 }: SignUpScreenProps) {
   const [fullName, setFullName] = useState(initialFullName || "");
@@ -80,6 +85,18 @@ export function SignUpScreen({
         </View>
 
         <View style={styles.card}>
+          <AppleSignInButton
+            disabled={isSubmitting || isAppleSubmitting}
+            onPress={onAppleSignIn}
+            themeMode={themeMode}
+          />
+
+          <View style={styles.orRow}>
+            <View style={styles.orLine} />
+            <Text style={styles.orText}>or</Text>
+            <View style={styles.orLine} />
+          </View>
+
           <View style={styles.fieldGroup}>
             <Text style={styles.label}>Full Name</Text>
             <View style={styles.inputShell}>
@@ -212,6 +229,23 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       fontSize: 14,
       lineHeight: 20,
       maxWidth: 330,
+    },
+    orRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+    },
+    orLine: {
+      flex: 1,
+      height: 1,
+      backgroundColor: theme.colors.borderSoft,
+    },
+    orText: {
+      color: theme.colors.textMuted,
+      fontSize: 13,
+      fontWeight: "800",
+      textTransform: "uppercase",
+      letterSpacing: 1.2,
     },
     card: {
       borderRadius: 32,
