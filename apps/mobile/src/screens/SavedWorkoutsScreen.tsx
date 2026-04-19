@@ -372,11 +372,18 @@ export function SavedWorkoutsScreen({
           <Text style={styles.eyebrow}>Your Hub</Text>
           <Text style={styles.title}>Workouts</Text>
         </View>
-        <Pressable onPress={onOpenProfile} style={styles.profileButton} hitSlop={10}>
+        <Pressable
+          onPress={onOpenProfile}
+          style={({ pressed }) => [
+            styles.profileButton,
+            pressed ? styles.profileButtonPressed : null,
+          ]}
+          hitSlop={10}
+        >
           <Ionicons
-            color={theme.colors.textPrimary}
-            name="person-circle-outline"
-            size={40}
+            color={theme.colors.primaryBright}
+            name="person"
+            size={22}
           />
         </Pressable>
       </View>
@@ -668,8 +675,27 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       flex: 1,
     },
     profileButton: {
-      padding: 4,
-      marginTop: 4,
+      width: 48,
+      height: 48,
+      borderRadius: 999,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor:
+        theme.mode === "dark"
+          ? "rgba(255, 90, 20, 0.14)"
+          : "rgba(255, 90, 20, 0.10)",
+      borderWidth: 1.5,
+      borderColor: theme.colors.primaryBright,
+      shadowColor: theme.colors.primaryBright,
+      shadowOpacity: theme.mode === "dark" ? 0.55 : 0.35,
+      shadowRadius: 14,
+      shadowOffset: { width: 0, height: 6 },
+      elevation: 8,
+      marginTop: 6,
+    },
+    profileButtonPressed: {
+      opacity: 0.82,
+      transform: [{ scale: 0.94 }],
     },
     eyebrow: {
       color: theme.colors.primary,
