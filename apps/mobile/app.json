@@ -7,7 +7,7 @@
     "icon": "./assets/logo.png",
     "scheme": "fitfo",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "splash": {
       "image": "./assets/logo.png",
       "resizeMode": "contain",
@@ -16,7 +16,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.fitfo.mobile",
-      "buildNumber": "2",
+      "buildNumber": "13",
       "icon": "./assets/logo.png",
       "usesAppleSignIn": true
     },
