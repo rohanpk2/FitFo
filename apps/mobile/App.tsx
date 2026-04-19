@@ -107,6 +107,7 @@ export default function App() {
   const [isOnboardingSubmitting, setIsOnboardingSubmitting] = useState(false);
   const [onboardingError, setOnboardingError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<AppTab>("saved");
+  const [isProfileVisible, setIsProfileVisible] = useState(false);
   const [activeSession, setActiveSession] = useState<ActiveSessionPreview | null>(
     null,
   );
@@ -1081,6 +1082,21 @@ export default function App() {
       );
     }
 
+    if (isProfileVisible && currentUser) {
+      return (
+        <ProfileScreen
+          onClose={() => setIsProfileVisible(false)}
+          onEditOnboarding={() => {
+            setIsProfileVisible(false);
+            setActiveOnboardingUserId(currentUser.id);
+          }}
+          onLogout={handleLogout}
+          profile={currentUser}
+          themeMode={themeMode}
+        />
+      );
+    }
+
     if (activeTab === "saved") {
       return (
         <SavedWorkoutsScreen
@@ -1089,6 +1105,7 @@ export default function App() {
           isLoading={savedWorkoutsLoading}
           isScheduleLoading={scheduledWorkoutsLoading}
           onAddWorkout={handleOpenAddWorkout}
+          onOpenProfile={() => setIsProfileVisible(true)}
           onRemoveWorkout={handleRemoveSavedWorkout}
           onRetry={() => {
             if (accessToken) {
@@ -1146,14 +1163,7 @@ export default function App() {
       ) : null;
     }
 
-    return currentUser ? (
-      <ProfileScreen
-        onEditOnboarding={() => setActiveOnboardingUserId(currentUser.id)}
-        onLogout={handleLogout}
-        profile={currentUser}
-        themeMode={themeMode}
-      />
-    ) : null;
+    return null;
   };
 
   const importError = submitError || pollError;
@@ -1189,7 +1199,12 @@ export default function App() {
                 onChangeTab={(tab) => {
                   setIsActiveWorkoutVisible(false);
                   setSelectedCompletedWorkout(null);
+                  setIsProfileVisible(false);
                   setActiveTab(tab);
+                }}
+                onImportWorkout={() => {
+                  setIsProfileVisible(false);
+                  handleOpenAddWorkout();
                 }}
                 themeMode={themeMode}
               />

@@ -131,7 +131,7 @@ export interface SendOtpResponse {
   message: string;
 }
 
-export type AppTab = "saved" | "logs" | "charts" | "profile";
+export type AppTab = "saved" | "logs" | "charts";
 
 export type AuthMode = "login" | "signup" | "otp";
 

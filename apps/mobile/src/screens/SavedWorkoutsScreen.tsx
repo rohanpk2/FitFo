@@ -20,6 +20,7 @@ interface SavedWorkoutsScreenProps {
   isLoading: boolean;
   isScheduleLoading: boolean;
   onAddWorkout: () => void;
+  onOpenProfile: () => void;
   onRemoveWorkout: (savedWorkoutId: string) => void;
   onRetry: () => void;
   onStartSession: (routine?: SavedRoutinePreview) => void;
@@ -293,6 +294,7 @@ export function SavedWorkoutsScreen({
   isLoading,
   isScheduleLoading,
   onAddWorkout,
+  onOpenProfile,
   onRemoveWorkout,
   onRetry,
   onStartSession,
@@ -365,17 +367,19 @@ export function SavedWorkoutsScreen({
     >
       
 
-      <View style={styles.titleBlock}>
-        <Text style={styles.eyebrow}>Your Hub</Text>
-        <Text style={styles.title}>Workouts</Text>
-      </View>
-
-      <Pressable onPress={onAddWorkout} style={styles.addCard}>
-        <View style={styles.addCircle}>
-          <Ionicons color={theme.colors.primaryLight} name="add" size={22} />
+      <View style={styles.headerRow}>
+        <View style={styles.titleBlock}>
+          <Text style={styles.eyebrow}>Your Hub</Text>
+          <Text style={styles.title}>Workouts</Text>
         </View>
-        <Text style={styles.addText}>Import or create a new routine</Text>
-      </Pressable>
+        <Pressable onPress={onOpenProfile} style={styles.profileButton} hitSlop={10}>
+          <Ionicons
+            color={theme.colors.textPrimary}
+            name="person-circle-outline"
+            size={40}
+          />
+        </Pressable>
+      </View>
 
       <View style={styles.section}>
         <View style={styles.sectionDivider}>
@@ -652,9 +656,19 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       fontWeight: "800",
       letterSpacing: -0.5,
     },
+    headerRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "flex-start",
+      paddingHorizontal: 2,
+      marginTop: 4,
+    },
     titleBlock: {
       gap: 8,
-      paddingHorizontal: 2,
+      flex: 1,
+    },
+    profileButton: {
+      padding: 4,
       marginTop: 4,
     },
     eyebrow: {

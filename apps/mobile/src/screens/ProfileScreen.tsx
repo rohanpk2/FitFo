@@ -5,6 +5,7 @@ import { getTheme, type ThemeMode } from "../theme";
 import type { UserProfile } from "../types";
 
 interface ProfileScreenProps {
+  onClose?: () => void;
   onEditOnboarding: () => void;
   onLogout: () => void;
   profile: UserProfile;
@@ -12,6 +13,7 @@ interface ProfileScreenProps {
 }
 
 export function ProfileScreen({
+  onClose,
   onEditOnboarding,
   onLogout,
   profile,
@@ -33,10 +35,16 @@ export function ProfileScreen({
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.header}>
-        <View>
-          <Text style={styles.eyebrow}>Settings</Text>
-        </View>
-        
+        {onClose ? (
+          <Pressable onPress={onClose} style={styles.backButton} hitSlop={10}>
+            <Ionicons color={theme.colors.textPrimary} name="chevron-back" size={22} />
+            <Text style={styles.backButtonText}>Back</Text>
+          </Pressable>
+        ) : (
+          <View>
+            <Text style={styles.eyebrow}>Settings</Text>
+          </View>
+        )}
       </View>
 
       <View style={styles.profileHero}>
@@ -96,10 +104,23 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     },
     header: {
       flexDirection: "row",
-      alignItems: "flex-start",
+      alignItems: "center",
       justifyContent: "space-between",
       gap: 12,
       paddingHorizontal: 2,
+    },
+    backButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      paddingVertical: 6,
+      paddingRight: 10,
+      marginLeft: -4,
+    },
+    backButtonText: {
+      color: theme.colors.textPrimary,
+      fontSize: 15,
+      fontWeight: "700",
     },
     eyebrow: {
       color: theme.colors.primary,

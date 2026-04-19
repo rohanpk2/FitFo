@@ -8,6 +8,7 @@ import type { AppTab } from "../types";
 interface BottomNavProps {
   activeTab: AppTab;
   onChangeTab: (tab: AppTab) => void;
+  onImportWorkout: () => void;
   themeMode?: ThemeMode;
 }
 
@@ -19,18 +20,60 @@ const tabs: Array<{
 }> = [
   { key: "saved", label: "Workouts", icon: "barbell-outline", activeIcon: "barbell" },
   { key: "logs", label: "Logs", icon: "bar-chart-outline", activeIcon: "bar-chart" },
-  // { key: "charts", label: "Charts", icon: "pulse-outline", activeIcon: "pulse" },
-  { key: "profile", label: "Profile", icon: "person-outline", activeIcon: "person" },
 ];
 
 export function BottomNav({
   activeTab,
   onChangeTab,
+  onImportWorkout,
   themeMode = "light",
 }: BottomNavProps) {
   const theme = getTheme(themeMode);
   const styles = createStyles(theme);
   const isDark = theme.mode === "dark";
+
+  const renderTab = (tab: (typeof tabs)[number]) => {
+    const isActive = tab.key === activeTab;
+    return (
+      <Pressable
+        key={tab.key}
+        onPress={() => onChangeTab(tab.key)}
+        style={({ pressed }) => [
+          styles.item,
+          pressed ? styles.itemPressed : null,
+        ]}
+        hitSlop={6}
+      >
+        <View
+          style={[
+            styles.iconWrap,
+            isActive ? styles.iconWrapActive : null,
+          ]}
+        >
+          <Ionicons
+            color={
+              isActive
+                ? "#FFFFFF"
+                : isDark
+                  ? "rgba(255, 255, 255, 0.55)"
+                  : "rgba(255, 255, 255, 0.65)"
+            }
+            name={isActive ? tab.activeIcon : tab.icon}
+            size={19}
+          />
+        </View>
+        <Text
+          style={[
+            styles.label,
+            isActive ? styles.labelActive : null,
+          ]}
+          numberOfLines={1}
+        >
+          {tab.label}
+        </Text>
+      </Pressable>
+    );
+  };
 
   return (
     <View style={styles.shell} pointerEvents="box-none">
@@ -42,49 +85,20 @@ export function BottomNav({
         <View style={styles.glossOverlay} pointerEvents="none" />
         <View style={styles.glossHighlight} pointerEvents="none" />
         <View style={styles.row}>
-          {tabs.map((tab) => {
-            const isActive = tab.key === activeTab;
+          {renderTab(tabs[0])}
 
-            return (
-              <Pressable
-                key={tab.key}
-                onPress={() => onChangeTab(tab.key)}
-                style={({ pressed }) => [
-                  styles.item,
-                  pressed ? styles.itemPressed : null,
-                ]}
-                hitSlop={6}
-              >
-                <View
-                  style={[
-                    styles.iconWrap,
-                    isActive ? styles.iconWrapActive : null,
-                  ]}
-                >
-                  <Ionicons
-                    color={
-                      isActive
-                        ? "#FFFFFF"
-                        : isDark
-                          ? "rgba(255, 255, 255, 0.55)"
-                          : "rgba(255, 255, 255, 0.65)"
-                    }
-                    name={isActive ? tab.activeIcon : tab.icon}
-                    size={19}
-                  />
-                </View>
-                <Text
-                  style={[
-                    styles.label,
-                    isActive ? styles.labelActive : null,
-                  ]}
-                  numberOfLines={1}
-                >
-                  {tab.label}
-                </Text>
-              </Pressable>
-            );
-          })}
+          <Pressable
+            onPress={onImportWorkout}
+            style={({ pressed }) => [
+              styles.importButton,
+              pressed ? styles.importButtonPressed : null,
+            ]}
+            hitSlop={6}
+          >
+            <Ionicons color="#FFFFFF" name="add" size={30} />
+          </Pressable>
+
+          {renderTab(tabs[1])}
         </View>
       </BlurView>
     </View>
@@ -108,7 +122,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) => {
       shadowOffset: { width: 0, height: 14 },
       elevation: 14,
     },
-    bar: {
+    blurContainer: {
       borderRadius: 32,
       overflow: "hidden",
       borderWidth: 1,
@@ -125,9 +139,22 @@ const createStyles = (theme: ReturnType<typeof getTheme>) => {
       backgroundColor: isDark
         ? "rgba(255, 255, 255, 0.03)"
         : "rgba(255, 255, 255, 0.06)",
-    },    
+    },
+    glossHighlight: {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      height: 18,
+      borderTopLeftRadius: 32,
+      borderTopRightRadius: 32,
+      backgroundColor: isDark
+        ? "rgba(255, 255, 255, 0.04)"
+        : "rgba(255, 255, 255, 0.10)",
+    },
     row: {
       flexDirection: "row",
+      alignItems: "center",
       justifyContent: "space-between",
       paddingHorizontal: 10,
       paddingTop: 10,
@@ -161,6 +188,24 @@ const createStyles = (theme: ReturnType<typeof getTheme>) => {
       shadowRadius: 14,
       shadowOffset: { width: 0, height: 6 },
       elevation: 8,
+    },
+    importButton: {
+      width: 58,
+      height: 58,
+      borderRadius: 29,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.colors.primaryBright,
+      marginHorizontal: 10,
+      shadowColor: theme.colors.primaryBright,
+      shadowOpacity: 0.75,
+      shadowRadius: 16,
+      shadowOffset: { width: 0, height: 8 },
+      elevation: 12,
+    },
+    importButtonPressed: {
+      opacity: 0.85,
+      transform: [{ scale: 0.96 }],
     },
     label: {
       color: isDark
