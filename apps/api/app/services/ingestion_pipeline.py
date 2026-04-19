@@ -9,6 +9,7 @@ import httpx
 
 from app.services import (
     apify_reel,
+    frame_ocr,
     supabase_db,
     tikwm,
     url_detection,
@@ -99,16 +100,73 @@ async def _run_transcription(job_id: str, audio_path: Path) -> None:
     supabase_db.update_ingestion_job(job_id, status="parsing")
 
 
-async def _run_parsing(job_id: str) -> None:
-    """Pull transcript, send to LLM, validate JSON, save workout, mark complete."""
-    transcript_row = supabase_db.get_transcript_by_job(job_id)
-    transcript_text = transcript_row.get("text", "")
-    if not transcript_text.strip():
-        raise IngestionPipelineError("Transcript is empty; nothing to parse")
+def _extract_caption_from_provider_meta(provider_meta: dict | None) -> str:
+    """
+    Pull a human-readable caption out of whichever provider scraped the video.
+    Both TikTok (tikwm) and Instagram (apify) stuff caption-ish text into
+    provider_meta under different keys; normalize that here so the parser can
+    use the caption when the transcript is thin or missing.
+    """
+    if not isinstance(provider_meta, dict):
+        return ""
 
-    plan = await workout_parser.parse_transcript_to_workout(transcript_text)
+    # Apify branch stores the caption at the top level of provider_meta.
+    caption = provider_meta.get("caption")
+    if isinstance(caption, str) and caption.strip():
+        return caption.strip()
+
+    # TikWM nests everything under provider_meta.tikwm.data.
+    tikwm = provider_meta.get("tikwm")
+    if isinstance(tikwm, dict):
+        data = tikwm.get("data")
+        if isinstance(data, dict):
+            for key in ("title", "desc", "caption", "content"):
+                value = data.get(key)
+                if isinstance(value, str) and value.strip():
+                    return value.strip()
+
+    return ""
+
+
+def _extract_on_screen_text_from_provider_meta(provider_meta: dict | None) -> str:
+    if not isinstance(provider_meta, dict):
+        return ""
+    value = provider_meta.get("on_screen_text")
+    if isinstance(value, str):
+        return value.strip()
+    return ""
+
+
+async def _run_parsing(job_id: str) -> None:
+    """Pull transcript + caption + OCR text, send to LLM, save workout."""
+    try:
+        transcript_row = supabase_db.get_transcript_by_job(job_id)
+    except Exception:
+        transcript_row = {}
+    transcript_text = (
+        transcript_row.get("text", "") if isinstance(transcript_row, dict) else ""
+    )
+
     job_row = supabase_db.get_ingestion_job(job_id)
-    user_id = str(job_row.get("user_id") or "").strip()
+    provider_meta = job_row.get("provider_meta") if isinstance(job_row, dict) else None
+
+    caption = _extract_caption_from_provider_meta(provider_meta)
+    on_screen_text = _extract_on_screen_text_from_provider_meta(provider_meta)
+
+    has_any_source = bool(
+        (transcript_text or "").strip() or caption or on_screen_text
+    )
+    if not has_any_source:
+        raise IngestionPipelineError(
+            "No transcript, caption, or on-screen text found; nothing to parse"
+        )
+
+    plan = await workout_parser.parse_transcript_to_workout(
+        transcript_text or "",
+        on_screen_text=on_screen_text,
+        caption=caption,
+    )
+    user_id = str(job_row.get("user_id") or "").strip() if isinstance(job_row, dict) else ""
     if not user_id:
         raise IngestionPipelineError("Ingestion job is missing an owning user account")
 
@@ -122,6 +180,46 @@ async def _run_parsing(job_id: str) -> None:
     )
 
     supabase_db.update_ingestion_job(job_id, status="complete")
+
+
+async def _maybe_extract_on_screen_text(
+    job_id: str,
+    video_path: Path,
+    provider_meta: dict | None,
+) -> dict | None:
+    """
+    Best-effort frame-OCR pass. Persists whatever it finds (or whatever error
+    it hit) onto provider_meta and returns the updated provider_meta. Never
+    raises — on-screen text is strictly additive to the other sources.
+    """
+    if not frame_ocr.is_enabled():
+        return supabase_db.merge_provider_meta(
+            provider_meta,
+            {"on_screen_text_extraction": {"ok": False, "reason": "disabled"}},
+        )
+
+    try:
+        text = await frame_ocr.extract_on_screen_text_from_video(video_path)
+    except Exception as exc:  # noqa: BLE001 - isolate optional feature
+        updated = supabase_db.merge_provider_meta(
+            provider_meta,
+            {"on_screen_text_extraction": {"ok": False, "error": str(exc)}},
+        )
+        supabase_db.update_ingestion_job(job_id, provider_meta=updated)
+        return updated
+
+    updated = supabase_db.merge_provider_meta(
+        provider_meta,
+        {
+            "on_screen_text": text,
+            "on_screen_text_extraction": {
+                "ok": True,
+                "char_count": len(text),
+            },
+        },
+    )
+    supabase_db.update_ingestion_job(job_id, provider_meta=updated)
+    return updated
 
 
 async def _run_tiktok_pipeline(job_id: str, source_url: str) -> None:
@@ -205,6 +303,10 @@ async def _run_tiktok_pipeline(job_id: str, source_url: str) -> None:
             job_id, status="transcribing", provider_meta=provider_meta
         )
 
+        provider_meta = (
+            await _maybe_extract_on_screen_text(job_id, video_path, provider_meta)
+        ) or provider_meta
+
         await _run_transcription(job_id, audio_path)
         await _run_parsing(job_id)
 
@@ -270,6 +372,10 @@ async def _run_instagram_pipeline(job_id: str, source_url: str) -> None:
         supabase_db.update_ingestion_job(
             job_id, status="transcribing", provider_meta=provider_meta
         )
+
+        provider_meta = (
+            await _maybe_extract_on_screen_text(job_id, video_path, provider_meta)
+        ) or provider_meta
 
         if transcript_text:
             # Apify already transcribed the reel for us; persist it and move on.

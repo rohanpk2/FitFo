@@ -11,6 +11,7 @@ import {
 import { AddWorkoutModal } from "./src/components/AddWorkoutModal";
 import { BottomNav } from "./src/components/BottomNav";
 import { useIngestionJob } from "./src/hooks/useIngestionJob";
+import { useSharedIngestUrl } from "./src/hooks/useSharedIngestUrl";
 import {
   clearAuthSession,
   getStoredAuthSession,
@@ -59,6 +60,7 @@ import { OtpVerificationScreen } from "./src/screens/OtpVerificationScreen";
 import { ProfileScreen } from "./src/screens/ProfileScreen";
 import { ProgressChartsScreen } from "./src/screens/ProgressChartsScreen";
 import { SavedWorkoutsScreen } from "./src/screens/SavedWorkoutsScreen";
+import { ScheduledConfirmationScreen } from "./src/screens/ScheduledConfirmationScreen";
 import { SignUpScreen } from "./src/screens/SignUpScreen";
 import { WorkoutSummaryScreen } from "./src/screens/WorkoutSummaryScreen";
 import { getTheme, type ThemeMode } from "./src/theme";
@@ -77,6 +79,12 @@ import type {
 } from "./src/types";
 
 type AuthSubmitMode = "login" | "signup" | "otp" | "apple" | "bootstrap";
+
+interface ScheduledConfirmationState {
+  title: string;
+  scheduledFor: string;
+  origin: "share" | "manual";
+}
 
 export default function App() {
   const themeMode: ThemeMode = "dark";
@@ -138,6 +146,11 @@ export default function App() {
     null,
   );
   const [isBodyWeightSubmitting, setIsBodyWeightSubmitting] = useState(false);
+  const [sharedIngestUrl, setSharedIngestUrl] = useState<string | null>(null);
+  const [isShareDrivenIngest, setIsShareDrivenIngest] = useState(false);
+  const [scheduledConfirmation, setScheduledConfirmation] = useState<
+    ScheduledConfirmationState | null
+  >(null);
 
   const handledImportedWorkoutId = useRef<string | null>(null);
   const { job, workout, error: pollError } = useIngestionJob(jobId, accessToken);
@@ -174,11 +187,15 @@ export default function App() {
 
   const handleCloseAddWorkout = useCallback(() => {
     setIsAddWorkoutVisible(false);
+    setSharedIngestUrl(null);
+    setIsShareDrivenIngest(false);
     resetImportFlow();
   }, [resetImportFlow]);
 
   const handleOpenAddWorkout = useCallback(() => {
     setIsAddWorkoutVisible(true);
+    setSharedIngestUrl(null);
+    setIsShareDrivenIngest(false);
     resetImportFlow();
   }, [resetImportFlow]);
 
@@ -308,6 +325,37 @@ export default function App() {
     }
   }, [accessToken]);
 
+  // Listen for share-sheet handoffs (iOS Share Extension / Android ACTION_SEND)
+  // and auto-open the import modal with the shared URL pre-filled + auto-submitted.
+  useSharedIngestUrl(
+    useCallback(
+      (sharedUrl: string) => {
+        if (!accessToken) {
+          // Not logged in yet — stash the URL so we can process it once
+          // authentication finishes bootstrapping.
+          setSharedIngestUrl(sharedUrl);
+          setIsShareDrivenIngest(true);
+          return;
+        }
+        setSharedIngestUrl(sharedUrl);
+        setIsShareDrivenIngest(true);
+        resetImportFlow();
+        setIsAddWorkoutVisible(true);
+      },
+      [accessToken, resetImportFlow],
+    ),
+  );
+
+  // If the share hand-off arrived before auth was ready, replay it as soon as
+  // the user is authenticated so their brainrot-to-workout pipeline keeps
+  // flowing without them having to open the app manually.
+  useEffect(() => {
+    if (!accessToken || !sharedIngestUrl || isAddWorkoutVisible) {
+      return;
+    }
+    setIsAddWorkoutVisible(true);
+  }, [accessToken, isAddWorkoutVisible, sharedIngestUrl]);
+
   const handleStartSession = useCallback(
     (routine?: SavedRoutinePreview) => {
       const sourceRoutine = routine || latestImportedRoutine;
@@ -403,6 +451,13 @@ export default function App() {
         setSubmitError(null);
         setActiveTab("saved");
         setIsAddWorkoutVisible(false);
+        setScheduledConfirmation({
+          title: latestImportedRoutine.title,
+          scheduledFor: scheduled.scheduled_for,
+          origin: isShareDrivenIngest ? "share" : "manual",
+        });
+        setSharedIngestUrl(null);
+        setIsShareDrivenIngest(false);
         resetImportFlow();
       } catch (error) {
         setSubmitError(
@@ -414,7 +469,7 @@ export default function App() {
         setIsSchedulingWorkout(false);
       }
     },
-    [accessToken, job, latestImportedRoutine, resetImportFlow, workout],
+    [accessToken, isShareDrivenIngest, job, latestImportedRoutine, resetImportFlow, workout],
   );
 
   const handleSaveImportedWorkout = useCallback(async () => {
@@ -1183,7 +1238,9 @@ export default function App() {
       </View>
 
       <AddWorkoutModal
+        autoSubmit={isShareDrivenIngest}
         error={importError}
+        initialUrl={sharedIngestUrl}
         isSaving={isSavingImportedWorkout}
         isScheduling={isSchedulingWorkout}
         isSubmitting={isExtractSubmitting}
@@ -1198,6 +1255,18 @@ export default function App() {
         themeMode={themeMode}
         visible={isAddWorkoutVisible}
       />
+
+      {scheduledConfirmation ? (
+        <View style={styles.confirmationOverlay}>
+          <ScheduledConfirmationScreen
+            title={scheduledConfirmation.title}
+            scheduledFor={scheduledConfirmation.scheduledFor}
+            origin={scheduledConfirmation.origin}
+            onDismiss={() => setScheduledConfirmation(null)}
+            themeMode={themeMode}
+          />
+        </View>
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -1231,5 +1300,13 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       color: theme.colors.textSecondary,
       fontSize: 15,
       textAlign: "center",
+    },
+    confirmationOverlay: {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: theme.colors.background,
     },
   });

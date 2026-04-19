@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Image,
-  Modal,
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -174,11 +174,16 @@ interface SetRowProps {
   exerciseName: string;
   canRemove: boolean;
   isActive: boolean;
-  isEditingExercise: boolean;
   onMaybeComplete: (exerciseId: string, setId: string) => void;
   onOpen: (exerciseId: string, setId: string) => void;
   onRepsChange: (exerciseId: string, setId: string, value: string) => void;
   onRemove: (exerciseId: string, setId: string) => void;
+  onTargetRepsChange: (exerciseId: string, setId: string, value: number | null) => void;
+  onTargetDurationChange: (
+    exerciseId: string,
+    setId: string,
+    value: number | null,
+  ) => void;
   onWeightChange: (exerciseId: string, setId: string, value: string) => void;
   set: ActiveSetPreview;
   styles: ActiveWorkoutStyles;
@@ -190,17 +195,58 @@ function SetRow({
   exerciseName,
   canRemove,
   isActive,
-  isEditingExercise,
   set,
   onMaybeComplete,
   onOpen,
   onRepsChange,
   onRemove,
+  onTargetRepsChange,
+  onTargetDurationChange,
   onWeightChange,
   styles,
   theme,
 }: SetRowProps) {
   const isTimedSet = set.targetDurationSec != null;
+  const [targetRepsDraft, setTargetRepsDraft] = useState(
+    set.targetReps != null ? String(set.targetReps) : "",
+  );
+  const [targetDurationDraft, setTargetDurationDraft] = useState(
+    set.targetDurationSec != null ? String(set.targetDurationSec) : "",
+  );
+
+  useEffect(() => {
+    setTargetRepsDraft(set.targetReps != null ? String(set.targetReps) : "");
+  }, [set.targetReps]);
+
+  useEffect(() => {
+    setTargetDurationDraft(
+      set.targetDurationSec != null ? String(set.targetDurationSec) : "",
+    );
+  }, [set.targetDurationSec]);
+
+  const commitTargetReps = () => {
+    const trimmed = targetRepsDraft.trim();
+    if (!trimmed) {
+      onTargetRepsChange(exerciseId, set.id, null);
+      return;
+    }
+    const parsed = Number.parseInt(trimmed, 10);
+    onTargetRepsChange(exerciseId, set.id, Number.isFinite(parsed) ? parsed : null);
+  };
+
+  const commitTargetDuration = () => {
+    const trimmed = targetDurationDraft.trim();
+    if (!trimmed) {
+      onTargetDurationChange(exerciseId, set.id, null);
+      return;
+    }
+    const parsed = Number.parseInt(trimmed, 10);
+    onTargetDurationChange(
+      exerciseId,
+      set.id,
+      Number.isFinite(parsed) ? parsed : null,
+    );
+  };
 
   if (!isActive) {
     return (
@@ -213,7 +259,7 @@ function SetRow({
       >
         <Pressable onPress={() => onOpen(exerciseId, set.id)} style={styles.setRowOpenButton}>
           <View style={styles.setRowHeader}>
-            <View>
+            <View style={styles.setRowTitleColumn}>
               <Text style={styles.setLabel}>{set.label}</Text>
               <Text style={styles.setTarget}>
                 {set.completed ? getLoggedSetCopy(set) : getTargetCopy(set)}
@@ -228,28 +274,20 @@ function SetRow({
               ) : (
                 <Text style={styles.setExerciseName}>Up next</Text>
               )}
-              <Ionicons color={theme.colors.textMuted} name="create-outline" size={16} />
+              {canRemove ? (
+                <Pressable
+                  hitSlop={8}
+                  onPress={() => onRemove(exerciseId, set.id)}
+                  style={styles.inlineRemoveButton}
+                >
+                  <Ionicons color={theme.colors.error} name="close" size={14} />
+                </Pressable>
+              ) : (
+                <Ionicons color={theme.colors.textMuted} name="create-outline" size={16} />
+              )}
             </View>
           </View>
-          <Text style={styles.setRowHint}>
-            {set.completed
-              ? isTimedSet
-                ? "Tap to update your logged time."
-                : "Tap to update your logged weight or reps."
-              : isTimedSet
-                ? "Tap to open this interval and log your time."
-                : "Tap to open this set and log it."}
-          </Text>
         </Pressable>
-        {canRemove ? (
-          <Pressable
-            onPress={() => onRemove(exerciseId, set.id)}
-            style={styles.removeItemButton}
-          >
-            <Ionicons color={theme.colors.error} name="trash-outline" size={16} />
-            <Text style={styles.removeItemButtonText}>Remove</Text>
-          </Pressable>
-        ) : null}
       </View>
     );
   }
@@ -257,9 +295,37 @@ function SetRow({
   return (
     <View style={[styles.setRow, set.completed ? styles.setRowComplete : null]}>
       <View style={styles.setRowHeader}>
-        <View>
+        <View style={styles.setRowTitleColumn}>
           <Text style={styles.setLabel}>{set.label}</Text>
-          <Text style={styles.setTarget}>{getTargetCopy(set)}</Text>
+          <View style={styles.setTargetEditRow}>
+            {isTimedSet ? (
+              <View style={styles.targetEditPill}>
+                <TextInput
+                  keyboardType="number-pad"
+                  onBlur={commitTargetDuration}
+                  onChangeText={(value) => setTargetDurationDraft(sanitizeReps(value))}
+                  placeholder="--"
+                  placeholderTextColor={theme.colors.textMuted}
+                  style={styles.targetEditInput}
+                  value={targetDurationDraft}
+                />
+                <Text style={styles.targetEditUnit}>s target</Text>
+              </View>
+            ) : (
+              <View style={styles.targetEditPill}>
+                <TextInput
+                  keyboardType="number-pad"
+                  onBlur={commitTargetReps}
+                  onChangeText={(value) => setTargetRepsDraft(sanitizeReps(value))}
+                  placeholder="--"
+                  placeholderTextColor={theme.colors.textMuted}
+                  style={styles.targetEditInput}
+                  value={targetRepsDraft}
+                />
+                <Text style={styles.targetEditUnit}>reps target</Text>
+              </View>
+            )}
+          </View>
         </View>
         <View style={styles.setHeaderActions}>
           {set.completed ? (
@@ -274,11 +340,11 @@ function SetRow({
           )}
           {canRemove ? (
             <Pressable
+              hitSlop={8}
               onPress={() => onRemove(exerciseId, set.id)}
-              style={styles.removeItemButton}
+              style={styles.inlineRemoveButton}
             >
-              <Ionicons color={theme.colors.error} name="trash-outline" size={16} />
-              <Text style={styles.removeItemButtonText}>Remove</Text>
+              <Ionicons color={theme.colors.error} name="close" size={14} />
             </Pressable>
           ) : null}
         </View>
@@ -336,47 +402,53 @@ function SetRow({
           ? "Enter your completed seconds and the next interval will open."
           : "Enter weight and reps, then the next set will open automatically."}
       </Text>
-
-      {isEditingExercise ? (
-        <Text style={styles.editModeHint}>
-          Set editing is on, so you can remove this set if you need to clean it up.
-        </Text>
-      ) : null}
     </View>
   );
 }
 
 interface ExerciseCardProps {
+  autoFocusName?: boolean;
   editingSetId: string | null;
   exercise: ActiveExercisePreview;
   expanded: boolean;
-  isEditingExercise: boolean;
   onAddSet: (exerciseId: string) => void;
+  onChangeNotes: (exerciseId: string, value: string) => void;
+  onChangeRestSeconds: (exerciseId: string, value: number | null) => void;
   onCompleteSet: (exerciseId: string, setId: string) => void;
   onOpenSet: (exerciseId: string, setId: string) => void;
+  onRenameExercise: (exerciseId: string, value: string) => void;
   onRepsChange: (exerciseId: string, setId: string, value: string) => void;
   onRemoveExercise: (exerciseId: string) => void;
   onRemoveSet: (exerciseId: string, setId: string) => void;
+  onTargetRepsChange: (exerciseId: string, setId: string, value: number | null) => void;
+  onTargetDurationChange: (
+    exerciseId: string,
+    setId: string,
+    value: number | null,
+  ) => void;
   onToggle: (exerciseId: string) => void;
-  onToggleEditSets: (exerciseId: string) => void;
   onWeightChange: (exerciseId: string, setId: string, value: string) => void;
   styles: ActiveWorkoutStyles;
   theme: ActiveWorkoutTheme;
 }
 
 function ExerciseCard({
+  autoFocusName,
   editingSetId,
   exercise,
   expanded,
-  isEditingExercise,
   onAddSet,
+  onChangeNotes,
+  onChangeRestSeconds,
   onCompleteSet,
   onOpenSet,
+  onRenameExercise,
   onRepsChange,
   onRemoveExercise,
   onRemoveSet,
+  onTargetRepsChange,
+  onTargetDurationChange,
   onToggle,
-  onToggleEditSets,
   onWeightChange,
   styles,
   theme,
@@ -388,6 +460,64 @@ function ExerciseCard({
     editingSetId != null && exercise.sets.some((set) => set.id === editingSetId)
       ? editingSetId
       : defaultOpenSetId;
+
+  const [nameDraft, setNameDraft] = useState(
+    titleCase(exercise.name) || exercise.name,
+  );
+  const [notesDraft, setNotesDraft] = useState(exercise.notes ?? "");
+  const [restDraft, setRestDraft] = useState(
+    exercise.restSeconds != null ? String(exercise.restSeconds) : "",
+  );
+  const nameInputRef = useRef<TextInput | null>(null);
+
+  useEffect(() => {
+    setNameDraft(titleCase(exercise.name) || exercise.name);
+  }, [exercise.name]);
+
+  useEffect(() => {
+    setNotesDraft(exercise.notes ?? "");
+  }, [exercise.notes]);
+
+  useEffect(() => {
+    setRestDraft(exercise.restSeconds != null ? String(exercise.restSeconds) : "");
+  }, [exercise.restSeconds]);
+
+  useEffect(() => {
+    if (autoFocusName && expanded) {
+      const handle = setTimeout(() => {
+        nameInputRef.current?.focus();
+      }, 80);
+      return () => clearTimeout(handle);
+    }
+    return undefined;
+  }, [autoFocusName, expanded]);
+
+  const commitName = () => {
+    const next = nameDraft.trim();
+    if (!next) {
+      setNameDraft(titleCase(exercise.name) || exercise.name);
+      return;
+    }
+    if (next !== exercise.name) {
+      onRenameExercise(exercise.id, next);
+    }
+  };
+
+  const commitNotes = () => {
+    if ((notesDraft ?? "") !== (exercise.notes ?? "")) {
+      onChangeNotes(exercise.id, notesDraft);
+    }
+  };
+
+  const commitRest = () => {
+    const trimmed = restDraft.trim();
+    if (!trimmed) {
+      onChangeRestSeconds(exercise.id, null);
+      return;
+    }
+    const parsed = Number.parseInt(trimmed, 10);
+    onChangeRestSeconds(exercise.id, Number.isFinite(parsed) ? parsed : null);
+  };
 
   return (
     <View style={styles.exerciseCard}>
@@ -401,9 +531,19 @@ function ExerciseCard({
               {exercise.blockName ? (
                 <Text style={styles.exerciseEyebrow}>{exercise.blockName}</Text>
               ) : null}
-              <Text style={styles.exerciseTitle}>
-                {titleCase(exercise.name) || exercise.name}
-              </Text>
+              <TextInput
+                ref={nameInputRef}
+                autoCapitalize="words"
+                autoCorrect={false}
+                onBlur={commitName}
+                onChangeText={setNameDraft}
+                onSubmitEditing={commitName}
+                placeholder="Tap to name this exercise"
+                placeholderTextColor={theme.colors.textMuted}
+                returnKeyType="done"
+                style={styles.exerciseTitleInput}
+                value={nameDraft}
+              />
               <Text style={styles.exerciseSubtitle}>{exercise.subtitle}</Text>
             </View>
           </View>
@@ -415,19 +555,6 @@ function ExerciseCard({
               {completedSetCount}/{exercise.sets.length}
             </Text>
           </View>
-          <Pressable
-            onPress={() => onToggleEditSets(exercise.id)}
-            style={[
-              styles.exerciseIconButton,
-              isEditingExercise ? styles.exerciseIconButtonActive : null,
-            ]}
-          >
-            <Ionicons
-              color={isEditingExercise ? theme.colors.surface : theme.colors.primary}
-              name={isEditingExercise ? "checkmark" : "create-outline"}
-              size={16}
-            />
-          </Pressable>
           <Pressable
             onPress={() => onRemoveExercise(exercise.id)}
             style={[styles.exerciseIconButton, styles.exerciseDeleteButton]}
@@ -443,36 +570,50 @@ function ExerciseCard({
 
       {expanded ? (
         <View style={styles.exerciseBody}>
-          {exercise.notes ? (
-            <View style={styles.notesCard}>
-              <Text style={styles.notesLabel}>Notes</Text>
-              <Text style={styles.notesText}>{exercise.notes}</Text>
-            </View>
-          ) : null}
+          <View style={styles.notesCard}>
+            <Text style={styles.notesLabel}>Notes</Text>
+            <TextInput
+              multiline
+              onBlur={commitNotes}
+              onChangeText={setNotesDraft}
+              placeholder="Add notes, cues, tempo..."
+              placeholderTextColor={theme.colors.textMuted}
+              style={styles.notesInput}
+              value={notesDraft}
+            />
+          </View>
 
-          {isEditingExercise ? (
-            <View style={styles.exerciseEditorBanner}>
-              <Ionicons color={theme.colors.primary} name="construct-outline" size={16} />
-              <Text style={styles.exerciseEditorBannerText}>
-                Remove sets you do not want, or add another one below.
-              </Text>
+          <View style={styles.restRow}>
+            <Text style={styles.restLabel}>Rest between sets</Text>
+            <View style={styles.restInputPill}>
+              <TextInput
+                keyboardType="number-pad"
+                onBlur={commitRest}
+                onChangeText={(value) => setRestDraft(sanitizeReps(value))}
+                placeholder="--"
+                placeholderTextColor={theme.colors.textMuted}
+                style={styles.restInput}
+                value={restDraft}
+              />
+              <Text style={styles.restUnit}>sec</Text>
             </View>
-          ) : null}
+          </View>
 
           {exercise.sets.length > 0 ? (
             <View style={styles.setList}>
               {exercise.sets.map((set) => (
                 <SetRow
                   key={set.id}
-                  canRemove={isEditingExercise}
+                  canRemove={exercise.sets.length > 1}
                   exerciseId={exercise.id}
                   exerciseName={exercise.name}
                   isActive={activeSetId === set.id}
-                  isEditingExercise={isEditingExercise}
                   onMaybeComplete={onCompleteSet}
                   onOpen={onOpenSet}
                   onRepsChange={onRepsChange}
                   onRemove={onRemoveSet}
+                  onTargetRepsChange={onTargetRepsChange}
+                  onTargetDurationChange={onTargetDurationChange}
                   onWeightChange={onWeightChange}
                   set={set}
                   styles={styles}
@@ -490,15 +631,32 @@ function ExerciseCard({
             </View>
           )}
 
-          {isEditingExercise ? (
-            <Pressable onPress={() => onAddSet(exercise.id)} style={styles.addSetButton}>
-              <Ionicons color={theme.colors.primary} name="add-circle-outline" size={18} />
-              <Text style={styles.addSetButtonText}>Add Set</Text>
-            </Pressable>
-          ) : null}
+          <Pressable onPress={() => onAddSet(exercise.id)} style={styles.addSetButton}>
+            <Ionicons color={theme.colors.primary} name="add-circle-outline" size={18} />
+            <Text style={styles.addSetButtonText}>Add Set</Text>
+          </Pressable>
         </View>
       ) : null}
     </View>
+  );
+}
+
+interface InlineAddExerciseRowProps {
+  onPress: () => void;
+  styles: ActiveWorkoutStyles;
+  theme: ActiveWorkoutTheme;
+}
+
+function InlineAddExerciseRow({ onPress, styles, theme }: InlineAddExerciseRowProps) {
+  return (
+    <Pressable onPress={onPress} style={styles.inlineAddRow} hitSlop={6}>
+      <View style={styles.inlineAddLine} />
+      <View style={styles.inlineAddBadge}>
+        <Ionicons color={theme.colors.primary} name="add" size={14} />
+        <Text style={styles.inlineAddBadgeText}>Add exercise here</Text>
+      </View>
+      <View style={styles.inlineAddLine} />
+    </Pressable>
   );
 }
 
@@ -517,9 +675,7 @@ export function ActiveWorkoutScreen({
   );
   const [exercises, setExercises] = useState(session.exercises);
   const [selectedSet, setSelectedSet] = useState<SelectedSetState | null>(null);
-  const [editingExerciseId, setEditingExerciseId] = useState<string | null>(null);
-  const [isAddExerciseModalVisible, setIsAddExerciseModalVisible] = useState(false);
-  const [draftExerciseName, setDraftExerciseName] = useState("");
+  const [autoFocusExerciseId, setAutoFocusExerciseId] = useState<string | null>(null);
   const [restCountdownSeconds, setRestCountdownSeconds] = useState<number | null>(
     null,
   );
@@ -528,9 +684,7 @@ export function ActiveWorkoutScreen({
     setExercises(session.exercises);
     setExpandedExerciseId(session.exercises[0]?.id || null);
     setSelectedSet(null);
-    setEditingExerciseId(null);
-    setIsAddExerciseModalVisible(false);
-    setDraftExerciseName("");
+    setAutoFocusExerciseId(null);
     setRestCountdownSeconds(null);
     setElapsedSeconds(Math.max(0, Math.floor((Date.now() - session.startedAt) / 1000)));
   }, [session]);
@@ -774,9 +928,70 @@ export function ActiveWorkoutScreen({
     setSelectedSet({ exerciseId, setId });
   };
 
-  const handleToggleEditSets = (exerciseId: string) => {
-    setExpandedExerciseId(exerciseId);
-    setEditingExerciseId((current) => (current === exerciseId ? null : exerciseId));
+  const handleRenameExercise = (exerciseId: string, value: string) => {
+    setExercises((current) =>
+      current.map((exercise) =>
+        exercise.id === exerciseId ? { ...exercise, name: value } : exercise,
+      ),
+    );
+  };
+
+  const handleChangeNotes = (exerciseId: string, value: string) => {
+    setExercises((current) =>
+      current.map((exercise) =>
+        exercise.id === exerciseId
+          ? { ...exercise, notes: value.trim() ? value : null }
+          : exercise,
+      ),
+    );
+  };
+
+  const handleChangeRestSeconds = (exerciseId: string, value: number | null) => {
+    setExercises((current) =>
+      current.map((exercise) =>
+        exercise.id === exerciseId
+          ? { ...exercise, restSeconds: value }
+          : exercise,
+      ),
+    );
+  };
+
+  const handleChangeTargetReps = (
+    exerciseId: string,
+    setId: string,
+    value: number | null,
+  ) => {
+    setExercises((current) =>
+      current.map((exercise) =>
+        exercise.id !== exerciseId
+          ? exercise
+          : syncExercise({
+              ...exercise,
+              sets: exercise.sets.map((set) =>
+                set.id === setId ? { ...set, targetReps: value } : set,
+              ),
+            }),
+      ),
+    );
+  };
+
+  const handleChangeTargetDuration = (
+    exerciseId: string,
+    setId: string,
+    value: number | null,
+  ) => {
+    setExercises((current) =>
+      current.map((exercise) =>
+        exercise.id !== exerciseId
+          ? exercise
+          : syncExercise({
+              ...exercise,
+              sets: exercise.sets.map((set) =>
+                set.id === setId ? { ...set, targetDurationSec: value } : set,
+              ),
+            }),
+      ),
+    );
   };
 
   const handleAddSet = (exerciseId: string) => {
@@ -803,7 +1018,6 @@ export function ActiveWorkoutScreen({
     );
 
     setExpandedExerciseId(exerciseId);
-    setEditingExerciseId(exerciseId);
     setSelectedSet(nextSelectedSet);
   };
 
@@ -851,8 +1065,8 @@ export function ActiveWorkoutScreen({
       setSelectedSet(null);
     }
 
-    if (editingExerciseId === exerciseId) {
-      setEditingExerciseId(null);
+    if (autoFocusExerciseId === exerciseId) {
+      setAutoFocusExerciseId(null);
     }
 
     if (expandedExerciseId === exerciseId) {
@@ -862,40 +1076,39 @@ export function ActiveWorkoutScreen({
     }
   };
 
-  const handleOpenAddExerciseModal = () => {
-    setDraftExerciseName("");
-    setIsAddExerciseModalVisible(true);
-  };
-
-  const handleCloseAddExerciseModal = () => {
-    setIsAddExerciseModalVisible(false);
-    setDraftExerciseName("");
-  };
-
-  const handleAddExercise = () => {
-    const name = draftExerciseName.trim();
-    if (!name) {
-      return;
-    }
-
+  const insertExerciseAt = (insertIndex: number) => {
     const newExercise = createExerciseDraft({
       averageRestSeconds: session.averageRestSeconds,
-      name,
-      setCount: 1,
+      name: "",
+      setCount: 3,
       targetReps: null,
     });
 
-    setExercises((current) => [...current, newExercise]);
+    setExercises((current) => {
+      const clamped = Math.max(0, Math.min(insertIndex, current.length));
+      return [...current.slice(0, clamped), newExercise, ...current.slice(clamped)];
+    });
 
     setExpandedExerciseId(newExercise.id);
-    setEditingExerciseId(newExercise.id);
+    setAutoFocusExerciseId(newExercise.id);
     setSelectedSet(
       newExercise.sets[0]
         ? { exerciseId: newExercise.id, setId: newExercise.sets[0].id }
         : null,
     );
-    setIsAddExerciseModalVisible(false);
-    setDraftExerciseName("");
+  };
+
+  const handleAppendExercise = () => {
+    insertExerciseAt(exercises.length);
+  };
+
+  const handleOpenSourceUrl = () => {
+    if (!session.sourceUrl) {
+      return;
+    }
+    Linking.openURL(session.sourceUrl).catch(() => {
+      // Silent failure is fine; the button just won't do anything on unsupported URLs.
+    });
   };
 
   const toggleExercise = (exerciseId: string) => {
@@ -903,145 +1116,105 @@ export function ActiveWorkoutScreen({
   };
 
   return (
-    <>
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.header}>
-          <Pressable onPress={onBack} style={styles.backButton} hitSlop={10}>
-            <Ionicons color={theme.colors.primary} name="chevron-back" size={18} />
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator={false}
+    >
+      <View style={styles.header}>
+        <Pressable onPress={onBack} style={styles.backButton} hitSlop={10}>
+          <Ionicons color={theme.colors.primary} name="chevron-back" size={18} />
+        </Pressable>
+        <Image
+          resizeMode="contain"
+          source={require("../../assets/logo_white_no_bg.png")}
+          style={styles.brandLogo}
+        />
+        <View style={styles.headerSpacer} />
+      </View>
+
+      <View style={styles.heroSection}>
+        <Text style={styles.eyebrow}>Current Session</Text>
+        <Text style={styles.heroTitle}>{session.title}</Text>
+        <Text style={styles.heroDescription}>{session.description}</Text>
+        {session.sourceUrl ? (
+          <Pressable onPress={handleOpenSourceUrl} style={styles.sourceUrlPill} hitSlop={6}>
+            <Ionicons color={theme.colors.primary} name="play-circle-outline" size={14} />
+            <Text style={styles.sourceUrlText}>View original reel</Text>
+            <Ionicons
+              color={theme.colors.primary}
+              name="open-outline"
+              size={12}
+            />
           </Pressable>
-          <Image
-            resizeMode="contain"
-            source={require("../../assets/logo_white_no_bg.png")}
-            style={styles.brandLogo}
-          />
-          <View style={styles.headerSpacer} />
-        </View>
+        ) : null}
+      </View>
 
-        <View style={styles.heroSection}>
-          <Text style={styles.eyebrow}>Current Session</Text>
-          <Text style={styles.heroTitle}>{session.title}</Text>
-          <Text style={styles.heroDescription}>{session.description}</Text>
-        </View>
+      <View style={styles.timerCard}>
+        <Text style={styles.timerEyebrow}>Time Elapsed</Text>
+        <Text style={styles.timerValue}>{formatClock(elapsedSeconds)}</Text>
+        <Text style={styles.timerHelper}>
+          {completedSetCount} of {totalSetCount} sets logged
+        </Text>
+      </View>
 
-        <View style={styles.timerCard}>
-          <Text style={styles.timerEyebrow}>Time Elapsed</Text>
-          <Text style={styles.timerValue}>{formatClock(elapsedSeconds)}</Text>
-          <Text style={styles.timerHelper}>
-            {completedSetCount} of {totalSetCount} sets logged
-          </Text>
-        </View>
-
-        
-
-        <View style={styles.exerciseStack}>
-          {exercises.length > 0 ? (
-            exercises.map((exercise) => (
+      <View style={styles.exerciseStack}>
+        {exercises.length > 0 ? (
+          exercises.map((exercise, index) => (
+            <View key={exercise.id}>
               <ExerciseCard
-                key={exercise.id}
+                autoFocusName={autoFocusExerciseId === exercise.id}
                 editingSetId={
                   selectedSet?.exerciseId === exercise.id ? selectedSet.setId : null
                 }
                 exercise={exercise}
                 expanded={expandedExerciseId === exercise.id}
-                isEditingExercise={editingExerciseId === exercise.id}
                 onAddSet={handleAddSet}
+                onChangeNotes={handleChangeNotes}
+                onChangeRestSeconds={handleChangeRestSeconds}
                 onCompleteSet={handleCompleteSet}
                 onOpenSet={handleOpenSet}
+                onRenameExercise={handleRenameExercise}
                 onRepsChange={handleRepsChange}
                 onRemoveExercise={handleRemoveExercise}
                 onRemoveSet={handleRemoveSet}
+                onTargetRepsChange={handleChangeTargetReps}
+                onTargetDurationChange={handleChangeTargetDuration}
                 onToggle={toggleExercise}
-                onToggleEditSets={handleToggleEditSets}
                 onWeightChange={handleWeightChange}
                 styles={styles}
                 theme={theme}
               />
-            ))
-          ) : (
-            <View style={styles.emptyCard}>
-              <Ionicons color={theme.colors.primary} name="barbell-outline" size={20} />
-              <Text style={styles.emptyTitle}>No exercises in this session yet</Text>
-              <Text style={styles.emptyBody}>
-                Start from an imported TikTok workout to populate this screen with real exercises.
-              </Text>
+              {index < exercises.length - 1 ? (
+                <InlineAddExerciseRow
+                  onPress={() => insertExerciseAt(index + 1)}
+                  styles={styles}
+                  theme={theme}
+                />
+              ) : null}
             </View>
-          )}
-        </View>
-
-        <Pressable onPress={handleOpenAddExerciseModal} style={styles.addExerciseButton}>
-          <Ionicons color={theme.colors.surface} name="add" size={18} />
-          <Text style={styles.addExerciseButtonText}>Add Exercise</Text>
-        </Pressable>
-
-        <Pressable onPress={onFinish} style={styles.finishButton}>
-          <Text style={styles.finishButtonText}>Finish Workout</Text>
-          <Ionicons color={theme.colors.surface} name="flag" size={16} />
-        </Pressable>
-      </ScrollView>
-
-      <Modal
-        animationType="fade"
-        transparent
-        visible={isAddExerciseModalVisible}
-        onRequestClose={handleCloseAddExerciseModal}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Pressable onPress={handleCloseAddExerciseModal} style={styles.modalCloseButton}>
-              <Ionicons color={theme.colors.textMuted} name="close" size={20} />
-            </Pressable>
-
-            <View style={styles.modalIconShell}>
-              <Ionicons color={theme.colors.primary} name="add-circle-outline" size={22} />
-            </View>
-            <Text style={styles.modalTitle}>Add Exercise</Text>
-            <Text style={styles.modalSubtitle}>
-              Give this exercise a name and we&apos;ll add it with 1 set to start.
+          ))
+        ) : (
+          <View style={styles.emptyCard}>
+            <Ionicons color={theme.colors.primary} name="barbell-outline" size={20} />
+            <Text style={styles.emptyTitle}>No exercises in this session yet</Text>
+            <Text style={styles.emptyBody}>
+              Start from an imported TikTok workout to populate this screen with real exercises.
             </Text>
-
-            <View style={styles.modalFormBlock}>
-              <Text style={styles.inputLabel}>Exercise Name</Text>
-              <TextInput
-                autoCapitalize="words"
-                autoCorrect={false}
-                onChangeText={setDraftExerciseName}
-                placeholder="Incline dumbbell press"
-                placeholderTextColor={theme.colors.textMuted}
-                style={styles.input}
-                value={draftExerciseName}
-              />
-            </View>
-
-            <View style={styles.modalMetaRow}>
-              <View style={styles.modalMetaChip}>
-                <Text style={styles.modalMetaChipText}>1 set</Text>
-              </View>
-            </View>
-
-            <View style={styles.modalActionRow}>
-              <Pressable onPress={handleCloseAddExerciseModal} style={styles.modalSecondaryButton}>
-                <Text style={styles.modalSecondaryButtonText}>Cancel</Text>
-              </Pressable>
-
-              <Pressable
-                disabled={!draftExerciseName.trim()}
-                onPress={handleAddExercise}
-                style={[
-                  styles.modalPrimaryButton,
-                  !draftExerciseName.trim() ? styles.modalPrimaryButtonDisabled : null,
-                ]}
-              >
-                <Text style={styles.modalPrimaryButtonText}>Add Exercise</Text>
-              </Pressable>
-            </View>
           </View>
-        </View>
-      </Modal>
-    </>
+        )}
+      </View>
+
+      <Pressable onPress={handleAppendExercise} style={styles.addExerciseButton}>
+        <Ionicons color={theme.colors.surface} name="add" size={18} />
+        <Text style={styles.addExerciseButtonText}>Add Exercise</Text>
+      </Pressable>
+
+      <Pressable onPress={onFinish} style={styles.finishButton}>
+        <Text style={styles.finishButtonText}>Finish Workout</Text>
+        <Ionicons color={theme.colors.surface} name="flag" size={16} />
+      </Pressable>
+    </ScrollView>
   );
 }
 
@@ -1331,6 +1504,15 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
       fontWeight: "800",
       letterSpacing: -0.5,
     },
+    exerciseTitleInput: {
+      color: theme.colors.textPrimary,
+      fontSize: 20,
+      fontWeight: "800",
+      letterSpacing: -0.5,
+      paddingVertical: 2,
+      paddingHorizontal: 0,
+      margin: 0,
+    },
     exerciseSubtitle: {
       color: theme.colors.textSecondary,
       fontSize: 12,
@@ -1406,6 +1588,50 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
       fontSize: 13,
       lineHeight: 19,
     },
+    notesInput: {
+      color: theme.colors.textSecondary,
+      fontSize: 13,
+      lineHeight: 19,
+      paddingVertical: 2,
+      paddingHorizontal: 0,
+      margin: 0,
+      minHeight: 20,
+    },
+    restRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: 4,
+    },
+    restLabel: {
+      color: theme.colors.textMuted,
+      fontSize: 11,
+      fontWeight: "800",
+      letterSpacing: 0.8,
+      textTransform: "uppercase",
+    },
+    restInputPill: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      borderRadius: 999,
+      backgroundColor: theme.colors.surfaceMuted,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+    },
+    restInput: {
+      color: theme.colors.textPrimary,
+      fontSize: 13,
+      fontWeight: "700",
+      minWidth: 32,
+      padding: 0,
+      textAlign: "right",
+    },
+    restUnit: {
+      color: theme.colors.textMuted,
+      fontSize: 11,
+      fontWeight: "700",
+    },
     setList: {
       gap: 10,
     },
@@ -1472,6 +1698,91 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
       color: theme.colors.textMuted,
       fontSize: 12,
       lineHeight: 17,
+    },
+    setRowTitleColumn: {
+      flex: 1,
+      gap: 4,
+    },
+    setTargetEditRow: {
+      flexDirection: "row",
+    },
+    targetEditPill: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      borderRadius: 999,
+      backgroundColor: theme.colors.surface,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderWidth: 1,
+      borderColor: theme.colors.borderSoft,
+    },
+    targetEditInput: {
+      color: theme.colors.textPrimary,
+      fontSize: 12,
+      fontWeight: "700",
+      minWidth: 26,
+      padding: 0,
+      textAlign: "right",
+    },
+    targetEditUnit: {
+      color: theme.colors.textMuted,
+      fontSize: 11,
+      fontWeight: "700",
+    },
+    inlineRemoveButton: {
+      height: 24,
+      width: 24,
+      borderRadius: 999,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.colors.errorSoft,
+    },
+    inlineAddRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      paddingVertical: 6,
+    },
+    inlineAddLine: {
+      flex: 1,
+      height: 1,
+      backgroundColor: theme.colors.borderSoft,
+    },
+    inlineAddBadge: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: theme.colors.borderSoft,
+      borderStyle: "dashed",
+      backgroundColor: theme.colors.surface,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+    },
+    inlineAddBadgeText: {
+      color: theme.colors.primary,
+      fontSize: 11,
+      fontWeight: "800",
+    },
+    sourceUrlPill: {
+      alignSelf: "flex-start",
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      borderRadius: 999,
+      backgroundColor: theme.colors.surface,
+      borderWidth: 1,
+      borderColor: theme.colors.borderSoft,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      marginTop: 4,
+    },
+    sourceUrlText: {
+      color: theme.colors.primary,
+      fontSize: 12,
+      fontWeight: "800",
     },
     removeItemButton: {
       alignSelf: "flex-end",

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Modal,
@@ -24,6 +24,8 @@ interface AddWorkoutModalProps {
   job: JobResponse | null;
   routine: SavedRoutinePreview | null;
   error: string | null;
+  initialUrl?: string | null;
+  autoSubmit?: boolean;
   onClose: () => void;
   onSubmit: (url: string) => void;
   onCreateManual: () => void;
@@ -99,11 +101,14 @@ export function AddWorkoutModal({
   onSaveImported,
   onScheduleImported,
   onStartImported,
+  initialUrl = null,
+  autoSubmit = false,
   themeMode = "light",
 }: AddWorkoutModalProps) {
   const [url, setUrl] = useState("");
   const [isPickingDate, setIsPickingDate] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const autoSubmittedRef = useRef<string | null>(null);
   const theme = getTheme(themeMode);
   const styles = createStyles(theme);
 
@@ -112,8 +117,29 @@ export function AddWorkoutModal({
       setUrl("");
       setIsPickingDate(false);
       setSelectedDate(null);
+      autoSubmittedRef.current = null;
     }
   }, [visible]);
+
+  useEffect(() => {
+    if (!visible || !initialUrl) {
+      return;
+    }
+    setUrl(initialUrl);
+
+    if (!autoSubmit) {
+      return;
+    }
+    if (autoSubmittedRef.current === initialUrl) {
+      return;
+    }
+    autoSubmittedRef.current = initialUrl;
+    // Defer to the next tick so React flushes the URL state first.
+    const handle = setTimeout(() => {
+      onSubmit(initialUrl);
+    }, 0);
+    return () => clearTimeout(handle);
+  }, [autoSubmit, initialUrl, onSubmit, visible]);
 
   const trimmedUrl = useMemo(() => url.trim(), [url]);
   const isPolling = job != null && job.status !== "complete" && job.status !== "failed";

@@ -422,7 +422,9 @@ function formatExerciseSummary(exercise: WorkoutExercise): string {
 }
 
 function createSessionSets(exercise: WorkoutExercise, exerciseIndex: number) {
-  const setCount = Math.max(1, exercise.sets ?? 1);
+  // When the parser didn't pick up a set count, default to 3 so users start with
+  // a realistic template they can trim or extend, instead of a single set.
+  const setCount = exercise.sets != null ? Math.max(1, exercise.sets) : 3;
 
   return Array.from({ length: setCount }, (_, setIndex) => ({
     id: `${exerciseIndex + 1}-${setIndex + 1}`,

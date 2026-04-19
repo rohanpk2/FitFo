@@ -84,6 +84,31 @@ const REMINDER_TEMPLATES_NO_CREATOR = [
   "You scheduled this. Don't be a bitch. {title} in 30.",
 ];
 
+// Creator-specific banks. If the reel came from Nuno or Jacob, lean hard into
+// their voice so reminders feel like the actual guy is DMing you. Match is
+// case-insensitive and substring-based so @nunosfitness, @nuno.builds, etc.
+// all route into the Nuno bank.
+const NUNO_LINES = [
+  "Nuno's watching. Phone down. {title} in 30.",
+  "Nuno didn't build that back sitting on TikTok. {title}. 30 min.",
+  "Nuno says finish the set or don't eat. {title} in 30.",
+  "Back builder o'clock. Nuno's {title} in 30. Go.",
+  "Nuno dropped that reel for a reason. {title} in 30.",
+  "Enjoy the last scroll. Nuno's {title} hits in 30.",
+];
+
+const JACOB_LINES = [
+  "Jacob said 30 minutes. 30 minutes. Don't test him. {title}.",
+  "Jacob's {title} in 30. Stop stalling, king.",
+  "Jacob is not running this check twice. {title} in 30.",
+  "Jacob wants to see reps. {title} in 30.",
+  "Put the phone down, Jacob's watching. {title} in 30.",
+  "Jacob already called it. {title} in 30, no excuses.",
+];
+
+const NUNO_TITLES = ["Nuno says wake up.", "Back builder time.", "Nuno's calling."];
+const JACOB_TITLES = ["Jacob says wake up.", "Don't make Jacob wait.", "Jacob's calling."];
+
 const REMINDER_TITLES = [
   "Wake up.",
   "Lock in.",
@@ -91,6 +116,23 @@ const REMINDER_TITLES = [
   "FitFo says wake up.",
   "Time to move.",
 ];
+
+function pickCreatorBank(creatorHandle: string | null): {
+  body: readonly string[];
+  title: readonly string[];
+} | null {
+  if (!creatorHandle) {
+    return null;
+  }
+  const normalized = creatorHandle.replace(/^@/, "").toLowerCase();
+  if (normalized.includes("nuno")) {
+    return { body: NUNO_LINES, title: NUNO_TITLES };
+  }
+  if (normalized.includes("jacob")) {
+    return { body: JACOB_LINES, title: JACOB_TITLES };
+  }
+  return null;
+}
 
 function pickRandom<T>(pool: readonly T[]): T {
   return pool[Math.floor(Math.random() * pool.length)];
@@ -111,6 +153,18 @@ function buildReminderCopy(routine: ScheduledWorkoutRecord): {
 } {
   const creator = getCreatorHandle(routine.source_url);
   const cleanTitle = routine.title.trim() || "workout";
+  // Prefer persona-specific copy for Nuno / Jacob so the reminder feels like
+  // the actual creator is poking you. Fall back to the generic hard-mode bank.
+  const personaBank = pickCreatorBank(creator);
+  if (personaBank) {
+    const body = applyTemplate(pickRandom(personaBank.body), {
+      creator,
+      title: cleanTitle,
+    });
+    const title = pickRandom(personaBank.title);
+    return { title, body };
+  }
+
   const pool = creator
     ? REMINDER_TEMPLATES_WITH_CREATOR
     : REMINDER_TEMPLATES_NO_CREATOR;

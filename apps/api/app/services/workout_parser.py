@@ -10,13 +10,20 @@ GROQ_CHAT_URL = "https://api.groq.com/openai/v1/chat/completions"
 DEFAULT_MODEL = "llama-3.3-70b-versatile"
 
 SYSTEM_PROMPT = """\
-You are a strict transcript extractor for workout videos. You receive a \
-transcript and return **valid JSON only** — no markdown, no explanation.
+You are a strict workout extractor for short-form fitness videos. You receive \
+up to three labeled input sources describing the same video and return \
+**valid JSON only** — no markdown, no explanation.
+
+The inputs are labeled as:
+- [TRANSCRIPT]: what the creator said out loud (may be empty for silent videos)
+- [ON_SCREEN_TEXT]: text that appeared on-screen in the video, joined from \
+sampled frames (may be empty)
+- [CAPTION]: the caption / description posted alongside the video (may be empty)
 
 Return a single JSON object with this exact shape:
 
 {
-  "title": "<short descriptive title, or null if the transcript does not give one>",
+  "title": "<short descriptive title, or null if none of the sources give one>",
   "workout_type": "<strength | cardio | HIIT | flexibility | mobility | mixed | other>",
   "equipment": ["<item>", ...],
   "blocks": [
@@ -24,33 +31,37 @@ Return a single JSON object with this exact shape:
       "name": "<block or round name if explicitly stated, else null>",
       "exercises": [
         {
-          "name": "<exercise name, as literally stated in the transcript>",
+          "name": "<exercise name, as literally stated in any source>",
           "sets": <integer, or null if not stated>,
           "reps": <integer, or null if not stated>,
           "duration_sec": <integer, or null if not stated>,
           "rest_sec": <integer, or null if not stated>,
-          "notes": "<verbatim cue from the transcript, or null>"
+          "notes": "<verbatim cue from the sources, or null>"
         }
       ]
     }
   ],
-  "notes": "<overall notes only if stated in the transcript, else null>"
+  "notes": "<overall notes only if stated in the sources, else null>"
 }
 
 Extraction rules (strict):
-- Only include information that is literally present in the transcript.
-- NEVER invent exercises. If the speaker says "a fly", the name is "fly", not \
-"low-to-high cable fly".
-- NEVER invent sets, reps, duration, or rest. If a value is not stated, use null.
-- NEVER invent equipment. Only list equipment that is explicitly mentioned. \
-If none is mentioned, return [].
-- NEVER add exercises that are not mentioned. The blocks array must reflect the \
-transcript exactly, in the order they are spoken.
+- Only include information that is literally present in one of the provided \
+sources. Treat the three sources as complementary: on-screen text often lists \
+exercises/sets/reps when the creator is silent.
+- Prefer the transcript when it covers a value; use on-screen text and caption \
+to fill gaps (e.g. sets/reps).
+- NEVER invent exercises. Use the literal names as written / spoken.
+- NEVER invent sets, reps, duration, or rest. If a value is not stated in any \
+source, use null.
+- NEVER invent equipment. Only list equipment explicitly mentioned. If none is \
+mentioned, return [].
+- Preserve the order exercises appear in (transcript order first, then \
+on-screen text order for anything not already mentioned).
 - Do not combine, split, or rephrase exercises beyond minor capitalization and \
 trimming whitespace.
-- workout_type should be chosen conservatively: use "other" if the transcript \
-does not clearly indicate a category.
-- If the transcript contains no workout content, return: \
+- workout_type should be chosen conservatively: use "other" if the sources do \
+not clearly indicate a category.
+- If none of the sources contain workout content, return: \
 {"title":null,"workout_type":"other","equipment":[],"blocks":[],"notes":null}
 - Return ONLY the JSON object. No extra text before or after.\
 """
@@ -67,13 +78,40 @@ def _groq_api_key() -> str:
     return key
 
 
+def _build_user_message(
+    transcript_text: str,
+    *,
+    on_screen_text: str = "",
+    caption: str = "",
+) -> str:
+    """
+    Build the labeled, multi-source user message for the parser. Empty sections
+    are still labeled so the model knows what was (and wasn't) available.
+    """
+    parts = [
+        "[TRANSCRIPT]",
+        transcript_text.strip() or "(empty)",
+        "",
+        "[ON_SCREEN_TEXT]",
+        on_screen_text.strip() or "(empty)",
+        "",
+        "[CAPTION]",
+        caption.strip() or "(empty)",
+    ]
+    return "\n".join(parts)
+
+
 async def parse_transcript_to_workout(
     transcript_text: str,
     *,
+    on_screen_text: str = "",
+    caption: str = "",
     model: str = DEFAULT_MODEL,
 ) -> dict[str, Any]:
     """
-    Send transcript to Groq LLM and return the parsed workout plan dict.
+    Send the combined transcript + on-screen text + caption to the LLM and
+    return the parsed workout plan dict. Any of the three sources can be empty
+    as long as at least one contains workout content.
     Raises WorkoutParserError on API or validation failure.
     """
     key = _groq_api_key()
@@ -81,11 +119,16 @@ async def parse_transcript_to_workout(
         "Authorization": f"Bearer {key}",
         "Content-Type": "application/json",
     }
+    user_message = _build_user_message(
+        transcript_text,
+        on_screen_text=on_screen_text,
+        caption=caption,
+    )
     payload = {
         "model": model,
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": transcript_text},
+            {"role": "user", "content": user_message},
         ],
         "temperature": 0,
         "max_tokens": 2048,
