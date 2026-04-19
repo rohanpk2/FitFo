@@ -107,3 +107,94 @@ class IngestionPipelineTests(unittest.IsolatedAsyncioTestCase):
         failed_call = self.update_calls[-1]
         self.assertEqual(failed_call["status"], "failed")
         self.assertIn("whisper boom", failed_call["error"])
+
+    async def test_run_ingestion_job_records_soft_ocr_failure_and_still_completes(self) -> None:
+        async def fake_download(url: str, dest: Path) -> None:
+            dest.write_bytes(b"video")
+
+        with (
+            patch("app.services.ingestion_pipeline._download_to_file", side_effect=fake_download),
+            patch(
+                "app.services.ingestion_pipeline.frame_ocr.extract_on_screen_text_from_video",
+                AsyncMock(
+                    return_value=ingestion_pipeline.frame_ocr.OCRExtractionResult(
+                        text="",
+                        ok=False,
+                        provider=None,
+                        model=None,
+                        frame_count=4,
+                        char_count=0,
+                        fallback_used=False,
+                        error="groq timeout",
+                        reason="provider_error",
+                    )
+                ),
+            ),
+            patch(
+                "app.services.ingestion_pipeline.apify_reel.fetch_reel",
+                AsyncMock(return_value={"videoUrl": "https://cdn.example.com/video.mp4"}),
+            ),
+            patch(
+                "app.services.ingestion_pipeline.apify_reel.pick_video_url",
+                return_value="https://cdn.example.com/video.mp4",
+            ),
+            patch(
+                "app.services.ingestion_pipeline.apify_reel.pick_transcript",
+                return_value="3 rounds of pushups and squats",
+            ),
+            patch("app.services.ingestion_pipeline.apify_reel.pick_owner_username", return_value="coach"),
+            patch("app.services.ingestion_pipeline.apify_reel.pick_caption", return_value="Leg burner"),
+            patch(
+                "app.services.ingestion_pipeline.workout_parser.parse_transcript_to_workout",
+                AsyncMock(
+                    return_value={
+                        "title": "Leg burner",
+                        "workout_type": "strength",
+                        "equipment": [],
+                        "blocks": [],
+                        "notes": None,
+                    }
+                ),
+            ),
+            patch(
+                "app.services.ingestion_pipeline.supabase_db.get_ingestion_job",
+                side_effect=[
+                    {"provider_meta": {}, "user_id": "user-123"},
+                    {
+                        "provider_meta": {
+                            "caption": "Leg burner",
+                            "on_screen_text_extraction": {
+                                "ok": False,
+                                "error": "groq timeout",
+                                "reason": "provider_error",
+                                "frame_count": 4,
+                                "char_count": 0,
+                                "fallback_used": False,
+                            },
+                        },
+                        "user_id": "user-123",
+                    },
+                ],
+            ),
+            patch("app.services.ingestion_pipeline.supabase_db.create_transcript", return_value={"id": "tx"}),
+            patch("app.services.ingestion_pipeline.supabase_db.create_workout", return_value={"id": "w1"}),
+            patch("app.services.ingestion_pipeline.supabase_db.update_ingestion_job", side_effect=self._record_update),
+            patch("app.services.ingestion_pipeline.supabase_db.upload_bytes_to_storage", side_effect=self._record_upload),
+            patch("app.services.ingestion_pipeline.supabase_db.merge_provider_meta", side_effect=ingestion_pipeline.supabase_db.merge_provider_meta),
+        ):
+            await ingestion_pipeline.run_ingestion_job(
+                "job-ocr-soft-fail",
+                "https://www.instagram.com/reel/abc123/",
+            )
+
+        extraction_update = next(
+            call
+            for call in self.update_calls
+            if isinstance(call.get("provider_meta"), dict)
+            and "on_screen_text_extraction" in call["provider_meta"]
+        )
+        extraction_meta = extraction_update["provider_meta"]["on_screen_text_extraction"]
+        self.assertFalse(extraction_meta["ok"])
+        self.assertEqual(extraction_meta["reason"], "provider_error")
+        self.assertIn("groq timeout", extraction_meta["error"])
+        self.assertEqual(self.update_calls[-1]["status"], "complete")

@@ -33,6 +33,11 @@ Add these to `apps/api/.env`:
 Optional:
 
 - `SUPABASE_STORAGE_BUCKET` if you do not want to use the default `raw-media` bucket
+- `ENABLE_FRAME_OCR` to disable frame OCR by setting it to `0`
+- `FRAME_OCR_PROVIDER_PRIORITY` to control OCR provider order, default `groq,openai`
+- `FRAME_OCR_GROQ_MODEL` or `GROQ_VISION_MODEL` to enable Groq vision OCR
+- `OPENAI_API_KEY` to enable OpenAI OCR fallback
+- `FRAME_OCR_OPENAI_MODEL` to override the OpenAI OCR model, default `gpt-4o-mini`
 
 ## Database setup
 
@@ -85,7 +90,7 @@ The backend uses the authenticated profile id to scope every workout read/write 
 
 ## Media dependencies
 
-`ffmpeg` is required for audio extraction.
+`ffmpeg` and `ffprobe` are required for audio extraction and frame sampling.
 
 ```bash
 brew install ffmpeg
@@ -95,7 +100,17 @@ The ingestion flow uses the original simpler pipeline:
 
 - download the source video
 - extract the full audio track with `ffmpeg`
-- transcribe that audio directly with Whisper
+- sample evenly spaced frames with `ffmpeg`/`ffprobe`
+- run best-effort OCR over those frames, preferring Groq vision and optionally falling back to OpenAI
+- transcribe audio directly with Groq Whisper when needed
+- merge transcript, on-screen text, and caption before parsing workout JSON
+
+OCR stays best-effort in v1. If frame sampling or the vision provider fails, the
+job continues with transcript and caption data instead of failing the import.
+
+Expect OCR-enabled imports to add some latency and model cost versus the
+audio-only pipeline, especially on longer reels with all configured providers
+available.
 
 ## Docs
 

@@ -1,11 +1,14 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  LayoutAnimation,
   Linking,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  UIManager,
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -53,16 +56,14 @@ function toIsoDate(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-function buildCalendarDays(count: number): Date[] {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const days: Date[] = [];
-  for (let index = 0; index < count; index += 1) {
-    const next = new Date(today);
-    next.setDate(today.getDate() + index);
-    days.push(next);
-  }
-  return days;
+const CALENDAR_PAGE_SIZE = 4;
+const INITIAL_CALENDAR_START_OFFSET = -1;
+
+function addDays(date: Date, offset: number): Date {
+  const next = new Date(date);
+  next.setDate(date.getDate() + offset);
+  next.setHours(0, 0, 0, 0);
+  return next;
 }
 
 function formatReadableDate(date: Date): string {
@@ -232,7 +233,9 @@ function WorkoutCard({
       </View>
 
       <Text style={styles.workoutTitle}>{routine.title}</Text>
-      <Text style={styles.workoutDescription}>{routine.description}</Text>
+      {routine.description ? (
+        <Text style={styles.workoutDescription}>{routine.description}</Text>
+      ) : null}
 
       {creatorHandle || sourceUrl ? (
         <View style={styles.sourceRow}>
@@ -307,15 +310,28 @@ export function SavedWorkoutsScreen({
   const styles = createStyles(theme);
   const hasSavedWorkouts = importedWorkouts.length > 0;
 
-  const calendarDays = useMemo(() => buildCalendarDays(14), []);
   const todayIso = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     return toIsoDate(today);
   }, []);
+  const todayDate = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return today;
+  }, []);
   const [selectedDate, setSelectedDate] = useState<string>(todayIso);
   const [selectedTypeFilter, setSelectedTypeFilter] =
     useState<WorkoutTypeFilter>("all");
+  const [calendarStartOffset, setCalendarStartOffset] = useState<number>(
+    INITIAL_CALENDAR_START_OFFSET,
+  );
+
+  useEffect(() => {
+    if (Platform.OS === "android") {
+      UIManager.setLayoutAnimationEnabledExperimental?.(true);
+    }
+  }, []);
 
   const availableWorkoutTypes = useMemo(() => {
     const set = new Set<string>();
@@ -353,11 +369,35 @@ export function SavedWorkoutsScreen({
     return map;
   }, [scheduledWorkouts]);
 
+  const visibleCalendarDays = useMemo(() => {
+    return Array.from({ length: CALENDAR_PAGE_SIZE }, (_, index) =>
+      addDays(todayDate, calendarStartOffset + index),
+    );
+  }, [calendarStartOffset, todayDate]);
+
   const selectedDateObject = useMemo(() => {
-    const match = calendarDays.find((day) => toIsoDate(day) === selectedDate);
-    return match || calendarDays[0] || new Date();
-  }, [calendarDays, selectedDate]);
+    const [year, month, day] = selectedDate.split("-").map(Number);
+    return new Date(year, (month || 1) - 1, day || 1);
+  }, [selectedDate]);
   const scheduledForSelected = scheduledByDate.get(selectedDate) || [];
+
+  const canPageBackward = calendarStartOffset > INITIAL_CALENDAR_START_OFFSET;
+
+  const shiftCalendarWindow = (direction: "backward" | "forward") => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setCalendarStartOffset((currentOffset) => {
+      const nextOffset =
+        direction === "forward"
+          ? currentOffset + CALENDAR_PAGE_SIZE
+          : Math.max(
+              INITIAL_CALENDAR_START_OFFSET,
+              currentOffset - CALENDAR_PAGE_SIZE,
+            );
+      const nextSelectedDate = toIsoDate(addDays(todayDate, nextOffset + 1));
+      setSelectedDate(nextSelectedDate);
+      return nextOffset;
+    });
+  };
 
   return (
     <ScrollView
@@ -510,12 +550,28 @@ export function SavedWorkoutsScreen({
           screen.
         </Text>
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.calendarStripContent}
-        >
-          {calendarDays.map((day) => {
+        <View style={styles.calendarPagerRow}>
+          <Pressable
+            accessibilityLabel="Show previous dates"
+            disabled={!canPageBackward}
+            onPress={() => shiftCalendarWindow("backward")}
+            style={[
+              styles.calendarArrowButton,
+              !canPageBackward ? styles.calendarArrowButtonDisabled : null,
+            ]}
+          >
+            <Ionicons
+              color={
+                canPageBackward
+                  ? theme.colors.textPrimary
+                  : theme.colors.textMuted
+              }
+              name="chevron-back"
+              size={18}
+            />
+          </Pressable>
+
+          {visibleCalendarDays.map((day) => {
             const iso = toIsoDate(day);
             const isSelected = selectedDate === iso;
             const hasWorkout = (scheduledByDate.get(iso) || []).length > 0;
@@ -563,7 +619,19 @@ export function SavedWorkoutsScreen({
               </Pressable>
             );
           })}
-        </ScrollView>
+
+          <Pressable
+            accessibilityLabel="Show next dates"
+            onPress={() => shiftCalendarWindow("forward")}
+            style={styles.calendarArrowButton}
+          >
+            <Ionicons
+              color={theme.colors.textPrimary}
+              name="chevron-forward"
+              size={18}
+            />
+          </Pressable>
+        </View>
 
         <Text style={styles.calendarSelectedLabel}>
           {formatReadableDate(selectedDateObject)}
@@ -855,16 +923,30 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     filterChipTextSelected: {
       color: theme.colors.surface,
     },
-    calendarStripContent: {
+    calendarPagerRow: {
+      flexDirection: "row",
+      alignItems: "center",
       gap: 8,
       paddingVertical: 8,
-      paddingRight: 8,
+    },
+    calendarArrowButton: {
+      width: 38,
+      height: 72,
+      borderRadius: 18,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.colors.surface,
+      borderWidth: 1,
+      borderColor: theme.colors.borderSoft,
+    },
+    calendarArrowButtonDisabled: {
+      opacity: 0.45,
     },
     calendarPill: {
-      minWidth: 62,
+      flex: 1,
       borderRadius: 18,
       paddingVertical: 10,
-      paddingHorizontal: 10,
+      paddingHorizontal: 6,
       alignItems: "center",
       backgroundColor: theme.colors.surface,
       borderWidth: 1,

@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 
 import {
   formatCompletedWorkoutDate,
+  getCompletedWorkoutDisplaySummary,
   getRoutineDisplayTitle,
   getCompletedWorkoutMeta,
   getCompletedWorkoutSetCount,
@@ -221,7 +222,7 @@ export function LogsScreen({
                     </Text>
                     <Text style={styles.sessionTitle}>{displayTitle}</Text>
                     <Text style={styles.sessionSummary}>
-                      {item.summary || item.description || "Tap to view the full workout summary."}
+                      {getCompletedWorkoutDisplaySummary(item)}
                     </Text>
                   </View>
                 </View>
