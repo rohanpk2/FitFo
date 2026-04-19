@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -53,25 +53,26 @@ export function LoginScreen({
       style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      <ScrollView
-        contentContainerStyle={styles.shell}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-        bounces={false}
-      >
+      <View style={styles.shell}>
         <View style={styles.hero}>
-          <Text style={styles.eyebrow}>Figure it the f*ck out</Text>
-          <Text
-            style={styles.title}
-            numberOfLines={2}
-            adjustsFontSizeToFit
-            minimumFontScale={0.7}
-          >
-            Welcome{"\n"}
-            Back
-            <Text style={styles.titleDot}>.</Text>
-          </Text>
-          <Text style={styles.wordmark}>FITFO</Text>
+          <Image 
+            source={themeMode === 'dark' ? require('../../assets/logo_white_no_bg.png') : require('../../assets/logo_no_bg.png')} 
+            style={styles.logo}
+            resizeMode="contain"
+          />
+          <View style={styles.textContent}>
+            <Text style={styles.eyebrow}>Figure it the f*ck out</Text>
+            <Text
+              style={styles.title}
+              numberOfLines={2}
+              adjustsFontSizeToFit
+              minimumFontScale={0.7}
+            >
+              Welcome{"\n"}
+              Back
+              <Text style={styles.titleDot}>.</Text>
+            </Text>
+          </View>
         </View>
 
         <View style={styles.card}>
@@ -143,7 +144,7 @@ export function LoginScreen({
             </Text>
           </Text>
         </View>
-      </ScrollView>
+      </View>
     </KeyboardAvoidingView>
   );
 }
@@ -155,15 +156,24 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       backgroundColor: theme.colors.background,
     },
     shell: {
-      flexGrow: 1,
+      flex: 1,
       justifyContent: "center",
       paddingHorizontal: 24,
-      paddingTop: Platform.OS === "ios" ? 48 : 32,
-      paddingBottom: 24,
-      gap: 28,
+      paddingTop: Platform.OS === "ios" ? 20 : 16,
+      paddingBottom: 16,
+      gap: 20,
     },
     hero: {
-      gap: 10,
+      gap: 6,
+      alignItems: 'center',
+    },
+    logo: {
+      width: 50,
+      height: 50,
+      marginBottom: 6,
+    },
+    textContent: {
+      alignSelf: 'stretch',
     },
     eyebrow: {
       color: theme.colors.primary,
@@ -174,20 +184,13 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     },
     title: {
       color: theme.colors.textPrimary,
-      fontSize: 50,
-      lineHeight: 52,
+      fontSize: 42,
+      lineHeight: 44,
       fontWeight: "900",
-      letterSpacing: -2.4,
+      letterSpacing: -2.0,
     },
     titleDot: {
       color: theme.colors.heroDot,
-    },
-    wordmark: {
-      color: theme.colors.textMuted,
-      fontSize: 22,
-      fontWeight: "900",
-      letterSpacing: 2.2,
-      textTransform: "uppercase",
     },
     orRow: {
       flexDirection: "row",
