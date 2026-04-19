@@ -233,7 +233,9 @@ function WorkoutCard({
       </View>
 
       <Text style={styles.workoutTitle}>{routine.title}</Text>
-      <Text style={styles.workoutDescription}>{routine.description}</Text>
+      {routine.description ? (
+        <Text style={styles.workoutDescription}>{routine.description}</Text>
+      ) : null}
 
       {creatorHandle || sourceUrl ? (
         <View style={styles.sourceRow}>

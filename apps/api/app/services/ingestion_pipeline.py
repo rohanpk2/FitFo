@@ -192,32 +192,43 @@ async def _maybe_extract_on_screen_text(
     it hit) onto provider_meta and returns the updated provider_meta. Never
     raises — on-screen text is strictly additive to the other sources.
     """
-    if not frame_ocr.is_enabled():
-        return supabase_db.merge_provider_meta(
-            provider_meta,
-            {"on_screen_text_extraction": {"ok": False, "reason": "disabled"}},
-        )
-
     try:
-        text = await frame_ocr.extract_on_screen_text_from_video(video_path)
+        result = await frame_ocr.extract_on_screen_text_from_video(video_path)
     except Exception as exc:  # noqa: BLE001 - isolate optional feature
-        updated = supabase_db.merge_provider_meta(
-            provider_meta,
-            {"on_screen_text_extraction": {"ok": False, "error": str(exc)}},
+        result = frame_ocr.OCRExtractionResult(
+            text="",
+            ok=False,
+            provider=None,
+            model=None,
+            frame_count=0,
+            char_count=0,
+            fallback_used=False,
+            error=str(exc),
+            reason="unexpected_error",
         )
-        supabase_db.update_ingestion_job(job_id, provider_meta=updated)
-        return updated
 
-    updated = supabase_db.merge_provider_meta(
-        provider_meta,
-        {
-            "on_screen_text": text,
-            "on_screen_text_extraction": {
-                "ok": True,
-                "char_count": len(text),
-            },
-        },
-    )
+    extraction_meta: dict[str, object] = {
+        "ok": result.ok,
+        "frame_count": result.frame_count,
+        "char_count": result.char_count,
+        "fallback_used": result.fallback_used,
+    }
+    if result.provider:
+        extraction_meta["provider"] = result.provider
+    if result.model:
+        extraction_meta["model"] = result.model
+    if result.error:
+        extraction_meta["error"] = result.error
+    if result.reason:
+        extraction_meta["reason"] = result.reason
+
+    merged_payload: dict[str, object] = {
+        "on_screen_text_extraction": extraction_meta,
+    }
+    if result.text:
+        merged_payload["on_screen_text"] = result.text
+
+    updated = supabase_db.merge_provider_meta(provider_meta, merged_payload)
     supabase_db.update_ingestion_job(job_id, provider_meta=updated)
     return updated
 
