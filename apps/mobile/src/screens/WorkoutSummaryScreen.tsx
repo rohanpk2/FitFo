@@ -1,4 +1,5 @@
 import {
+  ActivityIndicator,
   Image,
   Linking,
   Pressable,
@@ -21,6 +22,8 @@ import type { ActiveSetPreview, CompletedWorkoutRecord } from "../types";
 
 interface WorkoutSummaryScreenProps {
   onBack: () => void;
+  onScheduleAgain?: () => void;
+  isSchedulingAgain?: boolean;
   workout: CompletedWorkoutRecord;
   themeMode?: ThemeMode;
 }
@@ -77,6 +80,8 @@ function formatSourceUrl(sourceUrl: string) {
 
 export function WorkoutSummaryScreen({
   onBack,
+  onScheduleAgain,
+  isSchedulingAgain = false,
   workout,
   themeMode = "light",
 }: WorkoutSummaryScreenProps) {
@@ -133,6 +138,32 @@ export function WorkoutSummaryScreen({
           </View>
         </View>
       </View>
+
+      {onScheduleAgain ? (
+        <Pressable
+          disabled={isSchedulingAgain}
+          onPress={onScheduleAgain}
+          style={({ pressed }) => [
+            styles.scheduleAgainButton,
+            isSchedulingAgain ? styles.scheduleAgainButtonDisabled : null,
+            pressed && !isSchedulingAgain ? styles.scheduleAgainButtonPressed : null,
+          ]}
+        >
+          {isSchedulingAgain ? (
+            <>
+              <ActivityIndicator color={theme.colors.surface} size="small" />
+              <Text style={styles.scheduleAgainButtonText}>Scheduling...</Text>
+            </>
+          ) : (
+            <>
+              <Ionicons color={theme.colors.surface} name="calendar" size={16} />
+              <Text style={styles.scheduleAgainButtonText}>
+                Schedule This Workout Again
+              </Text>
+            </>
+          )}
+        </Pressable>
+      ) : null}
 
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
@@ -346,6 +377,29 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       color: theme.colors.surface,
       fontSize: 15,
       fontWeight: "800",
+    },
+    scheduleAgainButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 10,
+      minHeight: 56,
+      borderRadius: 20,
+      backgroundColor: theme.colors.primary,
+      paddingHorizontal: 20,
+      ...theme.shadows.primary,
+    },
+    scheduleAgainButtonDisabled: {
+      opacity: 0.6,
+    },
+    scheduleAgainButtonPressed: {
+      opacity: 0.88,
+    },
+    scheduleAgainButtonText: {
+      color: theme.colors.surface,
+      fontSize: 16,
+      fontWeight: "800",
+      letterSpacing: 0.2,
     },
     section: {
       gap: 14,

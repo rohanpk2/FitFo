@@ -93,6 +93,9 @@ export function OnboardingScreen({
   const [trainingSplit, setTrainingSplit] = useState<TrainingSplit | null>(
     existingOnboarding?.training_split || "ppl",
   );
+  const [customSplitNotes, setCustomSplitNotes] = useState<string>(
+    existingOnboarding?.custom_split_notes || "",
+  );
   const [daysPerWeek, setDaysPerWeek] = useState<number | null>(
     existingOnboarding?.days_per_week || 4,
   );
@@ -121,8 +124,13 @@ export function OnboardingScreen({
     Number.isFinite(heightFeet) && Number.isFinite(heightInches)
       ? heightFeet * 12 + heightInches
       : Number.NaN;
+  const trimmedCustomSplitNotes = customSplitNotes.trim();
   const isGoalStepValid = goals.length > 0;
-  const isSplitStepValid = Boolean(trainingSplit && daysPerWeek);
+  const isSplitStepValid = Boolean(
+    trainingSplit &&
+      daysPerWeek &&
+      (trainingSplit !== "custom" || trimmedCustomSplitNotes.length > 0),
+  );
   const isStatsStepValid =
     Number.isFinite(weightLbs) &&
     weightLbs > 0 &&
@@ -168,6 +176,8 @@ export function OnboardingScreen({
       await onSubmit({
         goals,
         training_split: trainingSplit,
+        custom_split_notes:
+          trainingSplit === "custom" ? trimmedCustomSplitNotes : null,
         days_per_week: daysPerWeek,
         weight_lbs: weightLbs,
         height_inches: totalHeightInches,
@@ -339,6 +349,29 @@ export function OnboardingScreen({
             );
           })}
         </View>
+
+        {trainingSplit === "custom" ? (
+          <View style={styles.customSplitGroup}>
+            <Text style={styles.inputLabel}>Describe your split</Text>
+            <View style={styles.customSplitShell}>
+              <TextInput
+                multiline
+                maxLength={500}
+                onChangeText={setCustomSplitNotes}
+                placeholder="e.g. Push / Pull / Legs / Arms / Rest, rotating weekly"
+                placeholderTextColor={theme.colors.textMuted}
+                style={styles.customSplitInput}
+                value={customSplitNotes}
+                textAlignVertical="top"
+              />
+            </View>
+            <Text style={styles.customSplitHint}>
+              Tell us what each day looks like so we can tailor your plan.
+              {" "}
+              {customSplitNotes.length}/500
+            </Text>
+          </View>
+        ) : null}
 
         <Text style={[styles.sectionLabel, styles.sectionOffset]}>Days per week</Text>
         <View style={styles.dayRow}>
@@ -924,6 +957,32 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     },
     choiceChipTextSelected: {
       color: theme.colors.surface,
+    },
+    customSplitGroup: {
+      gap: 8,
+      marginTop: 4,
+    },
+    customSplitShell: {
+      borderRadius: 16,
+      backgroundColor: theme.colors.background,
+      borderWidth: 1,
+      borderColor: theme.colors.borderSoft,
+      paddingHorizontal: 14,
+      paddingVertical: Platform.OS === "ios" ? 14 : 10,
+    },
+    customSplitInput: {
+      minHeight: 88,
+      color: theme.colors.textPrimary,
+      fontSize: 15,
+      fontWeight: "700",
+      lineHeight: 22,
+      paddingVertical: 0,
+    },
+    customSplitHint: {
+      color: theme.colors.textMuted,
+      fontSize: 12,
+      fontWeight: "700",
+      letterSpacing: 0.2,
     },
     dayRow: {
       flexDirection: "row",

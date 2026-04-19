@@ -58,63 +58,69 @@ export async function requestNotificationPermission(): Promise<boolean> {
   }
 }
 
-// Hard-mode copy bank. Mix of punchy-clean and spicy so the notification feed
-// stays varied without getting flagged by App Review for repetitive profanity.
+// War Mode copy bank. Harsh, no-excuses push energy — but no profanity or
+// user-directed insults so App Review / Play Store can't flag or throttle us.
 const REMINDER_TEMPLATES_WITH_CREATOR = [
-  "Wake up pussy. {creator}'s {title} in 30.",
-  "{creator} didn't skip. Don't you dare. {title} in 30.",
-  "Lock the fuck in. {creator}'s {title}. 30 minutes.",
-  "30 minutes. {creator}'s {title}. No excuses.",
-  "Your pump is scheduled in 30. {creator}'s {title}.",
+  "Get outta bed. No excuses. You're hitting {creator}'s {title} in 30.",
+  "{creator} didn't skip. Neither do you. {title} in 30.",
+  "Lock in. {creator}'s {title} starts in 30.",
+  "30 minutes out. {creator}'s {title}. No snooze.",
+  "Phone down. {creator}'s {title} in 30.",
   "{creator}'s {title} in 30. Eat. Hydrate. Move.",
-  "Get the fuck up. {creator}'s {title} in 30.",
+  "{creator} showed up. Your turn. {title} in 30.",
+  "War mode: on. {creator}'s {title} in 30.",
 ];
 
 const REMINDER_TEMPLATES_NO_CREATOR = [
-  "Wake up pussy. {title} in 30.",
-  "Get the fuck up. {title} in 30.",
-  "Lock the fuck in. {title}. 30 minutes.",
-  "30 minutes. {title}. No excuses.",
+  "Get outta bed. No excuses. {title} in 30.",
+  "30 minutes. {title}. Move.",
+  "Lock in. {title} starts in 30.",
+  "No snooze. No excuses. {title} in 30.",
+  "Phone down. {title} in 30.",
   "Clock's ticking. {title} in 30.",
-  "Put the phone down. {title}. 30 min.",
-  "Half an hour. {title}. Quit stalling.",
+  "Half an hour out. {title}. Show up.",
   "Eat. Hydrate. Train. {title} in 30.",
-  "No mercy today. {title} in 30.",
-  "Stretch. Hydrate. Show the fuck up. {title} in 30.",
-  "You scheduled this. Don't be a bitch. {title} in 30.",
+  "Discipline check. {title} in 30.",
+  "War mode: on. {title} in 30.",
+  "You scheduled this. Honor it. {title} in 30.",
 ];
 
 // Creator-specific banks. If the reel came from Nuno or Jacob, lean hard into
-// their voice so reminders feel like the actual guy is DMing you. Match is
-// case-insensitive and substring-based so @nunosfitness, @nuno.builds, etc.
-// all route into the Nuno bank.
+// their voice so reminders feel like the actual guy is on the calendar. Match
+// is case-insensitive and substring-based so @nunosfitness, @nuno.builds,
+// @jacoboestreicher, etc. all route into the right bank.
 const NUNO_LINES = [
-  "Nuno's watching. Phone down. {title} in 30.",
-  "Nuno didn't build that back sitting on TikTok. {title}. 30 min.",
-  "Nuno says finish the set or don't eat. {title} in 30.",
-  "Back builder o'clock. Nuno's {title} in 30. Go.",
-  "Nuno dropped that reel for a reason. {title} in 30.",
-  "Enjoy the last scroll. Nuno's {title} hits in 30.",
+  "Phone down. You're hitting Nuno's {title} in 30.",
+  "Nuno didn't build that back skipping days. {title} in 30.",
+  "Nuno's on the calendar. {title} in 30. Go.",
+  "30 minutes out. Nuno's {title}. No excuses.",
+  "Back builder time. Nuno's {title} in 30.",
+  "Nuno dropped the reel. You signed up. {title} in 30.",
 ];
 
 const JACOB_LINES = [
-  "Jacob said 30 minutes. 30 minutes. Don't test him. {title}.",
-  "Jacob's {title} in 30. Stop stalling, king.",
-  "Jacob is not running this check twice. {title} in 30.",
-  "Jacob wants to see reps. {title} in 30.",
-  "Put the phone down, Jacob's watching. {title} in 30.",
-  "Jacob already called it. {title} in 30, no excuses.",
+  "Get outta bed. No excuses. You're hitting Jacob Oestreicher's {title} in 30.",
+  "Jacob's {title} in 30. Show up.",
+  "30 minutes out. Jacob's {title}. Lock in.",
+  "Jacob already logged his. {title} in 30, no excuses.",
+  "Phone down. Jacob's {title} starts in 30.",
+  "Jacob's on the board. {title} in 30. Move.",
 ];
 
-const NUNO_TITLES = ["Nuno says wake up.", "Back builder time.", "Nuno's calling."];
-const JACOB_TITLES = ["Jacob says wake up.", "Don't make Jacob wait.", "Jacob's calling."];
+const NUNO_TITLES = ["Nuno's calling.", "Back day's up.", "Nuno time."];
+const JACOB_TITLES = [
+  "Jacob's calling.",
+  "Push day incoming.",
+  "Jacob's on the clock.",
+];
 
 const REMINDER_TITLES = [
   "Wake up.",
   "Lock in.",
   "No excuses.",
-  "FitFo says wake up.",
-  "Time to move.",
+  "War mode.",
+  "Move.",
+  "FitFo says show up.",
 ];
 
 function pickCreatorBank(creatorHandle: string | null): {

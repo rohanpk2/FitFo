@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Image,
   Linking,
   Pressable,
@@ -23,6 +24,8 @@ interface ActiveWorkoutScreenProps {
   session: ActiveSessionPreview;
   onBack: () => void;
   onFinish: () => void;
+  onScheduleAgain?: () => void;
+  isSchedulingAgain?: boolean;
   themeMode?: ThemeMode;
 }
 
@@ -664,6 +667,8 @@ export function ActiveWorkoutScreen({
   session,
   onBack,
   onFinish,
+  onScheduleAgain,
+  isSchedulingAgain = false,
   themeMode = "light",
 }: ActiveWorkoutScreenProps) {
   const theme = getTheme(themeMode);
@@ -1209,6 +1214,35 @@ export function ActiveWorkoutScreen({
         <Ionicons color={theme.colors.surface} name="add" size={18} />
         <Text style={styles.addExerciseButtonText}>Add Exercise</Text>
       </Pressable>
+
+      {onScheduleAgain ? (
+        <Pressable
+          disabled={isSchedulingAgain}
+          onPress={onScheduleAgain}
+          style={[
+            styles.scheduleAgainButton,
+            isSchedulingAgain ? styles.scheduleAgainButtonDisabled : null,
+          ]}
+        >
+          {isSchedulingAgain ? (
+            <>
+              <ActivityIndicator color={theme.colors.primary} size="small" />
+              <Text style={styles.scheduleAgainButtonText}>Scheduling...</Text>
+            </>
+          ) : (
+            <>
+              <Ionicons
+                color={theme.colors.primary}
+                name="calendar-outline"
+                size={16}
+              />
+              <Text style={styles.scheduleAgainButtonText}>
+                Schedule This Workout Again
+              </Text>
+            </>
+          )}
+        </Pressable>
+      ) : null}
 
       <Pressable onPress={onFinish} style={styles.finishButton}>
         <Text style={styles.finishButtonText}>Finish Workout</Text>
@@ -1925,5 +1959,26 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
       color: theme.colors.surface,
       fontSize: 17,
       fontWeight: "700",
+    },
+    scheduleAgainButton: {
+      marginTop: 4,
+      minHeight: 54,
+      borderRadius: 18,
+      borderWidth: 1.5,
+      borderColor: theme.colors.primary,
+      backgroundColor: theme.colors.surface,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 10,
+    },
+    scheduleAgainButtonDisabled: {
+      opacity: 0.6,
+    },
+    scheduleAgainButtonText: {
+      color: theme.colors.primary,
+      fontSize: 15,
+      fontWeight: "800",
+      letterSpacing: 0.2,
     },
   });

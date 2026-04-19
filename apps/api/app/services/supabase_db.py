@@ -73,8 +73,8 @@ PROFILE_SELECT_FIELDS = (
     "id, full_name, phone, email, apple_user_id, created_at, updated_at"
 )
 PROFILE_ONBOARDING_SELECT_FIELDS = (
-    "user_id, goals, training_split, days_per_week, weight_lbs, height_inches, "
-    "experience_level, age, completed_at, created_at, updated_at"
+    "user_id, goals, training_split, custom_split_notes, days_per_week, weight_lbs, "
+    "height_inches, experience_level, age, completed_at, created_at, updated_at"
 )
 BODY_WEIGHT_ENTRY_SELECT_FIELDS = (
     "id, user_id, weight_lbs, source, recorded_at, created_at, updated_at"
@@ -636,15 +636,27 @@ def upsert_profile_onboarding(
     height_inches: int,
     experience_level: str,
     age: int,
+    custom_split_notes: Optional[str] = None,
 ) -> Dict[str, Any]:
     supa = get_supabase()
     cleaned_goals = list(dict.fromkeys(goal.strip() for goal in goals if goal.strip()))
     if not cleaned_goals:
         raise ValueError("Select at least one goal")
 
+    cleaned_notes: Optional[str] = None
+    if custom_split_notes is not None:
+        trimmed = custom_split_notes.strip()
+        cleaned_notes = trimmed or None
+
+    if training_split == "custom" and not cleaned_notes:
+        raise ValueError("Describe your custom split so we can tailor your plan.")
+    if training_split != "custom":
+        cleaned_notes = None
+
     payload: Dict[str, Any] = {
         "goals": cleaned_goals,
         "training_split": training_split,
+        "custom_split_notes": cleaned_notes,
         "days_per_week": days_per_week,
         "weight_lbs": weight_lbs,
         "height_inches": height_inches,

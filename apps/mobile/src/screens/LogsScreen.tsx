@@ -18,6 +18,8 @@ interface LogsScreenProps {
   onOpenWorkout: (workout: CompletedWorkoutRecord) => void;
   onResumeWorkout: () => void;
   onRetry: () => void;
+  onScheduleAgain?: (workout: CompletedWorkoutRecord) => void;
+  schedulingWorkoutId?: string | null;
   workouts: CompletedWorkoutRecord[];
   themeMode?: ThemeMode;
 }
@@ -46,6 +48,8 @@ export function LogsScreen({
   onOpenWorkout,
   onResumeWorkout,
   onRetry,
+  onScheduleAgain,
+  schedulingWorkoutId = null,
   workouts,
   themeMode = "light",
 }: LogsScreenProps) {
@@ -199,6 +203,8 @@ export function LogsScreen({
               workoutPlan: item.workout_plan,
             });
 
+            const isSchedulingThis = schedulingWorkoutId === item.id;
+
             return (
               <Pressable
                 key={item.id}
@@ -229,6 +235,30 @@ export function LogsScreen({
                     <Text style={styles.sessionStatValue}>{meta.metaRight}</Text>
                   </View>
                 </View>
+                {onScheduleAgain ? (
+                  <Pressable
+                    disabled={isSchedulingThis}
+                    onPress={() => onScheduleAgain(item)}
+                    style={[
+                      styles.scheduleAgainButton,
+                      isSchedulingThis ? styles.scheduleAgainButtonBusy : null,
+                    ]}
+                    hitSlop={6}
+                  >
+                    {isSchedulingThis ? (
+                      <ActivityIndicator color={theme.colors.primary} size="small" />
+                    ) : (
+                      <Ionicons
+                        color={theme.colors.primary}
+                        name="calendar-outline"
+                        size={14}
+                      />
+                    )}
+                    <Text style={styles.scheduleAgainButtonText}>
+                      {isSchedulingThis ? "Scheduling..." : "Schedule Again"}
+                    </Text>
+                  </Pressable>
+                ) : null}
               </Pressable>
             );
           })}
@@ -586,5 +616,27 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       color: theme.colors.textPrimary,
       fontSize: 16,
       fontWeight: "800",
+    },
+    scheduleAgainButton: {
+      marginTop: 4,
+      alignSelf: "flex-start",
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: theme.colors.primary,
+      backgroundColor: theme.colors.surfaceMuted,
+    },
+    scheduleAgainButtonBusy: {
+      opacity: 0.75,
+    },
+    scheduleAgainButtonText: {
+      color: theme.colors.primary,
+      fontSize: 13,
+      fontWeight: "800",
+      letterSpacing: 0.2,
     },
   });

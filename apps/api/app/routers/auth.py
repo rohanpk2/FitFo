@@ -47,9 +47,23 @@ def _clean_onboarding_payload(body: SaveOnboardingRequest) -> Dict[str, Any]:
     if not goals:
         raise HTTPException(status_code=400, detail="Pick at least one goal.")
 
+    training_split = str(body.training_split)
+    raw_notes = (body.custom_split_notes or "").strip()
+    custom_split_notes: Optional[str] = raw_notes or None
+
+    if training_split == "custom":
+        if not custom_split_notes:
+            raise HTTPException(
+                status_code=400,
+                detail="Describe your custom split so we can tailor your plan.",
+            )
+    else:
+        custom_split_notes = None
+
     return {
         "goals": goals,
-        "training_split": str(body.training_split),
+        "training_split": training_split,
+        "custom_split_notes": custom_split_notes,
         "days_per_week": body.days_per_week,
         "weight_lbs": body.weight_lbs,
         "height_inches": body.height_inches,

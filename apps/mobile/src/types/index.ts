@@ -97,6 +97,7 @@ export type ExperienceLevel = "beginner" | "intermediate" | "advanced";
 export interface UserOnboarding {
   goals: OnboardingGoal[];
   training_split: TrainingSplit;
+  custom_split_notes: string | null;
   days_per_week: number;
   weight_lbs: number;
   height_inches: number;
@@ -177,6 +178,7 @@ export interface MeResponse {
 export interface SaveOnboardingRequest {
   goals: OnboardingGoal[];
   training_split: TrainingSplit;
+  custom_split_notes?: string | null;
   days_per_week: number;
   weight_lbs: number;
   height_inches: number;

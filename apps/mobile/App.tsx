@@ -10,6 +10,7 @@ import {
 
 import { AddWorkoutModal } from "./src/components/AddWorkoutModal";
 import { BottomNav } from "./src/components/BottomNav";
+import { ScheduleAgainModal } from "./src/components/ScheduleAgainModal";
 import { useIngestionJob } from "./src/hooks/useIngestionJob";
 import { useSharedIngestUrl } from "./src/hooks/useSharedIngestUrl";
 import {
@@ -46,6 +47,9 @@ import {
   createImportedRoutinePreview,
   createSavedRoutinePreviewFromRecord,
   createScheduledRoutinePreview,
+  getCompletedWorkoutMeta,
+  getCompletedWorkoutSetCount,
+  getRoutineDisplayTitle,
 } from "./src/lib/fitfo";
 import {
   cancelWorkoutReminder,
@@ -76,7 +80,21 @@ import type {
   SavedRoutinePreview,
   ScheduledWorkoutRecord,
   UserProfile,
+  WorkoutPlan,
 } from "./src/types";
+
+interface ScheduleAgainTarget {
+  id: string;
+  title: string;
+  description: string | null;
+  workoutId: string | null;
+  jobId: string | null;
+  sourceUrl: string | null;
+  workoutPlan: WorkoutPlan | null;
+  metaLeft: string;
+  metaRight: string;
+  badgeLabel: string | null;
+}
 
 type AuthSubmitMode = "login" | "signup" | "otp" | "apple" | "bootstrap";
 
@@ -131,6 +149,10 @@ export default function App() {
     null,
   );
   const [isSchedulingWorkout, setIsSchedulingWorkout] = useState(false);
+  const [scheduleAgainTarget, setScheduleAgainTarget] =
+    useState<ScheduleAgainTarget | null>(null);
+  const [isSchedulingAgain, setIsSchedulingAgain] = useState(false);
+  const [scheduleAgainError, setScheduleAgainError] = useState<string | null>(null);
   const [isSavingImportedWorkout, setIsSavingImportedWorkout] = useState(false);
   const [completedWorkouts, setCompletedWorkouts] = useState<CompletedWorkoutRecord[]>(
     [],
@@ -538,6 +560,142 @@ export default function App() {
       }
     },
     [accessToken],
+  );
+
+  const handleRequestScheduleAgainForCompleted = useCallback(
+    (record: CompletedWorkoutRecord) => {
+      const meta = getCompletedWorkoutMeta(record);
+      const displayTitle = getRoutineDisplayTitle({
+        sourceUrl: record.source_url,
+        title: record.title,
+        workoutPlan: record.workout_plan,
+      });
+      setScheduleAgainError(null);
+      setScheduleAgainTarget({
+        id: record.id,
+        title: displayTitle,
+        description: record.description,
+        workoutId: record.workout_id,
+        jobId: record.job_id,
+        sourceUrl: record.source_url,
+        workoutPlan: record.workout_plan,
+        metaLeft: meta.metaLeft,
+        metaRight: meta.metaRight,
+        badgeLabel: "Scheduled",
+      });
+    },
+    [],
+  );
+
+  const handleRequestScheduleAgainForActiveSession = useCallback(
+    (session: ActiveSessionPreview) => {
+      const setCount = getCompletedWorkoutSetCount(session.exercises);
+      const metaLeft = session.workoutPlan?.workout_type
+        ? session.workoutPlan.workout_type.replace(/_/g, " ")
+        : "Workout";
+      const metaRight = `${setCount} ${setCount === 1 ? "set" : "sets"}`;
+      const displayTitle = getRoutineDisplayTitle({
+        sourceUrl: session.sourceUrl ?? null,
+        title: session.title,
+        workoutPlan: session.workoutPlan ?? null,
+      });
+      setScheduleAgainError(null);
+      setScheduleAgainTarget({
+        id: `active-${session.startedAt}`,
+        title: displayTitle,
+        description: session.description,
+        workoutId: session.sourceWorkoutId ?? null,
+        jobId: session.sourceJobId ?? null,
+        sourceUrl: session.sourceUrl ?? null,
+        workoutPlan: session.workoutPlan ?? null,
+        metaLeft,
+        metaRight,
+        badgeLabel: "Scheduled",
+      });
+    },
+    [],
+  );
+
+  const handleCloseScheduleAgain = useCallback(() => {
+    if (isSchedulingAgain) {
+      return;
+    }
+    setScheduleAgainTarget(null);
+    setScheduleAgainError(null);
+  }, [isSchedulingAgain]);
+
+  const handleConfirmScheduleAgain = useCallback(
+    async (scheduledFor: string) => {
+      if (!accessToken || !scheduleAgainTarget) {
+        return;
+      }
+
+      setIsSchedulingAgain(true);
+      setScheduleAgainError(null);
+      try {
+        // Mirror the workout into the saved library so the schedule references a persistent
+        // source record (same pattern as scheduling freshly imported workouts).
+        const saved = await saveWorkoutForLater(accessToken, {
+          workout_id: scheduleAgainTarget.workoutId,
+          job_id: scheduleAgainTarget.jobId,
+          source_url: scheduleAgainTarget.sourceUrl,
+          title: scheduleAgainTarget.title,
+          description: scheduleAgainTarget.description,
+          meta_left: scheduleAgainTarget.metaLeft,
+          meta_right: scheduleAgainTarget.metaRight,
+          badge_label: scheduleAgainTarget.badgeLabel,
+          workout_plan: scheduleAgainTarget.workoutPlan,
+        });
+        const savedPreview = createSavedRoutinePreviewFromRecord(saved);
+        setSavedWorkouts((current) => {
+          const withoutDuplicate = current.filter(
+            (item) => item.id !== savedPreview.id,
+          );
+          return [savedPreview, ...withoutDuplicate];
+        });
+
+        const scheduled = await createScheduledWorkout(accessToken, {
+          source_workout_id: saved.id,
+          workout_id: saved.workout_id ?? null,
+          job_id: saved.job_id ?? null,
+          source_url: saved.source_url ?? null,
+          scheduled_for: scheduledFor,
+          title: scheduleAgainTarget.title,
+          description: scheduleAgainTarget.description,
+          meta_left: scheduleAgainTarget.metaLeft,
+          meta_right: scheduleAgainTarget.metaRight,
+          badge_label: scheduleAgainTarget.badgeLabel,
+          workout_plan: scheduleAgainTarget.workoutPlan,
+        });
+        setScheduledWorkouts((current) => {
+          const withoutDuplicate = current.filter(
+            (item) => item.id !== scheduled.id,
+          );
+          return [...withoutDuplicate, scheduled].sort((left, right) =>
+            left.scheduled_for.localeCompare(right.scheduled_for),
+          );
+        });
+        void scheduleWorkoutReminder(scheduled);
+
+        setSavedWorkoutsError(null);
+        setScheduledWorkoutsError(null);
+        setScheduleAgainTarget(null);
+        setScheduledConfirmation({
+          title: scheduleAgainTarget.title,
+          scheduledFor: scheduled.scheduled_for,
+          origin: "manual",
+        });
+      } catch (error) {
+        setScheduleAgainError(
+          error instanceof Error
+            ? error.message
+            : "Unable to schedule that workout right now.",
+        );
+      } finally {
+        setIsSchedulingAgain(false);
+      }
+    },
+    [accessToken, scheduleAgainTarget],
   );
 
   const handleCreateManualWorkout = useCallback(async () => {
@@ -1067,6 +1225,13 @@ export default function App() {
             setActiveTab("logs");
           }}
           onFinish={handleFinishWorkout}
+          onScheduleAgain={() =>
+            handleRequestScheduleAgainForActiveSession(activeSession)
+          }
+          isSchedulingAgain={
+            isSchedulingAgain &&
+            scheduleAgainTarget?.id === `active-${activeSession.startedAt}`
+          }
           themeMode={themeMode}
         />
       );
@@ -1077,6 +1242,13 @@ export default function App() {
         <WorkoutSummaryScreen
           workout={selectedCompletedWorkout}
           onBack={() => setSelectedCompletedWorkout(null)}
+          onScheduleAgain={() =>
+            handleRequestScheduleAgainForCompleted(selectedCompletedWorkout)
+          }
+          isSchedulingAgain={
+            isSchedulingAgain &&
+            scheduleAgainTarget?.id === selectedCompletedWorkout.id
+          }
           themeMode={themeMode}
         />
       );
@@ -1135,6 +1307,10 @@ export default function App() {
               void loadCompletedWorkouts(accessToken);
             }
           }}
+          onScheduleAgain={handleRequestScheduleAgainForCompleted}
+          schedulingWorkoutId={
+            isSchedulingAgain ? scheduleAgainTarget?.id ?? null : null
+          }
           workouts={completedWorkouts}
           themeMode={themeMode}
         />
@@ -1269,6 +1445,17 @@ export default function App() {
         routine={latestImportedRoutine}
         themeMode={themeMode}
         visible={isAddWorkoutVisible}
+      />
+
+      <ScheduleAgainModal
+        visible={scheduleAgainTarget != null}
+        title={scheduleAgainTarget?.title || "Workout"}
+        subtitle={scheduleAgainTarget?.description ?? undefined}
+        isScheduling={isSchedulingAgain}
+        error={scheduleAgainError}
+        onClose={handleCloseScheduleAgain}
+        onConfirm={handleConfirmScheduleAgain}
+        themeMode={themeMode}
       />
 
       {scheduledConfirmation ? (
