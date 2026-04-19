@@ -79,9 +79,7 @@ export function SignUpScreen({
             <Text style={styles.titleDot}>.</Text>
           </Text>
           <Text style={styles.wordmark}>FITFO</Text>
-          <Text style={styles.heroCopy}>
-            One code away from saving workouts, logging sessions, and keeping your training attached to your account.
-          </Text>
+          
         </View>
 
         <View style={styles.card}>
