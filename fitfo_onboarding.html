@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>FitFo Onboarding</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800;900&family=Barlow+Condensed:wght@700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --orange:      #FF5A1F;
+    --orange-dark: #C44515;
+    --bg:          #0D0D0D;
+    --surface:     #1C1C1C;
+    --surface2:    #191919;
+    --surface3:    #2A2A2A;
+    --text:        #FFFFFF;
+    --muted:       #888888;
+  }
+
+  *, *::before, *::after {
+    margin: 0; padding: 0; box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: #000;
+    font-family: 'Barlow', sans-serif;
+    overflow: hidden;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ─── Phone shell ─────────────────────────────── */
+  .phone {
+    width: 390px;
+    height: 844px;
+    background: var(--bg);
+    border-radius: 50px;
+    overflow: hidden;
+    position: relative;
+    box-shadow:
+      0 0 0 12px #1a1a1a,
+      0 40px 120px rgba(0,0,0,.9),
+      0 0 80px rgba(255,90,31,.06);
+  }
+
+  .notch {
+    position: absolute;
+    top: 0; left: 50%;
+    transform: translateX(-50%);
+    width: 120px; height: 34px;
+    background: #000;
+    border-radius: 0 0 20px 20px;
+    z-index: 200;
+  }
+
+  /* ─── Screen carousel ──────────────────────────── */
+  .carousel {
+    display: flex;
+    width: 500%; /* 5 screens */
+    height: 100%;
+    transition: transform .5s cubic-bezier(.77,0,.175,1);
+    will-change: transform;
+  }
+
+  .screen {
+    width: 390px;
+    height: 844px;
+    flex-shrink: 0;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ─── Status bar ───────────────────────────────── */
+  .status {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 52px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    padding: 0 26px 8px;
+    z-index: 50;
+  }
+  .status-time {
+    font-size: 15px; font-weight: 700; color: #fff;
+  }
+  .status-icons { display: flex; align-items: center; gap: 6px; }
+
+
+  /* ══════════════════════════════════════════════════
+     SCREEN 0 — SPLASH
+  ══════════════════════════════════════════════════ */
+  #s0 { background: #080808; align-items: center; justify-content: center; }
+
+  .glow-blob {
+    position: absolute;
+    width: 480px; height: 480px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,90,31,.38) 0%, transparent 70%);
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    animation: blobPulse 3s ease-in-out infinite;
+    pointer-events: none;
+  }
+  @keyframes blobPulse {
+    0%,100% { transform: translate(-50%,-50%) scale(1);    opacity: .7; }
+    50%      { transform: translate(-50%,-50%) scale(1.14); opacity: 1;  }
+  }
+
+  .splash-body {
+    position: relative; z-index: 2;
+    display: flex; flex-direction: column;
+    align-items: center; gap: 0;
+    text-align: center;
+  }
+
+  .logo {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 64px; font-weight: 900;
+    letter-spacing: -2px; line-height: 1;
+    color: #fff;
+  }
+  .logo span { color: var(--orange); }
+
+  .logo-eyebrow {
+    font-size: 10px; font-weight: 700;
+    letter-spacing: 3.5px; text-transform: uppercase;
+    color: var(--orange); margin-top: 12px;
+  }
+  .logo-sub {
+    font-size: 16px; font-weight: 500;
+    color: var(--muted); line-height: 1.55;
+    margin-top: 18px; max-width: 230px;
+  }
+
+  .splash-cta {
+    display: flex; align-items: center; gap: 10px;
+    margin-top: 60px;
+    background: var(--orange);
+    color: #000; font-family: 'Barlow', sans-serif;
+    font-size: 18px; font-weight: 900;
+    padding: 20px 52px;
+    border-radius: 999px; border: none; cursor: pointer;
+    letter-spacing: .3px;
+    box-shadow: 0 12px 40px rgba(255,90,31,.5);
+    transition: transform .15s, box-shadow .15s;
+  }
+  .splash-cta:active { transform: scale(.96); box-shadow: 0 6px 20px rgba(255,90,31,.3); }
+
+
+  /* ══════════════════════════════════════════════════
+     SCREENS 1–3 — FEATURE SLIDES
+  ══════════════════════════════════════════════════ */
+  .feature-screen { background: #0B0B0B; }
+
+  /* Hero zone */
+  .hero {
+    height: 360px; flex-shrink: 0;
+    position: relative; overflow: hidden;
+  }
+  .hero-grad {
+    position: absolute; inset: 0;
+  }
+  /* per-screen hero tints */
+  #s1 .hero-grad { background: linear-gradient(150deg, #1A1008 0%, #0D0D0D 65%); }
+  #s2 .hero-grad { background: linear-gradient(150deg, #0C170C 0%, #0D0D0D 65%); }
+  #s3 .hero-grad { background: linear-gradient(150deg, #0D0D1C 0%, #0D0D0D 65%); }
+
+  .hero-pattern {
+    position: absolute; inset: 0; opacity: .055;
+  }
+
+  /* Body zone */
+  .feature-body {
+    flex: 1; display: flex; flex-direction: column;
+    justify-content: space-between;
+    padding: 28px 28px 36px;
+  }
+
+  .f-eyebrow {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 11px; font-weight: 700;
+    letter-spacing: 3px; text-transform: uppercase;
+    color: var(--orange); margin-bottom: 12px;
+  }
+  .f-title {
+    font-size: 44px; font-weight: 900;
+    line-height: 1.02; letter-spacing: -1.2px;
+    color: #fff;
+  }
+  .f-title .accent { color: var(--orange); }
+  .f-desc {
+    font-size: 16px; font-weight: 400;
+    color: var(--muted); line-height: 1.6;
+    margin-top: 14px;
+  }
+
+  .pills { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+  .pill {
+    display: flex; align-items: center; gap: 7px;
+    background: var(--surface);
+    border-radius: 999px; padding: 8px 15px;
+    font-size: 13px; font-weight: 600; color: #fff;
+  }
+  .pill-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--orange); flex-shrink: 0;
+  }
+
+  /* Slide navigation */
+  .slide-nav {
+    display: flex; align-items: center;
+    justify-content: space-between; margin-top: 24px;
+  }
+  .dots { display: flex; align-items: center; gap: 6px; }
+  .dot {
+    height: 6px; border-radius: 999px;
+    background: #3C3C3C;
+    transition: width .3s ease, background .3s ease;
+    width: 6px;
+  }
+  .dot.on { background: var(--orange); width: 22px; }
+
+  .btn-circle {
+    width: 52px; height: 52px; border-radius: 50%;
+    border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: transform .15s, opacity .15s;
+  }
+  .btn-circle:active { transform: scale(.92); }
+  .btn-next  { background: var(--orange); box-shadow: 0 8px 24px rgba(255,90,31,.45); }
+  .btn-back  { background: #1D1D1D; }
+
+  .btn-text {
+    background: var(--orange);
+    border: none; border-radius: 14px; cursor: pointer;
+    padding: 0 20px; height: 52px;
+    font-family: 'Barlow', sans-serif;
+    font-size: 13px; font-weight: 900;
+    letter-spacing: .5px; color: #050505;
+    box-shadow: 0 8px 24px rgba(255,90,31,.45);
+    transition: transform .15s;
+  }
+  .btn-text:active { transform: scale(.95); }
+
+  .skip-btn {
+    background: none; border: none; cursor: pointer;
+    color: var(--muted); font-family: 'Barlow', sans-serif;
+    font-size: 14px; font-weight: 600; padding: 8px 4px;
+  }
+
+
+  /* ─── Mock cards shared ───────────────────────── */
+  .mock-card {
+    position: absolute;
+    background: #1E1E1E;
+    border-radius: 20px;
+    box-shadow: 0 22px 60px rgba(0,0,0,.72);
+    overflow: hidden;
+  }
+
+  /* ── Feature 01: Import mock ─── */
+  .import-mock {
+    width: 228px;
+    left: 50%; top: 50%;
+    transform: translate(-50%, -50%) rotate(-2deg);
+    padding: 20px;
+  }
+  .im-title { font-size: 18px; font-weight: 900; color: #fff; }
+  .im-sub   { font-size: 11px; color: var(--muted); margin-top: 4px; line-height: 1.4; }
+  .im-input {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--surface3); border-radius: 11px;
+    padding: 11px 13px; margin-top: 16px;
+    font-size: 12px; color: #666;
+  }
+  .im-btn {
+    background: var(--orange); border-radius: 12px;
+    padding: 13px; margin-top: 12px;
+    font-size: 13px; font-weight: 900; color: #000;
+    text-align: center;
+  }
+
+  .social-badges {
+    position: absolute; top: 22px; right: 22px;
+    display: flex; gap: 8px;
+  }
+  .social-badge {
+    display: flex; align-items: center; gap: 6px;
+    background: rgba(28,28,28,.92); border-radius: 14px;
+    padding: 9px 12px;
+    font-size: 12px; font-weight: 700; color: #fff;
+  }
+
+  /* ── Feature 02: Timer mock ─── */
+  .timer-mock {
+    width: 250px;
+    left: 50%; top: 50%;
+    transform: translate(-50%, -54%);
+    padding: 16px;
+  }
+  .timer-badge {
+    background: var(--orange); border-radius: 16px;
+    padding: 18px 20px; text-align: center;
+  }
+  .t-label { font-size: 9px; font-weight: 700; letter-spacing: 2.5px; color: rgba(0,0,0,.6); text-transform: uppercase; }
+  .t-value { font-size: 42px; font-weight: 900; color: #050505; line-height: 1; margin: 4px 0; letter-spacing: -1px; }
+  .t-sub   { font-size: 11px; font-weight: 700; color: rgba(0,0,0,.65); }
+  .ex-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 11px 0; border-bottom: 1px solid #2A2A2A;
+  }
+  .ex-row:last-child { border: none; padding-bottom: 0; }
+  .ex-icon {
+    width: 34px; height: 34px; background: var(--surface3);
+    border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .ex-name { font-size: 13px; font-weight: 800; color: #fff; }
+  .ex-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  /* ── Feature 03: History mock ─── */
+  .history-mock {
+    width: 250px;
+    left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    padding: 16px;
+  }
+  .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+  .stat-card { background: var(--surface3); border-radius: 14px; padding: 14px; }
+  .stat-card.accent { background: #2A1500; }
+  .stat-val { font-size: 30px; font-weight: 900; color: #fff; }
+  .stat-card.accent .stat-val { color: var(--orange); }
+  .stat-label {
+    font-size: 10px; font-weight: 700; letter-spacing: 1.2px;
+    color: var(--muted); text-transform: uppercase; margin-top: 4px;
+  }
+  .session-row {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--surface3); border-radius: 14px;
+    padding: 12px; margin-top: 10px;
+  }
+  .session-icon {
+    width: 36px; height: 36px; background: #1A1A1A;
+    border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .session-name { font-size: 13px; font-weight: 800; color: #fff; }
+  .session-meta { font-size: 10px; color: var(--muted); margin-top: 3px; }
+
+
+  /* ══════════════════════════════════════════════════
+     SCREEN 4 — AUTH
+  ══════════════════════════════════════════════════ */
+  #s4 {
+    background: #090909;
+    padding: 56px 28px 40px;
+    display: flex; flex-direction: column;
+  }
+
+  .auth-eyebrow {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 11px; font-weight: 700;
+    letter-spacing: 3px; text-transform: uppercase;
+    color: var(--orange); margin-bottom: 8px;
+  }
+  .auth-title {
+    font-size: 52px; font-weight: 900;
+    line-height: 1; letter-spacing: -1.5px; color: #fff;
+  }
+  .auth-title .dot { color: var(--orange); }
+
+  /* Tab toggle */
+  .tabs {
+    display: flex; background: #181818;
+    border-radius: 16px; padding: 4px; margin-top: 26px;
+  }
+  .tab {
+    flex: 1; padding: 13px; border: none; border-radius: 12px;
+    background: transparent; cursor: pointer;
+    font-family: 'Barlow', sans-serif;
+    font-size: 14px; font-weight: 800; color: #666;
+    transition: background .2s, color .2s;
+  }
+  .tab.on { background: var(--orange); color: #050505; }
+
+  /* Auth card */
+  .auth-card {
+    background: var(--surface2);
+    border-radius: 26px; padding: 22px;
+    display: flex; flex-direction: column; gap: 16px;
+    margin-top: 22px;
+  }
+
+  .apple-btn {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    background: #fff; border: none; border-radius: 14px;
+    padding: 16px; cursor: pointer;
+    font-family: 'Barlow', sans-serif;
+    font-size: 16px; font-weight: 700; color: #000;
+    transition: transform .15s, opacity .15s;
+  }
+  .apple-btn:active { transform: scale(.97); opacity: .9; }
+
+  .or-row { display: flex; align-items: center; gap: 12px; }
+  .or-line { flex: 1; height: 1px; background: #2E2E2E; }
+  .or-text { font-size: 11px; font-weight: 800; letter-spacing: 1.5px; color: #555; text-transform: uppercase; }
+
+  .field-group { display: flex; flex-direction: column; gap: 7px; }
+  .field-label { font-size: 11px; font-weight: 700; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; }
+  .field-wrap {
+    display: flex; align-items: center; gap: 11px;
+    background: var(--surface3); border-radius: 14px;
+    padding: 15px 17px;
+    border: 1.5px solid transparent;
+    transition: border-color .2s;
+  }
+  .field-wrap:focus-within { border-color: var(--orange); }
+  .field-wrap input {
+    background: none; border: none; outline: none;
+    font-family: 'Barlow', sans-serif;
+    font-size: 16px; font-weight: 600; color: #fff; flex: 1;
+  }
+  .field-wrap input::placeholder { color: #4A4A4A; }
+
+  .submit-btn {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    background: var(--orange); border: none; border-radius: 14px;
+    padding: 18px; cursor: pointer;
+    font-family: 'Barlow', sans-serif;
+    font-size: 17px; font-weight: 900; color: #050505;
+    letter-spacing: .3px;
+    box-shadow: 0 10px 32px rgba(255,90,31,.42);
+    transition: transform .15s, box-shadow .15s;
+  }
+  .submit-btn:active { transform: scale(.97); box-shadow: 0 4px 14px rgba(255,90,31,.25); }
+
+  .auth-footer {
+    margin-top: 14px; text-align: center;
+    font-size: 14px; color: var(--muted);
+  }
+  .auth-footer a { color: var(--orange); font-weight: 700; cursor: pointer; text-decoration: none; }
+
+  .legal {
+    margin-top: auto; padding-top: 18px;
+    text-align: center;
+    font-size: 11px; font-weight: 600;
+    letter-spacing: 1.4px; text-transform: uppercase;
+    color: #3A3A3A;
+  }
+
+</style>
+</head>
+<body>
+
+<div class="phone">
+  <div class="notch"></div>
+
+  <div class="carousel" id="carousel">
+
+    <!-- ══ SCREEN 0: SPLASH ══════════════════════ -->
+    <div class="screen" id="s0">
+      <div class="status">
+        <span class="status-time">9:41</span>
+        <div class="status-icons">
+          <!-- signal -->
+          <svg width="17" height="12" viewBox="0 0 17 12" fill="white">
+            <rect x="0"  y="4" width="3" height="8" rx="1"/>
+            <rect x="4.5" y="2.5" width="3" height="9.5" rx="1"/>
+            <rect x="9"  y="0" width="3" height="12" rx="1"/>
+            <rect x="13.5" y="0" width="3" height="12" rx="1" opacity=".3"/>
+          </svg>
+          <!-- battery -->
+          <svg width="26" height="13" viewBox="0 0 26 13" fill="white">
+            <rect x="0" y="1" width="22" height="11" rx="3" stroke="white" stroke-width="1.5" fill="none"/>
+            <rect x="23" y="4" width="2.5" height="5" rx="1.2"/>
+            <rect x="1.5" y="2.5" width="18" height="8" rx="2"/>
+          </svg>
+        </div>
+      </div>
+
+      <div class="glow-blob"></div>
+
+      <div class="splash-body">
+        <div class="logo">Fit<span>F</span>o</div>
+        <div class="logo-eyebrow">Figure It The F*ck Out</div>
+        <div class="logo-sub">Turn fitness content into real workouts — instantly.</div>
+        <button class="splash-cta" onclick="goTo(1)">
+          Get Started
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#050505" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </button>
+      </div>
+    </div>
+
+
+    <!-- ══ SCREEN 1: IMPORT ══════════════════════ -->
+    <div class="screen feature-screen" id="s1">
+      <div class="status">
+        <span class="status-time">9:41</span>
+        <div class="status-icons">
+          <svg width="17" height="12" viewBox="0 0 17 12" fill="white"><rect x="0" y="4" width="3" height="8" rx="1"/><rect x="4.5" y="2.5" width="3" height="9.5" rx="1"/><rect x="9" y="0" width="3" height="12" rx="1"/></svg>
+          <svg width="26" height="13" viewBox="0 0 26 13" fill="white"><rect x="0" y="1" width="22" height="11" rx="3" stroke="white" stroke-width="1.5" fill="none"/><rect x="23" y="4" width="2.5" height="5" rx="1.2"/><rect x="1.5" y="2.5" width="18" height="8" rx="2"/></svg>
+        </div>
+      </div>
+
+      <div class="hero">
+        <div class="hero-grad"></div>
+
+        <!-- Grid pattern -->
+        <svg class="hero-pattern" width="390" height="360" viewBox="0 0 390 360">
+          <defs>
+            <pattern id="grid1" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
+              <path d="M40 0L0 0 0 40" fill="none" stroke="#fff" stroke-width="1"/>
+            </pattern>
+          </defs>
+          <rect width="390" height="360" fill="url(#grid1)"/>
+        </svg>
+
+        <!-- Social badges -->
+        <div class="social-badges">
+          <div class="social-badge">
+            <!-- Instagram icon -->
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="2" width="20" height="20" rx="5"/>
+              <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
+              <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
+            </svg>
+            Instagram
+          </div>
+          <div class="social-badge">
+            <!-- TikTok icon -->
+            <svg width="14" height="16" viewBox="0 0 24 24" fill="white">
+              <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.34 6.34 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.97a8.19 8.19 0 0 0 4.79 1.52V7.05a4.85 4.85 0 0 1-1.02-.36z"/>
+            </svg>
+            TikTok
+          </div>
+        </div>
+
+        <!-- Import card -->
+        <div class="mock-card import-mock">
+          <div class="im-title">Import Workout</div>
+          <div class="im-sub">Paste a TikTok or Instagram link</div>
+          <div class="im-input">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+            tiktok.com/@creator/video...
+          </div>
+          <div class="im-btn">⚡ Import Workout</div>
+        </div>
+      </div>
+
+      <div class="feature-body">
+        <div>
+          <div class="f-eyebrow">Feature 01</div>
+          <div class="f-title">Import<br>Any<br><span class="accent">Workout.</span></div>
+          <div class="f-desc">Paste a TikTok or Instagram link. FitFo pulls out every exercise, set, and rep — no typing required.</div>
+          <div class="pills">
+            <div class="pill"><div class="pill-dot"></div>TikTok videos</div>
+            <div class="pill"><div class="pill-dot"></div>Instagram Reels</div>
+            <div class="pill"><div class="pill-dot"></div>Instant parsing</div>
+          </div>
+        </div>
+
+        <div class="slide-nav">
+          <button class="skip-btn" onclick="goTo(4)">Skip</button>
+          <div class="dots">
+            <div class="dot on" id="d1a"></div>
+            <div class="dot"    id="d1b"></div>
+            <div class="dot"    id="d1c"></div>
+          </div>
+          <button class="btn-circle btn-next" onclick="goTo(2)" aria-label="Next">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#050505" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ══ SCREEN 2: TRACK ═══════════════════════ -->
+    <div class="screen feature-screen" id="s2">
+      <div class="status">
+        <span class="status-time">9:41</span>
+        <div class="status-icons">
+          <svg width="17" height="12" viewBox="0 0 17 12" fill="white"><rect x="0" y="4" width="3" height="8" rx="1"/><rect x="4.5" y="2.5" width="3" height="9.5" rx="1"/><rect x="9" y="0" width="3" height="12" rx="1"/></svg>
+          <svg width="26" height="13" viewBox="0 0 26 13" fill="white"><rect x="0" y="1" width="22" height="11" rx="3" stroke="white" stroke-width="1.5" fill="none"/><rect x="23" y="4" width="2.5" height="5" rx="1.2"/><rect x="1.5" y="2.5" width="18" height="8" rx="2"/></svg>
+        </div>
+      </div>
+
+      <div class="hero">
+        <div class="hero-grad"></div>
+
+        <!-- Dot pattern -->
+        <svg class="hero-pattern" width="390" height="360" viewBox="0 0 390 360">
+          <defs>
+            <pattern id="dots2" x="0" y="0" width="32" height="32" patternUnits="userSpaceOnUse">
+              <circle cx="16" cy="16" r="1.5" fill="#fff"/>
+            </pattern>
+          </defs>
+          <rect width="390" height="360" fill="url(#dots2)"/>
+        </svg>
+
+        <!-- Timer card -->
+        <div class="mock-card timer-mock">
+          <div class="timer-badge">
+            <div class="t-label">Time Elapsed</div>
+            <div class="t-value">24:15</div>
+            <div class="t-sub">6 of 10 sets logged</div>
+          </div>
+          <div style="margin-top:10px">
+            <div class="ex-row">
+              <div class="ex-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FF5A1F" stroke-width="2.5">
+                  <line x1="6" y1="12" x2="18" y2="12"/>
+                  <circle cx="4" cy="12" r="2"/><circle cx="20" cy="12" r="2"/>
+                </svg>
+              </div>
+              <div><div class="ex-name">Squats</div><div class="ex-meta">3 sets · 8–10 reps</div></div>
+            </div>
+            <div class="ex-row">
+              <div class="ex-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FF5A1F" stroke-width="2.5">
+                  <line x1="6" y1="12" x2="18" y2="12"/>
+                  <circle cx="4" cy="12" r="2"/><circle cx="20" cy="12" r="2"/>
+                </svg>
+              </div>
+              <div><div class="ex-name">Leg Press</div><div class="ex-meta">2 sets · 10–12 reps</div></div>
+            </div>
+            <div class="ex-row">
+              <div class="ex-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FF5A1F" stroke-width="2.5">
+                  <line x1="6" y1="12" x2="18" y2="12"/>
+                  <circle cx="4" cy="12" r="2"/><circle cx="20" cy="12" r="2"/>
+                </svg>
+              </div>
+              <div><div class="ex-name">RDL</div><div class="ex-meta">1 set · 8 reps</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="feature-body">
+        <div>
+          <div class="f-eyebrow">Feature 02</div>
+          <div class="f-title">Track<br>Every<br><span class="accent">Set.</span></div>
+          <div class="f-desc">Live timer, auto-advancing sets, weight and rep logging. Everything you need — nothing you don't.</div>
+          <div class="pills">
+            <div class="pill"><div class="pill-dot"></div>Live timer</div>
+            <div class="pill"><div class="pill-dot"></div>Auto-advance sets</div>
+            <div class="pill"><div class="pill-dot"></div>Rest tracking</div>
+          </div>
+        </div>
+
+        <div class="slide-nav">
+          <button class="btn-circle btn-back" onclick="goTo(1)" aria-label="Back">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          </button>
+          <div class="dots">
+            <div class="dot"    id="d2a"></div>
+            <div class="dot on" id="d2b"></div>
+            <div class="dot"    id="d2c"></div>
+          </div>
+          <button class="btn-circle btn-next" onclick="goTo(3)" aria-label="Next">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#050505" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ══ SCREEN 3: HISTORY ═════════════════════ -->
+    <div class="screen feature-screen" id="s3">
+      <div class="status">
+        <span class="status-time">9:41</span>
+        <div class="status-icons">
+          <svg width="17" height="12" viewBox="0 0 17 12" fill="white"><rect x="0" y="4" width="3" height="8" rx="1"/><rect x="4.5" y="2.5" width="3" height="9.5" rx="1"/><rect x="9" y="0" width="3" height="12" rx="1"/></svg>
+          <svg width="26" height="13" viewBox="0 0 26 13" fill="white"><rect x="0" y="1" width="22" height="11" rx="3" stroke="white" stroke-width="1.5" fill="none"/><rect x="23" y="4" width="2.5" height="5" rx="1.2"/><rect x="1.5" y="2.5" width="18" height="8" rx="2"/></svg>
+        </div>
+      </div>
+
+      <div class="hero">
+        <div class="hero-grad"></div>
+
+        <!-- Diagonal pattern -->
+        <svg class="hero-pattern" width="390" height="360" viewBox="0 0 390 360">
+          <defs>
+            <pattern id="diag3" x="0" y="0" width="56" height="56" patternUnits="userSpaceOnUse">
+              <path d="M0 56L56 0M-14 14L14 -14M42 70L70 42" fill="none" stroke="#fff" stroke-width="1"/>
+            </pattern>
+          </defs>
+          <rect width="390" height="360" fill="url(#diag3)"/>
+        </svg>
+
+        <!-- History card -->
+        <div class="mock-card history-mock">
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-val">24</div>
+              <div class="stat-label">Sessions</div>
+            </div>
+            <div class="stat-card accent">
+              <div class="stat-val">312</div>
+              <div class="stat-label">Sets logged</div>
+            </div>
+          </div>
+          <div class="session-row">
+            <div class="session-icon">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#FF5A1F" stroke-width="2.5">
+                <line x1="6" y1="12" x2="18" y2="12"/>
+                <circle cx="4" cy="12" r="2"/><circle cx="20" cy="12" r="2"/>
+              </svg>
+            </div>
+            <div>
+              <div class="session-name">Full Leg Day</div>
+              <div class="session-meta">Apr 19 · 10 sets</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="feature-body">
+        <div>
+          <div class="f-eyebrow">Feature 03</div>
+          <div class="f-title">Own Your<br><span class="accent">Archive.</span></div>
+          <div class="f-desc">Every session saved to your account. History, monthly stats, and quick rescheduling — all in one place.</div>
+          <div class="pills">
+            <div class="pill"><div class="pill-dot"></div>Session history</div>
+            <div class="pill"><div class="pill-dot"></div>Monthly stats</div>
+            <div class="pill"><div class="pill-dot"></div>Reschedule fast</div>
+          </div>
+        </div>
+
+        <div class="slide-nav">
+          <button class="btn-circle btn-back" onclick="goTo(2)" aria-label="Back">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          </button>
+          <div class="dots">
+            <div class="dot"    id="d3a"></div>
+            <div class="dot"    id="d3b"></div>
+            <div class="dot on" id="d3c"></div>
+          </div>
+          <button class="btn-text" onclick="goTo(4)">Let's Go</button>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ══ SCREEN 4: AUTH ════════════════════════ -->
+    <div class="screen" id="s4">
+      <div class="status">
+        <span class="status-time">9:41</span>
+        <div class="status-icons">
+          <svg width="17" height="12" viewBox="0 0 17 12" fill="white"><rect x="0" y="4" width="3" height="8" rx="1"/><rect x="4.5" y="2.5" width="3" height="9.5" rx="1"/><rect x="9" y="0" width="3" height="12" rx="1"/></svg>
+          <svg width="26" height="13" viewBox="0 0 26 13" fill="white"><rect x="0" y="1" width="22" height="11" rx="3" stroke="white" stroke-width="1.5" fill="none"/><rect x="23" y="4" width="2.5" height="5" rx="1.2"/><rect x="1.5" y="2.5" width="18" height="8" rx="2"/></svg>
+        </div>
+      </div>
+
+      <div class="auth-eyebrow">Figure It The F*ck Out</div>
+      <div class="auth-title" id="authTitle">Welcome<br>Back<span class="dot">.</span></div>
+
+      <div class="tabs">
+        <button class="tab on" id="tabLogin"  onclick="switchTab('login')">Log In</button>
+        <button class="tab"    id="tabSignup" onclick="switchTab('signup')">Sign Up</button>
+      </div>
+
+      <div class="auth-card">
+
+        <button class="apple-btn">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="#000">
+            <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.7 9.05 7.42c1.32.07 2.24.74 3.01.77.96-.19 1.88-.88 3.17-.95 1.28.07 2.44.62 3.24 1.62-2.99 1.73-2.27 5.55.49 6.67-.63 1.62-1.44 3.21-2.9 4.75zm-4.12-16.77c-.11 1.98 1.6 3.64 3.55 3.35.27-2.06-1.57-3.66-3.55-3.35z"/>
+          </svg>
+          Sign in with Apple
+        </button>
+
+        <div class="or-row">
+          <div class="or-line"></div>
+          <span class="or-text">or</span>
+          <div class="or-line"></div>
+        </div>
+
+        <!-- Name field (signup only) -->
+        <div class="field-group" id="nameField" style="display:none">
+          <div class="field-label">Full Name</div>
+          <div class="field-wrap">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FF5A1F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+            </svg>
+            <input type="text" placeholder="Alex Rivera" autocomplete="name">
+          </div>
+        </div>
+
+        <div class="field-group">
+          <div class="field-label">Phone Number</div>
+          <div class="field-wrap">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FF5A1F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.18h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.91a16 16 0 0 0 6.18 6.18l.95-.95a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
+            </svg>
+            <input type="tel" placeholder="+1 (555) 000-0000" autocomplete="tel">
+          </div>
+        </div>
+
+        <button class="submit-btn">
+          Send Code
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#050505" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </button>
+
+        <div class="auth-footer" id="authFooter">
+          New to FitFo? <a onclick="switchTab('signup')">Sign Up</a>
+        </div>
+
+      </div>
+
+      <div class="legal">Privacy Policy &amp; Terms</div>
+    </div>
+
+  </div><!-- /carousel -->
+</div><!-- /phone -->
+
+
+<script>
+  let current = 0;
+  const carousel = document.getElementById('carousel');
+
+  function goTo(idx) {
+    current = idx;
+    carousel.style.transform = `translateX(-${idx * 390}px)`;
+  }
+
+  function switchTab(tab) {
+    const isLogin = tab === 'login';
+    document.getElementById('tabLogin').classList.toggle('on',  isLogin);
+    document.getElementById('tabSignup').classList.toggle('on', !isLogin);
+    document.getElementById('nameField').style.display = isLogin ? 'none' : 'flex';
+    document.getElementById('authTitle').innerHTML = isLogin
+      ? 'Welcome<br>Back<span class="dot">.</span>'
+      : 'Create<br>Account<span class="dot">.</span>';
+    document.getElementById('authFooter').innerHTML = isLogin
+      ? 'New to FitFo? <a onclick="switchTab(\'signup\')">Sign Up</a>'
+      : 'Already have an account? <a onclick="switchTab(\'login\')">Log In</a>';
+  }
+
+  /* Touch swipe */
+  let t0 = 0;
+  const phone = document.querySelector('.phone');
+  phone.addEventListener('touchstart', e => { t0 = e.touches[0].clientX; }, { passive: true });
+  phone.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - t0;
+    if (Math.abs(dx) > 48) {
+      if (dx < 0 && current < 4) goTo(current + 1);
+      if (dx > 0 && current > 0) goTo(current - 1);
+    }
+  });
+
+  /* Mouse drag */
+  let m0 = 0, dragging = false;
+  phone.addEventListener('mousedown', e => { m0 = e.clientX; dragging = true; });
+  window.addEventListener('mouseup', e => {
+    if (!dragging) return;
+    dragging = false;
+    const dx = e.clientX - m0;
+    if (Math.abs(dx) > 40) {
+      if (dx < 0 && current < 4) goTo(current + 1);
+      if (dx > 0 && current > 0) goTo(current - 1);
+    }
+  });
+</script>
+</body>
+</html>

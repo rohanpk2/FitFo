@@ -7,6 +7,19 @@ import {
   Text,
   View,
 } from "react-native";
+import {
+  useFonts,
+  Barlow_400Regular,
+  Barlow_500Medium,
+  Barlow_600SemiBold,
+  Barlow_700Bold,
+  Barlow_800ExtraBold,
+  Barlow_900Black,
+} from "@expo-google-fonts/barlow";
+import {
+  BarlowCondensed_700Bold,
+  BarlowCondensed_900Black,
+} from "@expo-google-fonts/barlow-condensed";
 
 import { AddWorkoutModal } from "./src/components/AddWorkoutModal";
 import { BottomNav } from "./src/components/BottomNav";
@@ -57,7 +70,7 @@ import {
   scheduleWorkoutReminder,
 } from "./src/lib/notifications";
 import { ActiveWorkoutScreen } from "./src/screens/ActiveWorkoutScreen";
-import { LoginScreen } from "./src/screens/LoginScreen";
+import { AuthLandingScreen } from "./src/screens/AuthLandingScreen";
 import { LogsScreen } from "./src/screens/LogsScreen";
 import { OnboardingScreen } from "./src/screens/OnboardingScreen";
 import { OtpVerificationScreen } from "./src/screens/OtpVerificationScreen";
@@ -66,7 +79,6 @@ import { ProgressChartsScreen } from "./src/screens/ProgressChartsScreen";
 import { SavedWorkoutDetailScreen } from "./src/screens/SavedWorkoutDetailScreen";
 import { SavedWorkoutsScreen } from "./src/screens/SavedWorkoutsScreen";
 import { ScheduledConfirmationScreen } from "./src/screens/ScheduledConfirmationScreen";
-import { SignUpScreen } from "./src/screens/SignUpScreen";
 import { WorkoutSummaryScreen } from "./src/screens/WorkoutSummaryScreen";
 import { getTheme, type ThemeMode } from "./src/theme";
 import type {
@@ -105,11 +117,24 @@ interface ScheduledConfirmationState {
   origin: "share" | "manual";
 }
 
+const AUTH_LANDING_AUTH_INDEX = 4;
+
 export default function App() {
   const themeMode: ThemeMode = "dark";
+  const [fontsLoaded] = useFonts({
+    Barlow_400Regular,
+    Barlow_500Medium,
+    Barlow_600SemiBold,
+    Barlow_700Bold,
+    Barlow_800ExtraBold,
+    Barlow_900Black,
+    BarlowCondensed_700Bold,
+    BarlowCondensed_900Black,
+  });
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
-  const [authMode, setAuthMode] = useState<AuthMode>("login");
+  const [authMode, setAuthMode] = useState<AuthMode>("signup");
+  const [authLandingIndex, setAuthLandingIndex] = useState(0);
   const [authError, setAuthError] = useState<string | null>(null);
   const [authNotice, setAuthNotice] = useState<string | null>(null);
   const [authSubmittingMode, setAuthSubmittingMode] =
@@ -768,7 +793,8 @@ export default function App() {
       setAuthNotice(null);
       setOnboardingError(null);
       setPendingOtpChallenge(null);
-      setAuthMode("login");
+      setAuthLandingIndex(0);
+      setAuthMode("signup");
       resetPostLoginState();
     },
     [resetPostLoginState],
@@ -818,6 +844,7 @@ export default function App() {
           setAccessToken(null);
           setCurrentUser(null);
           if (!(error instanceof ApiError && error.status === 401)) {
+            setAuthLandingIndex(AUTH_LANDING_AUTH_INDEX);
             setAuthError(
               error instanceof Error
                 ? error.message
@@ -841,6 +868,7 @@ export default function App() {
   }, [applyAuthenticatedSession]);
 
   const handleShowSignUp = useCallback((notice?: string) => {
+    setAuthLandingIndex(AUTH_LANDING_AUTH_INDEX);
     setAuthMode("signup");
     setPendingOtpChallenge(null);
     setAuthError(null);
@@ -848,6 +876,7 @@ export default function App() {
   }, []);
 
   const handleShowLogin = useCallback((notice?: string, phone?: string) => {
+    setAuthLandingIndex(AUTH_LANDING_AUTH_INDEX);
     setAuthMode("login");
     setPendingOtpChallenge(null);
     setAuthError(null);
@@ -1044,10 +1073,12 @@ export default function App() {
 
   const handleBackFromOtp = useCallback(() => {
     if (!pendingOtpChallenge) {
-      setAuthMode("login");
+      setAuthLandingIndex(AUTH_LANDING_AUTH_INDEX);
+      setAuthMode("signup");
       return;
     }
 
+    setAuthLandingIndex(AUTH_LANDING_AUTH_INDEX);
     setAuthError(null);
     setAuthNotice(null);
     setAuthPrefillPhone(pendingOtpChallenge.phone);
@@ -1087,7 +1118,8 @@ export default function App() {
       setIsOnboardingSubmitting(false);
       setOnboardingError(null);
       setPendingOtpChallenge(null);
-      setAuthMode("login");
+      setAuthLandingIndex(0);
+      setAuthMode("signup");
       setAuthNotice(null);
       setAuthPrefillPhone("");
       setAuthPrefillFullName("");
@@ -1387,7 +1419,7 @@ export default function App() {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar style={themeMode === "dark" ? "light" : "dark"} />
       <View style={styles.appShell}>
-        {!isAuthReady ? (
+        {!isAuthReady || !fontsLoaded ? (
           <View style={styles.loadingScreen}>
             <ActivityIndicator color={theme.colors.primary} size="large" />
             <Text style={styles.loadingTitle}>Connecting to FitFo</Text>
@@ -1439,29 +1471,31 @@ export default function App() {
             sentAt={pendingOtpChallenge.sentAt}
             themeMode={themeMode}
           />
-        ) : authMode === "login" ? (
-          <LoginScreen
-            error={authError}
-            initialPhoneNumber={authPrefillPhone}
-            isAppleSubmitting={authSubmittingMode === "apple"}
-            isSubmitting={authSubmittingMode === "login"}
-            notice={authNotice}
-            onAppleSignIn={handleAppleSignIn}
-            onLogin={handleLogin}
-            onSwitchToSignUp={() => handleShowSignUp()}
-            themeMode={themeMode}
-          />
         ) : (
-          <SignUpScreen
+          <AuthLandingScreen
+            activeIndex={authLandingIndex}
             error={authError}
             initialFullName={authPrefillFullName}
             initialPhoneNumber={authPrefillPhone}
             isAppleSubmitting={authSubmittingMode === "apple"}
-            isSubmitting={authSubmittingMode === "signup"}
+            isSubmitting={
+              authMode === "signup"
+                ? authSubmittingMode === "signup"
+                : authSubmittingMode === "login"
+            }
             notice={authNotice}
             onAppleSignIn={handleAppleSignIn}
+            onChangeIndex={setAuthLandingIndex}
             onCreateAccount={handleCreateAccount}
-            onSwitchToLogin={() => handleShowLogin(undefined, authPrefillPhone)}
+            onLogin={handleLogin}
+            onSelectMode={(mode) => {
+              setAuthLandingIndex(AUTH_LANDING_AUTH_INDEX);
+              setPendingOtpChallenge(null);
+              setAuthError(null);
+              setAuthNotice(null);
+              setAuthMode(mode);
+            }}
+            authMode={authMode === "signup" ? "signup" : "login"}
             themeMode={themeMode}
           />
         )}
