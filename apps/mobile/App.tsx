@@ -63,6 +63,7 @@ import { OnboardingScreen } from "./src/screens/OnboardingScreen";
 import { OtpVerificationScreen } from "./src/screens/OtpVerificationScreen";
 import { ProfileScreen } from "./src/screens/ProfileScreen";
 import { ProgressChartsScreen } from "./src/screens/ProgressChartsScreen";
+import { SavedWorkoutDetailScreen } from "./src/screens/SavedWorkoutDetailScreen";
 import { SavedWorkoutsScreen } from "./src/screens/SavedWorkoutsScreen";
 import { ScheduledConfirmationScreen } from "./src/screens/ScheduledConfirmationScreen";
 import { SignUpScreen } from "./src/screens/SignUpScreen";
@@ -132,6 +133,8 @@ export default function App() {
   const [isActiveWorkoutVisible, setIsActiveWorkoutVisible] = useState(false);
   const [selectedCompletedWorkout, setSelectedCompletedWorkout] =
     useState<CompletedWorkoutRecord | null>(null);
+  const [selectedSavedRoutine, setSelectedSavedRoutine] =
+    useState<SavedRoutinePreview | null>(null);
   const [isAddWorkoutVisible, setIsAddWorkoutVisible] = useState(false);
   const [isExtractSubmitting, setIsExtractSubmitting] = useState(false);
   const [jobId, setJobId] = useState<string | null>(null);
@@ -185,6 +188,7 @@ export default function App() {
     setActiveSession(null);
     setIsActiveWorkoutVisible(false);
     setSelectedCompletedWorkout(null);
+    setSelectedSavedRoutine(null);
   }, []);
 
   useEffect(() => {
@@ -409,6 +413,7 @@ export default function App() {
       setActiveTab("logs");
       setIsActiveWorkoutVisible(true);
       setSelectedCompletedWorkout(null);
+      setSelectedSavedRoutine(null);
       setIsAddWorkoutVisible(false);
       resetImportFlow();
     },
@@ -1098,6 +1103,7 @@ export default function App() {
     }
 
     setSelectedCompletedWorkout(null);
+    setSelectedSavedRoutine(null);
     setActiveTab("logs");
     setIsActiveWorkoutVisible(true);
   }, [activeSession]);
@@ -1254,6 +1260,38 @@ export default function App() {
       );
     }
 
+    if (selectedSavedRoutine) {
+      const routine = selectedSavedRoutine;
+      const isScheduledView = Boolean(routine.scheduledWorkoutId);
+      const removeTargetId = isScheduledView
+        ? routine.scheduledWorkoutId
+        : routine.savedWorkoutId;
+      return (
+        <SavedWorkoutDetailScreen
+          routine={routine}
+          onBack={() => setSelectedSavedRoutine(null)}
+          onStart={() => {
+            setSelectedSavedRoutine(null);
+            handleStartSession(routine);
+          }}
+          onRemove={
+            removeTargetId
+              ? () => {
+                  setSelectedSavedRoutine(null);
+                  if (isScheduledView) {
+                    handleUnscheduleWorkout(removeTargetId);
+                  } else {
+                    handleRemoveSavedWorkout(removeTargetId);
+                  }
+                }
+              : undefined
+          }
+          removeLabel={isScheduledView ? "Unschedule" : "Unsave"}
+          themeMode={themeMode}
+        />
+      );
+    }
+
     if (isProfileVisible && currentUser) {
       return (
         <ProfileScreen
@@ -1278,6 +1316,7 @@ export default function App() {
           isScheduleLoading={scheduledWorkoutsLoading}
           onAddWorkout={handleOpenAddWorkout}
           onOpenProfile={() => setIsProfileVisible(true)}
+          onOpenWorkout={(routine) => setSelectedSavedRoutine(routine)}
           onRemoveWorkout={handleRemoveSavedWorkout}
           onRetry={() => {
             if (accessToken) {

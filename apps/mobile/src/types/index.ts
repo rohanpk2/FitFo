@@ -46,12 +46,15 @@ export interface WorkoutBlock {
   exercises: WorkoutExercise[];
 }
 
+export type MuscleGroup = "chest" | "back" | "shoulders" | "arms" | "legs";
+
 export interface WorkoutPlan {
   title: string | null;
   workout_type: string;
+  muscle_groups?: MuscleGroup[];
   equipment: string[];
   blocks: WorkoutBlock[];
-  notes: string | null;  
+  notes: string | null;
 }
 
 export interface WorkoutRow {

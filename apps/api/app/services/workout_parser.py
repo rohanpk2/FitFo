@@ -25,6 +25,7 @@ Return a single JSON object with this exact shape:
 {
   "title": "<short descriptive title, or null if none of the sources give one>",
   "workout_type": "<strength | cardio | HIIT | flexibility | mobility | mixed | other>",
+  "muscle_groups": ["<chest | back | shoulders | arms | legs>", ...],
   "equipment": ["<item>", ...],
   "blocks": [
     {
@@ -61,8 +62,20 @@ on-screen text order for anything not already mentioned).
 trimming whitespace.
 - workout_type should be chosen conservatively: use "other" if the sources do \
 not clearly indicate a category.
+- muscle_groups MUST be a subset of the exact strings \
+["chest", "back", "shoulders", "arms", "legs"]. Include every group that is \
+meaningfully trained by the extracted exercises (a push day would be \
+["chest", "shoulders", "arms"]; a leg day would be ["legs"]). Map exercises \
+to groups as follows: chest presses / pushups / flyes -> "chest"; rows / pull-ups \
+/ lat pulldowns / deadlifts -> "back"; overhead presses / lateral raises / \
+front raises / rear delt work -> "shoulders"; biceps curls / triceps \
+extensions / dips / close-grip presses -> "arms"; squats / lunges / leg \
+press / hip thrusts / calf raises / glute bridges -> "legs". If the workout \
+is purely cardio, mobility, flexibility, or core-only (planks, crunches, \
+abs) with no clear match to the five groups, return []. Do not invent \
+groups that are not in the allowed list.
 - If none of the sources contain workout content, return: \
-{"title":null,"workout_type":"other","equipment":[],"blocks":[],"notes":null}
+{"title":null,"workout_type":"other","muscle_groups":[],"equipment":[],"blocks":[],"notes":null}
 - Return ONLY the JSON object. No extra text before or after.\
 """
 

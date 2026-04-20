@@ -14,8 +14,13 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 
 import { getCreatorHandle } from "../lib/fitfo";
+import {
+  MUSCLE_GROUPS,
+  MUSCLE_GROUP_LABELS,
+  getMuscleGroupsForPlan,
+} from "../lib/muscleGroups";
 import { getTheme, type ThemeMode } from "../theme";
-import type { SavedRoutinePreview } from "../types";
+import type { MuscleGroup, SavedRoutinePreview } from "../types";
 
 interface SavedWorkoutsScreenProps {
   error: string | null;
@@ -24,6 +29,7 @@ interface SavedWorkoutsScreenProps {
   isScheduleLoading: boolean;
   onAddWorkout: () => void;
   onOpenProfile: () => void;
+  onOpenWorkout: (routine: SavedRoutinePreview) => void;
   onRemoveWorkout: (savedWorkoutId: string) => void;
   onRetry: () => void;
   onStartSession: (routine?: SavedRoutinePreview) => void;
@@ -83,24 +89,13 @@ function formatReadableDate(date: Date): string {
   return `${DAY_LABELS[reference.getDay()]}, ${MONTH_LABELS[reference.getMonth()]} ${reference.getDate()}`;
 }
 
-type WorkoutTypeFilter = "all" | string;
+type MuscleGroupFilter = "all" | MuscleGroup;
 
-const WORKOUT_TYPE_LABELS: Record<string, string> = {
-  strength: "Strength",
-  cardio: "Cardio",
-  HIIT: "HIIT",
-  hiit: "HIIT",
-  flexibility: "Flexibility",
-  mobility: "Mobility",
-  mixed: "Mixed",
-  other: "Other",
-};
-
-function formatWorkoutTypeLabel(type: string): string {
-  return (
-    WORKOUT_TYPE_LABELS[type] ||
-    type.charAt(0).toUpperCase() + type.slice(1).toLowerCase()
-  );
+function formatMuscleGroupLabel(group: MuscleGroupFilter): string {
+  if (group === "all") {
+    return "All";
+  }
+  return MUSCLE_GROUP_LABELS[group];
 }
 
 function FeedbackCard({
@@ -186,6 +181,7 @@ function getSourceLabel(
 
 function WorkoutCard({
   accent,
+  onOpen,
   onRemove,
   onStart,
   removeLabel = "Unsave",
@@ -193,6 +189,7 @@ function WorkoutCard({
   theme,
 }: {
   accent: "saved" | "scheduled";
+  onOpen: () => void;
   onRemove?: () => void;
   onStart: () => void;
   removeLabel?: string;
@@ -206,8 +203,15 @@ function WorkoutCard({
   const platform = getSourcePlatform(sourceUrl);
 
   return (
-    <View
-      style={[styles.workoutCard, isScheduled ? styles.scheduledWorkoutCard : null]}
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Open workout: ${routine.title}`}
+      onPress={onOpen}
+      style={({ pressed }) => [
+        styles.workoutCard,
+        isScheduled ? styles.scheduledWorkoutCard : null,
+        pressed ? styles.workoutCardPressed : null,
+      ]}
     >
       <View style={styles.workoutHeader}>
         <View
@@ -225,11 +229,11 @@ function WorkoutCard({
             {routine.badgeLabel || (isScheduled ? "Scheduled" : "Saved")}
           </Text>
         </View>
-        {onRemove ? (
-          <Pressable onPress={onRemove} style={styles.removeButton}>
-            <Ionicons color={theme.colors.error} name="trash-outline" size={16} />
-          </Pressable>
-        ) : null}
+        <Ionicons
+          color={theme.colors.textMuted}
+          name="chevron-forward"
+          size={18}
+        />
       </View>
 
       <Text style={styles.workoutTitle}>{routine.title}</Text>
@@ -287,7 +291,7 @@ function WorkoutCard({
           </Pressable>
         ) : null}
       </View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -298,6 +302,7 @@ export function SavedWorkoutsScreen({
   isScheduleLoading,
   onAddWorkout,
   onOpenProfile,
+  onOpenWorkout,
   onRemoveWorkout,
   onRetry,
   onStartSession,
@@ -321,8 +326,8 @@ export function SavedWorkoutsScreen({
     return today;
   }, []);
   const [selectedDate, setSelectedDate] = useState<string>(todayIso);
-  const [selectedTypeFilter, setSelectedTypeFilter] =
-    useState<WorkoutTypeFilter>("all");
+  const [selectedMuscleFilter, setSelectedMuscleFilter] =
+    useState<MuscleGroupFilter>("all");
   const [calendarStartOffset, setCalendarStartOffset] = useState<number>(
     INITIAL_CALENDAR_START_OFFSET,
   );
@@ -333,27 +338,45 @@ export function SavedWorkoutsScreen({
     }
   }, []);
 
-  const availableWorkoutTypes = useMemo(() => {
-    const set = new Set<string>();
+  const muscleGroupsByRoutineId = useMemo(() => {
+    const map = new Map<string, MuscleGroup[]>();
     for (const routine of importedWorkouts) {
-      const type = routine.workoutPlan?.workout_type;
-      if (type) {
-        set.add(type);
-      }
+      map.set(routine.id, getMuscleGroupsForPlan(routine.workoutPlan));
     }
-    return Array.from(set);
+    return map;
   }, [importedWorkouts]);
 
+  const availableMuscleGroups = useMemo(() => {
+    const set = new Set<MuscleGroup>();
+    for (const groups of muscleGroupsByRoutineId.values()) {
+      for (const group of groups) {
+        set.add(group);
+      }
+    }
+    return MUSCLE_GROUPS.filter((group) => set.has(group));
+  }, [muscleGroupsByRoutineId]);
+
   const filteredSavedWorkouts = useMemo(() => {
-    if (selectedTypeFilter === "all") {
+    if (selectedMuscleFilter === "all") {
       return importedWorkouts;
     }
-    return importedWorkouts.filter(
-      (routine) => routine.workoutPlan?.workout_type === selectedTypeFilter,
+    return importedWorkouts.filter((routine) =>
+      (muscleGroupsByRoutineId.get(routine.id) || []).includes(
+        selectedMuscleFilter,
+      ),
     );
-  }, [importedWorkouts, selectedTypeFilter]);
+  }, [importedWorkouts, muscleGroupsByRoutineId, selectedMuscleFilter]);
 
-  const showTypeFilter = hasSavedWorkouts && availableWorkoutTypes.length > 0;
+  useEffect(() => {
+    if (
+      selectedMuscleFilter !== "all" &&
+      !availableMuscleGroups.includes(selectedMuscleFilter)
+    ) {
+      setSelectedMuscleFilter("all");
+    }
+  }, [availableMuscleGroups, selectedMuscleFilter]);
+
+  const showTypeFilter = hasSavedWorkouts && availableMuscleGroups.length > 0;
 
   const scheduledByDate = useMemo(() => {
     const map = new Map<string, SavedRoutinePreview[]>();
@@ -445,17 +468,14 @@ export function SavedWorkoutsScreen({
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.filterStripContent}
           >
-            {(["all", ...availableWorkoutTypes] as WorkoutTypeFilter[]).map(
+            {(["all", ...availableMuscleGroups] as MuscleGroupFilter[]).map(
               (filterValue) => {
-                const isSelected = selectedTypeFilter === filterValue;
-                const label =
-                  filterValue === "all"
-                    ? "All"
-                    : formatWorkoutTypeLabel(filterValue);
+                const isSelected = selectedMuscleFilter === filterValue;
+                const label = formatMuscleGroupLabel(filterValue);
                 return (
                   <Pressable
                     key={filterValue}
-                    onPress={() => setSelectedTypeFilter(filterValue)}
+                    onPress={() => setSelectedMuscleFilter(filterValue)}
                     style={[
                       styles.filterChip,
                       isSelected ? styles.filterChipSelected : null,
@@ -498,6 +518,7 @@ export function SavedWorkoutsScreen({
               <WorkoutCard
                 key={routine.id}
                 accent="saved"
+                onOpen={() => onOpenWorkout(routine)}
                 onRemove={
                   routine.savedWorkoutId
                     ? () => onRemoveWorkout(routine.savedWorkoutId || routine.id)
@@ -518,10 +539,10 @@ export function SavedWorkoutsScreen({
                 />
               </View>
               <Text style={styles.emptyStateTitle}>
-                No {formatWorkoutTypeLabel(selectedTypeFilter)} workouts
+                No {formatMuscleGroupLabel(selectedMuscleFilter)} workouts
               </Text>
               <Text style={styles.emptyStateBody}>
-                Try a different filter to see your other saved routines.
+                Try a different muscle group to see your other saved routines.
               </Text>
             </View>
           )
@@ -658,6 +679,7 @@ export function SavedWorkoutsScreen({
             <WorkoutCard
               key={routine.id}
               accent="scheduled"
+              onOpen={() => onOpenWorkout(routine)}
               onRemove={
                 routine.scheduledWorkoutId
                   ? () => onUnschedule(routine.scheduledWorkoutId || routine.id)
@@ -1098,6 +1120,15 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       color: theme.colors.textMuted,
       fontSize: 13,
       fontWeight: "800",
+    },
+    workoutCardPressed: {
+      opacity: 0.88,
+      transform: [{ scale: 0.995 }],
+    },
+    workoutHeaderRight: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
     },
     actionRow: {
       flexDirection: "row",
