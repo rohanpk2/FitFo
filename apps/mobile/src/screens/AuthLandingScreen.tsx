@@ -231,7 +231,6 @@ export function AuthLandingScreen({
             }
             body={
               <>
-                <Text style={S.fEyebrow}>Feature 01</Text>
                 <Text style={S.fTitle}>Import{"\n"}Any{"\n"}<Text style={S.fAccent}>Workout.</Text></Text>
                 <Text style={S.fDesc}>Paste a TikTok or Instagram link. FitFo pulls out every exercise, set, and rep — no typing required.</Text>
                 <View style={S.pillRow}>
@@ -271,7 +270,6 @@ export function AuthLandingScreen({
             }
             body={
               <>
-                <Text style={S.fEyebrow}>Feature 02</Text>
                 <Text style={S.fTitle}>Track{"\n"}Every{"\n"}<Text style={S.fAccent}>Set.</Text></Text>
                 <Text style={S.fDesc}>Live timer, auto-advancing sets, weight and rep logging. Everything you need — nothing you don't.</Text>
                 <View style={S.pillRow}>
@@ -321,7 +319,6 @@ export function AuthLandingScreen({
             }
             body={
               <>
-                <Text style={S.fEyebrow}>Feature 03</Text>
                 <Text style={S.fTitle}>Own Your{"\n"}<Text style={S.fAccent}>Archive.</Text></Text>
                 <Text style={S.fDesc}>Every session saved to your account. History, monthly stats, and quick rescheduling — all in one place.</Text>
                 <View style={S.pillRow}>
