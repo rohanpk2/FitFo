@@ -280,11 +280,13 @@ export function AddWorkoutModal({
           {hasImportedWorkout ? (
             <View style={styles.previewCard}>
               <View style={styles.previewHeader}>
-                <Text style={styles.previewEyebrow}>Workout ready</Text>
-                <Ionicons color={theme.colors.primary} name="checkmark-circle" size={18} />
+                <Text style={styles.previewEyebrow}>AI-Parsed</Text>
               </View>
               <Text style={styles.previewTitle}>{routine?.title}</Text>
               <Text style={styles.previewDescription}>{routine?.description}</Text>
+              <Text style={styles.previewAiNote}>
+                Auto-extracted from the video. Verify before training.
+              </Text>
               {creatorHandle ? (
                 <View style={styles.previewTags}>
                   <View style={styles.previewChip}>
@@ -511,6 +513,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     title: {
       color: theme.colors.textPrimary,
       fontSize: 31,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       letterSpacing: -0.8,
     },
@@ -527,6 +530,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     label: {
       color: theme.colors.textMuted,
       fontSize: 12,
+      fontFamily: "Satoshi-Black",
       fontWeight: "900",
       letterSpacing: 2.4,
       textTransform: "uppercase",
@@ -575,6 +579,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     primaryButtonText: {
       color: theme.colors.surface,
       fontSize: 17,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
     },
     statusCard: {
@@ -591,6 +596,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     },
     statusLabel: {
       fontSize: 13,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       textTransform: "uppercase",
       letterSpacing: 1,
@@ -598,6 +604,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     statusPercent: {
       color: theme.colors.textMuted,
       fontSize: 13,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "700",
     },
     progressTrack: {
@@ -626,6 +633,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     errorTitle: {
       color: theme.colors.error,
       fontSize: 14,
+      fontFamily: "Satoshi-Black",
       fontWeight: "900",
       textTransform: "uppercase",
       letterSpacing: 1.2,
@@ -651,6 +659,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     previewEyebrow: {
       color: theme.colors.primary,
       fontSize: 11,
+      fontFamily: "Satoshi-Black",
       fontWeight: "900",
       letterSpacing: 1.4,
       textTransform: "uppercase",
@@ -658,6 +667,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     previewTitle: {
       color: theme.colors.textPrimary,
       fontSize: 28,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       letterSpacing: -1,
     },
@@ -665,6 +675,12 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       color: theme.colors.textSecondary,
       fontSize: 15,
       lineHeight: 22,
+    },
+    previewAiNote: {
+      color: theme.colors.textMuted,
+      fontSize: 12,
+      lineHeight: 16,
+      fontStyle: "italic",
     },
     previewTags: {
       flexDirection: "row",
@@ -683,6 +699,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     previewChipText: {
       color: theme.colors.primary,
       fontSize: 13,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
     },
     previewActionColumn: {
@@ -699,6 +716,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     secondaryActionText: {
       color: theme.colors.surface,
       fontSize: 17,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
     },
     tertiaryAction: {
@@ -713,6 +731,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     tertiaryActionText: {
       color: theme.colors.primary,
       fontSize: 15,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
     },
     actionDisabled: {
@@ -729,6 +748,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     schedulerEyebrow: {
       color: theme.colors.textMuted,
       fontSize: 11,
+      fontFamily: "Satoshi-Black",
       fontWeight: "900",
       letterSpacing: 1.4,
       textTransform: "uppercase",
@@ -736,6 +756,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     schedulerSelectedText: {
       color: theme.colors.textPrimary,
       fontSize: 15,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
     },
     dayStripContent: {
@@ -760,6 +781,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     dayPillLabel: {
       color: theme.colors.textMuted,
       fontSize: 10,
+      fontFamily: "Satoshi-Black",
       fontWeight: "900",
       letterSpacing: 1.1,
     },
@@ -770,6 +792,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       marginTop: 2,
       color: theme.colors.textPrimary,
       fontSize: 20,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
     },
     dayPillNumberSelected: {
@@ -779,6 +802,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       marginTop: 2,
       color: theme.colors.textMuted,
       fontSize: 11,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "700",
     },
     dayPillMonthSelected: {
@@ -792,6 +816,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     schedulerCancelText: {
       color: theme.colors.textMuted,
       fontSize: 13,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "700",
     },
     orRow: {
@@ -808,6 +833,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     orText: {
       color: theme.colors.textMuted,
       fontSize: 15,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       textTransform: "uppercase",
     },
@@ -815,6 +841,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       marginTop: 18,
       color: theme.colors.primary,
       fontSize: 17,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       textAlign: "center",
     },

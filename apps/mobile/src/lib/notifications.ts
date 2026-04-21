@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Alert } from "react-native";
 import * as Notifications from "expo-notifications";
 
 import { getCreatorHandle } from "./fitfo";
@@ -34,9 +35,41 @@ async function writeNotificationMap(map: NotificationMap): Promise<void> {
   await AsyncStorage.setItem(NOTIFICATION_MAP_STORAGE_KEY, JSON.stringify(map));
 }
 
+// Track whether we've shown the pre-permission explainer in this session so
+// we don't nag the user every time they schedule a workout.
+let explainerShownThisSession = false;
+
+function askUserBeforeSystemPrompt(): Promise<boolean> {
+  return new Promise<boolean>((resolve) => {
+    Alert.alert(
+      "Turn on workout reminders?",
+      "FitFo sends a single local notification 30 minutes before each workout you schedule — so you don't forget. No marketing, no ads. You can turn them off anytime in iOS Settings.",
+      [
+        {
+          text: "Not now",
+          style: "cancel",
+          onPress: () => resolve(false),
+        },
+        {
+          text: "Turn on",
+          onPress: () => resolve(true),
+        },
+      ],
+      { cancelable: false },
+    );
+  });
+}
+
 /**
- * Ask iOS/Android for notification permission. Safe to call repeatedly — the
- * system only surfaces the prompt the first time.
+ * Ask iOS/Android for notification permission.
+ *
+ * Apple best practice (and common App Review feedback): show an in-app
+ * explainer BEFORE the system-level permission dialog so users understand
+ * what they're opting into. Once the system dialog has been dismissed the
+ * first time, we can't ask again — so the pre-prompt matters.
+ *
+ * Safe to call repeatedly — the explainer only fires once per session when
+ * the OS still has room to present the native dialog.
  */
 export async function requestNotificationPermission(): Promise<boolean> {
   try {
@@ -49,6 +82,18 @@ export async function requestNotificationPermission(): Promise<boolean> {
       permissionState = "denied";
       return false;
     }
+
+    // Only surface the in-app explainer the first time this session — after
+    // that, repeated schedule actions shouldn't re-prompt.
+    if (!explainerShownThisSession) {
+      explainerShownThisSession = true;
+      const userAgreed = await askUserBeforeSystemPrompt();
+      if (!userAgreed) {
+        permissionState = "denied";
+        return false;
+      }
+    }
+
     const requested = await Notifications.requestPermissionsAsync();
     permissionState = requested.granted ? "granted" : "denied";
     return requested.granted;

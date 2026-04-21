@@ -1303,6 +1303,7 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
     modalTitle: {
       color: theme.colors.textPrimary,
       fontSize: 30,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       letterSpacing: -0.8,
     },
@@ -1326,6 +1327,7 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
     modalMetaChipText: {
       color: theme.colors.primary,
       fontSize: 12,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
     },
     modalActionRow: {
@@ -1345,6 +1347,7 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
     modalSecondaryButtonText: {
       color: theme.colors.textPrimary,
       fontSize: 15,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "700",
     },
     modalPrimaryButton: {
@@ -1364,6 +1367,7 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
     modalPrimaryButtonText: {
       color: theme.colors.surface,
       fontSize: 15,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
     },
     header: {
@@ -1398,6 +1402,7 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
     eyebrow: {
       color: theme.colors.primary,
       fontSize: 10,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       letterSpacing: 1.2,
       textTransform: "uppercase",
@@ -1405,6 +1410,7 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
     heroTitle: {
       color: theme.colors.textPrimary,
       fontSize: 36,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       lineHeight: 40,
       letterSpacing: -1.2,
@@ -1425,6 +1431,7 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
     timerEyebrow: {
       color: theme.colors.primarySoftText,
       fontSize: 10,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       letterSpacing: 1.2,
       textTransform: "uppercase",
@@ -1433,6 +1440,7 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
       marginTop: 10,
       color: theme.colors.surface,
       fontSize: 44,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       letterSpacing: -1.4,
     },
@@ -1440,6 +1448,7 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
       marginTop: 6,
       color: theme.colors.primarySoftText,
       fontSize: 13,
+      fontFamily: "Satoshi-Medium",
       fontWeight: "600",
     },
     statGrid: {
@@ -1463,18 +1472,21 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
     statValuePrimary: {
       color: theme.colors.textPrimary,
       fontSize: 28,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       letterSpacing: -0.8,
     },
     statValueSoft: {
       color: theme.colors.textPrimary,
       fontSize: 28,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       letterSpacing: -0.8,
     },
     statLabelPrimary: {
       color: theme.colors.primary,
       fontSize: 10,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       letterSpacing: 1,
       textTransform: "uppercase",
@@ -1482,6 +1494,7 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
     statLabelSoft: {
       color: theme.colors.textMuted,
       fontSize: 10,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       letterSpacing: 1,
       textTransform: "uppercase",
@@ -1528,6 +1541,7 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
     exerciseEyebrow: {
       color: theme.colors.primary,
       fontSize: 9,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       letterSpacing: 1,
       textTransform: "uppercase",
@@ -1535,12 +1549,14 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
     exerciseTitle: {
       color: theme.colors.textPrimary,
       fontSize: 20,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       letterSpacing: -0.5,
     },
     exerciseTitleInput: {
       color: theme.colors.textPrimary,
       fontSize: 20,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       letterSpacing: -0.5,
       paddingVertical: 2,
@@ -1566,6 +1582,7 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
     setCountText: {
       color: theme.colors.primary,
       fontSize: 11,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
     },
     exerciseIconButton: {
@@ -1613,6 +1630,7 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
     notesLabel: {
       color: theme.colors.primary,
       fontSize: 10,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       letterSpacing: 1,
       textTransform: "uppercase",
@@ -1640,6 +1658,7 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
     restLabel: {
       color: theme.colors.textMuted,
       fontSize: 11,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       letterSpacing: 0.8,
       textTransform: "uppercase",
@@ -1656,6 +1675,7 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
     restInput: {
       color: theme.colors.textPrimary,
       fontSize: 13,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "700",
       minWidth: 32,
       padding: 0,
@@ -1664,6 +1684,7 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
     restUnit: {
       color: theme.colors.textMuted,
       fontSize: 11,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "700",
     },
     setList: {
@@ -1697,6 +1718,7 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
     setLabel: {
       color: theme.colors.textPrimary,
       fontSize: 16,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "700",
     },
     setTarget: {
@@ -1707,6 +1729,7 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
     setExerciseName: {
       color: theme.colors.textMuted,
       fontSize: 11,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "700",
       textAlign: "right",
     },
@@ -1726,6 +1749,7 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
     setDoneText: {
       color: theme.colors.success,
       fontSize: 11,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
     },
     setRowHint: {
@@ -1754,6 +1778,7 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
     targetEditInput: {
       color: theme.colors.textPrimary,
       fontSize: 12,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "700",
       minWidth: 26,
       padding: 0,
@@ -1762,6 +1787,7 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
     targetEditUnit: {
       color: theme.colors.textMuted,
       fontSize: 11,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "700",
     },
     inlineRemoveButton: {
@@ -1798,6 +1824,7 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
     inlineAddBadgeText: {
       color: theme.colors.primary,
       fontSize: 11,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
     },
     sourceUrlPill: {
@@ -1816,6 +1843,7 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
     sourceUrlText: {
       color: theme.colors.primary,
       fontSize: 12,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
     },
     removeItemButton: {
@@ -1831,6 +1859,7 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
     removeItemButtonText: {
       color: theme.colors.error,
       fontSize: 12,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
     },
     inputRow: {
@@ -1847,6 +1876,7 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
     inputLabel: {
       color: theme.colors.textMuted,
       fontSize: 10,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       letterSpacing: 0.8,
       textTransform: "uppercase",
@@ -1860,6 +1890,7 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
       borderColor: theme.mode === "dark" ? theme.colors.borderSoft : "transparent",
       color: theme.colors.textPrimary,
       fontSize: 16,
+      fontFamily: "Satoshi-Medium",
       fontWeight: "600",
     },
     autoAdvanceText: {
@@ -1882,6 +1913,7 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
     emptySetTitle: {
       color: theme.colors.textPrimary,
       fontSize: 16,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
     },
     emptySetBody: {
@@ -1904,6 +1936,7 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
     addSetButtonText: {
       color: theme.colors.primary,
       fontSize: 15,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
     },
     emptyCard: {
@@ -1919,6 +1952,7 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
     emptyTitle: {
       color: theme.colors.textPrimary,
       fontSize: 20,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       textAlign: "center",
     },
@@ -1942,6 +1976,7 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
     addExerciseButtonText: {
       color: theme.colors.surface,
       fontSize: 15,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
     },
     finishButton: {
@@ -1958,6 +1993,7 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
     finishButtonText: {
       color: theme.colors.surface,
       fontSize: 17,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "700",
     },
     scheduleAgainButton: {
@@ -1978,6 +2014,7 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
     scheduleAgainButtonText: {
       color: theme.colors.primary,
       fontSize: 15,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       letterSpacing: 0.2,
     },

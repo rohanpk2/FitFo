@@ -212,12 +212,14 @@ const createStyles = (theme: ReturnType<typeof getTheme>) => {
         ? "rgba(255, 255, 255, 0.55)"
         : "rgba(255, 255, 255, 0.65)",
       fontSize: 10,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "700",
       letterSpacing: 0.8,
       textTransform: "uppercase",
     },
     labelActive: {
       color: "#FFFFFF",
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
     },
   });

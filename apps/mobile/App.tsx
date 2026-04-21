@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { StatusBar } from "expo-status-bar";
 import {
   ActivityIndicator,
+  Alert,
   SafeAreaView,
   StyleSheet,
   Text,
@@ -9,7 +10,14 @@ import {
 } from "react-native";
 import { useFonts } from "expo-font";
 
+import { applyDefaultFont } from "./src/lib/fonts";
 import { AddWorkoutModal } from "./src/components/AddWorkoutModal";
+
+// Patch <Text> and <TextInput> globally so every screen in the app inherits
+// Satoshi by default, with the right weight picked from the existing
+// fontWeight style prop. Must run before any Text component renders — hence
+// the module-level call, not inside the component tree.
+applyDefaultFont();
 import { BottomNav } from "./src/components/BottomNav";
 import { ScheduleAgainModal } from "./src/components/ScheduleAgainModal";
 import { useIngestionJob } from "./src/hooks/useIngestionJob";
@@ -27,6 +35,7 @@ import {
   createCompletedWorkout,
   createIngestionJob,
   createScheduledWorkout,
+  deleteAccount,
   deleteSavedWorkout,
   deleteScheduledWorkout,
   getCompletedWorkout,
@@ -186,6 +195,7 @@ export default function App() {
     null,
   );
   const [isBodyWeightSubmitting, setIsBodyWeightSubmitting] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [sharedIngestUrl, setSharedIngestUrl] = useState<string | null>(null);
   const [isShareDrivenIngest, setIsShareDrivenIngest] = useState(false);
   const [scheduledConfirmation, setScheduledConfirmation] = useState<
@@ -1090,6 +1100,30 @@ export default function App() {
     setAuthMode("login");
   }, [pendingOtpChallenge]);
 
+  const resetAuthenticatedState = useCallback(() => {
+    setAccessToken(null);
+    setCurrentUser(null);
+    setSavedWorkouts([]);
+    setSavedWorkoutsError(null);
+    setScheduledWorkouts([]);
+    setScheduledWorkoutsError(null);
+    setCompletedWorkouts([]);
+    setCompletedWorkoutsError(null);
+    setBodyWeightEntries([]);
+    setBodyWeightEntriesError(null);
+    setIsBodyWeightSubmitting(false);
+    setActiveOnboardingUserId(null);
+    setIsOnboardingSubmitting(false);
+    setOnboardingError(null);
+    setPendingOtpChallenge(null);
+    setAuthLandingIndex(0);
+    setAuthMode("signup");
+    setAuthNotice(null);
+    setAuthPrefillPhone("");
+    setAuthPrefillFullName("");
+    setAuthSubmittingMode(null);
+  }, []);
+
   const handleLogout = useCallback(async () => {
     setAuthSubmittingMode("bootstrap");
 
@@ -1100,31 +1134,53 @@ export default function App() {
         error instanceof Error ? error.message : "Unable to log out right now.",
       );
     } finally {
-      setAccessToken(null);
-      setCurrentUser(null);
-      setSavedWorkouts([]);
-      setSavedWorkoutsError(null);
-      setScheduledWorkouts([]);
-      setScheduledWorkoutsError(null);
-      setCompletedWorkouts([]);
-      setCompletedWorkoutsError(null);
-      setBodyWeightEntries([]);
-      setBodyWeightEntriesError(null);
-      setIsBodyWeightSubmitting(false);
-      setActiveOnboardingUserId(null);
-      setIsOnboardingSubmitting(false);
-      setOnboardingError(null);
-      setPendingOtpChallenge(null);
-      setAuthLandingIndex(0);
-      setAuthMode("signup");
-      setAuthNotice(null);
-      setAuthPrefillPhone("");
-      setAuthPrefillFullName("");
-      setAuthSubmittingMode(null);
+      resetAuthenticatedState();
       handleCloseAddWorkout();
       resetPostLoginState();
     }
-  }, [handleCloseAddWorkout, resetPostLoginState]);
+  }, [handleCloseAddWorkout, resetAuthenticatedState, resetPostLoginState]);
+
+  // App Store Guideline 5.1.1(v): users must be able to delete their account
+  // from inside the app. Calls the backend cascade-delete, clears local
+  // session storage, and drops the UI back to the auth landing.
+  const handleDeleteAccount = useCallback(async () => {
+    if (!accessToken || isDeletingAccount) {
+      return;
+    }
+    setIsDeletingAccount(true);
+    try {
+      await deleteAccount(accessToken);
+      try {
+        await clearAuthSession();
+      } catch {
+        // Keep deletion successful even if local storage clear fails; the
+        // session token is already invalidated server-side.
+      }
+      setIsProfileVisible(false);
+      resetAuthenticatedState();
+      handleCloseAddWorkout();
+      resetPostLoginState();
+      Alert.alert(
+        "Account deleted",
+        "Your account and all associated data have been permanently removed.",
+      );
+    } catch (error) {
+      Alert.alert(
+        "Couldn't delete your account",
+        error instanceof Error
+          ? error.message
+          : "Something went wrong. Please try again or contact support.",
+      );
+    } finally {
+      setIsDeletingAccount(false);
+    }
+  }, [
+    accessToken,
+    handleCloseAddWorkout,
+    isDeletingAccount,
+    resetAuthenticatedState,
+    resetPostLoginState,
+  ]);
 
   const handleResumeActiveWorkout = useCallback(() => {
     if (!activeSession) {
@@ -1330,6 +1386,8 @@ export default function App() {
             setActiveOnboardingUserId(currentUser.id);
           }}
           onLogout={handleLogout}
+          onDeleteAccount={handleDeleteAccount}
+          isDeletingAccount={isDeletingAccount}
           profile={currentUser}
           themeMode={themeMode}
         />

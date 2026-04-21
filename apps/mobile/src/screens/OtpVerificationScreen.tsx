@@ -224,11 +224,13 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     backText: {
       color: theme.colors.textMuted,
       fontSize: 16,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
     },
     eyebrow: {
       color: theme.colors.primary,
       fontSize: 13,
+      fontFamily: "Satoshi-Black",
       fontWeight: "900",
       letterSpacing: 3,
       textTransform: "uppercase",
@@ -237,6 +239,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       color: theme.colors.textPrimary,
       fontSize: 48,
       lineHeight: 48,
+      fontFamily: "Satoshi-Black",
       fontWeight: "900",
       letterSpacing: -2.2,
     },
@@ -246,6 +249,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     wordmark: {
       color: theme.colors.textMuted,
       fontSize: 20,
+      fontFamily: "Satoshi-Black",
       fontWeight: "900",
       letterSpacing: 2,
       textTransform: "uppercase",
@@ -258,6 +262,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     },
     phoneText: {
       color: theme.colors.textPrimary,
+      fontFamily: "Satoshi-Black",
       fontWeight: "900",
     },
     card: {
@@ -278,6 +283,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       color: theme.colors.primary,
       fontSize: 14,
       lineHeight: 20,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "700",
     },
     errorCard: {
@@ -289,6 +295,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       color: theme.colors.error,
       fontSize: 14,
       lineHeight: 20,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "700",
     },
     codeRow: {
@@ -316,6 +323,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     codeDigit: {
       color: theme.colors.textPrimary,
       fontSize: 42,
+      fontFamily: "Satoshi-Black",
       fontWeight: "900",
       letterSpacing: -1,
     },
@@ -333,11 +341,13 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     resendLabel: {
       color: theme.colors.textSecondary,
       fontSize: 16,
+      fontFamily: "Satoshi-Medium",
       fontWeight: "600",
     },
     resendLink: {
       color: theme.colors.primary,
       fontSize: 16,
+      fontFamily: "Satoshi-Black",
       fontWeight: "900",
     },
     resendLinkDisabled: {
@@ -362,11 +372,13 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     primaryButtonText: {
       color: theme.colors.surface,
       fontSize: 18,
+      fontFamily: "Satoshi-Black",
       fontWeight: "900",
     },
     legalText: {
       color: theme.colors.textMuted,
       fontSize: 13,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       letterSpacing: 2,
       textAlign: "center",

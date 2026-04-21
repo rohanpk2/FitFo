@@ -223,7 +223,6 @@ export function OnboardingScreen({
 
             <View style={styles.heroBadgeRow}>
               <View style={styles.heroChip}>
-                <Ionicons color="#FFFFFF" name="sparkles" size={12} />
                 <Text style={styles.heroChipText}>Step 01 · Goals</Text>
               </View>
               <View style={styles.heroCounter}>
@@ -648,6 +647,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     stepCount: {
       color: theme.colors.textMuted,
       fontSize: 12,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       letterSpacing: 1.2,
       textTransform: "uppercase",
@@ -733,6 +733,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     heroChipText: {
       color: "#FFFFFF",
       fontSize: 11,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       letterSpacing: 0.6,
     },
@@ -749,11 +750,13 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     heroCounterText: {
       color: "#FFFFFF",
       fontSize: 16,
+      fontFamily: "Satoshi-Black",
       fontWeight: "900",
     },
     heroCounterTextMuted: {
       color: "rgba(255, 255, 255, 0.6)",
       fontSize: 12,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
     },
     heroTitleBlock: {
@@ -762,6 +765,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     heroEyebrow: {
       color: "rgba(255, 255, 255, 0.82)",
       fontSize: 11,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       letterSpacing: 1.8,
       textTransform: "uppercase",
@@ -770,12 +774,14 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       color: "#FFFFFF",
       fontSize: 46,
       lineHeight: 48,
+      fontFamily: "Satoshi-Black",
       fontWeight: "900",
       letterSpacing: -2.2,
     },
     heroTitleAccent: {
       color: "#FFFFFF",
       fontStyle: "italic",
+      fontFamily: "Satoshi-Black",
       fontWeight: "900",
     },
     heroTitleDotNew: {
@@ -799,6 +805,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     goalsHintText: {
       color: theme.colors.textSecondary,
       fontSize: 13,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "700",
     },
     goalGrid: {
@@ -855,6 +862,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     goalCardText: {
       color: theme.colors.textPrimary,
       fontSize: 15,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       letterSpacing: -0.3,
     },
@@ -864,6 +872,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     eyebrow: {
       color: theme.colors.primary,
       fontSize: 12,
+      fontFamily: "Satoshi-Black",
       fontWeight: "900",
       letterSpacing: 2.6,
       textTransform: "uppercase",
@@ -872,6 +881,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       color: theme.colors.textPrimary,
       fontSize: 58,
       lineHeight: 55,
+      fontFamily: "Satoshi-Black",
       fontWeight: "900",
       letterSpacing: -2.8,
     },
@@ -881,6 +891,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     wordmark: {
       color: theme.colors.textMuted,
       fontSize: 22,
+      fontFamily: "Satoshi-Black",
       fontWeight: "900",
       letterSpacing: 2,
       textTransform: "uppercase",
@@ -903,6 +914,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     sectionLabel: {
       color: theme.colors.textMuted,
       fontSize: 12,
+      fontFamily: "Satoshi-Black",
       fontWeight: "900",
       letterSpacing: 1.8,
       textTransform: "uppercase",
@@ -933,6 +945,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     optionChipText: {
       color: theme.colors.textPrimary,
       fontSize: 14,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
     },
     optionChipTextSelected: {
@@ -953,6 +966,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     choiceChipText: {
       color: theme.colors.textPrimary,
       fontSize: 14,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
     },
     choiceChipTextSelected: {
@@ -974,6 +988,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       minHeight: 88,
       color: theme.colors.textPrimary,
       fontSize: 15,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "700",
       lineHeight: 22,
       paddingVertical: 0,
@@ -981,6 +996,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     customSplitHint: {
       color: theme.colors.textMuted,
       fontSize: 12,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "700",
       letterSpacing: 0.2,
     },
@@ -1005,6 +1021,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     dayChipText: {
       color: theme.colors.textPrimary,
       fontSize: 16,
+      fontFamily: "Satoshi-Black",
       fontWeight: "900",
     },
     dayChipTextSelected: {
@@ -1021,6 +1038,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     inputLabel: {
       color: theme.colors.textMuted,
       fontSize: 11,
+      fontFamily: "Satoshi-Black",
       fontWeight: "900",
       letterSpacing: 1.2,
       textTransform: "uppercase",
@@ -1041,12 +1059,14 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       flex: 1,
       color: theme.colors.textPrimary,
       fontSize: 18,
+      fontFamily: "Satoshi-Black",
       fontWeight: "900",
       paddingVertical: 0,
     },
     inputUnit: {
       color: theme.colors.textMuted,
       fontSize: 12,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       textTransform: "uppercase",
     },
@@ -1062,6 +1082,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       color: theme.colors.error,
       fontSize: 14,
       lineHeight: 20,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "700",
     },
     doneScreen: {
@@ -1082,6 +1103,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       color: theme.colors.textPrimary,
       fontSize: 32,
       lineHeight: 36,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       letterSpacing: -1.2,
       textAlign: "center",
@@ -1132,6 +1154,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     primaryButtonText: {
       color: theme.colors.surface,
       fontSize: 15,
+      fontFamily: "Satoshi-Black",
       fontWeight: "900",
       letterSpacing: 0.3,
     },

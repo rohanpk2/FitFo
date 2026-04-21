@@ -1,4 +1,12 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 import { getTheme, type ThemeMode } from "../theme";
@@ -8,6 +16,8 @@ interface ProfileScreenProps {
   onClose?: () => void;
   onEditOnboarding: () => void;
   onLogout: () => void;
+  onDeleteAccount: () => Promise<void>;
+  isDeletingAccount?: boolean;
   profile: UserProfile;
   themeMode?: ThemeMode;
 }
@@ -16,9 +26,46 @@ export function ProfileScreen({
   onClose,
   onEditOnboarding,
   onLogout,
+  onDeleteAccount,
+  isDeletingAccount = false,
   profile,
   themeMode = "light",
 }: ProfileScreenProps) {
+  // Two-step confirmation: App Store reviewers look for this, and it protects
+  // users from accidentally wiping their account. First Alert explains the
+  // consequences; second Alert is the "really really?" confirm.
+  const handleDeletePressed = () => {
+    if (isDeletingAccount) {
+      return;
+    }
+    Alert.alert(
+      "Delete your account?",
+      "This permanently removes your profile, saved workouts, schedule, completed sessions, and all body-weight history. This cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Continue",
+          style: "destructive",
+          onPress: () => {
+            Alert.alert(
+              "Are you sure?",
+              "Once you confirm, all of your FitFo data will be deleted and you'll be signed out. For Sign in with Apple, FitFo will also be unlinked from your Apple ID.",
+              [
+                { text: "Cancel", style: "cancel" },
+                {
+                  text: "Delete Account",
+                  style: "destructive",
+                  onPress: () => {
+                    void onDeleteAccount();
+                  },
+                },
+              ],
+            );
+          },
+        },
+      ],
+    );
+  };
   const theme = getTheme(themeMode);
   const styles = createStyles(theme);
   const initials = profile.full_name
@@ -86,6 +133,38 @@ export function ProfileScreen({
         <Ionicons color={theme.colors.error} name="log-out-outline" size={18} />
         <Text style={styles.logoutText}>Log Out</Text>
       </Pressable>
+
+      <View style={styles.dangerZone}>
+        <Text style={styles.dangerEyebrow}>Danger Zone</Text>
+        <Pressable
+          disabled={isDeletingAccount}
+          onPress={handleDeletePressed}
+          style={[
+            styles.deleteButton,
+            isDeletingAccount ? styles.deleteButtonDisabled : null,
+          ]}
+        >
+          {isDeletingAccount ? (
+            <>
+              <ActivityIndicator color={theme.colors.error} size="small" />
+              <Text style={styles.deleteText}>Deleting…</Text>
+            </>
+          ) : (
+            <>
+              <Ionicons
+                color={theme.colors.error}
+                name="trash-outline"
+                size={18}
+              />
+              <Text style={styles.deleteText}>Delete Account</Text>
+            </>
+          )}
+        </Pressable>
+        <Text style={styles.dangerBody}>
+          Permanently remove your profile, saved workouts, schedule, and
+          history. This cannot be undone.
+        </Text>
+      </View>
     </ScrollView>
   );
 }
@@ -120,11 +199,13 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     backButtonText: {
       color: theme.colors.textPrimary,
       fontSize: 15,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "700",
     },
     eyebrow: {
       color: theme.colors.primary,
       fontSize: 11,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       letterSpacing: 1.3,
       textTransform: "uppercase",
@@ -134,6 +215,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       color: theme.colors.textPrimary,
       fontSize: 36,
       lineHeight: 40,
+      fontFamily: "Satoshi-Black",
       fontWeight: "900",
       letterSpacing: -1.6,
     },
@@ -148,6 +230,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     brandBadgeText: {
       color: theme.colors.surface,
       fontSize: 16,
+      fontFamily: "Satoshi-Black",
       fontWeight: "900",
     },
     profileHero: {
@@ -184,6 +267,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     avatarText: {
       color: theme.colors.primary,
       fontSize: 22,
+      fontFamily: "Satoshi-Black",
       fontWeight: "900",
       letterSpacing: -0.8,
     },
@@ -195,12 +279,14 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       color: theme.colors.textPrimary,
       fontSize: 22,
       lineHeight: 26,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       letterSpacing: -0.8,
     },
     profilePhone: {
       color: theme.colors.textMuted,
       fontSize: 14,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "700",
     },
     profileBody: {
@@ -238,6 +324,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     infoTitle: {
       color: theme.colors.textPrimary,
       fontSize: 16,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       letterSpacing: -0.3,
     },
@@ -261,7 +348,48 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     logoutText: {
       color: theme.colors.error,
       fontSize: 15,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       letterSpacing: 0.3,
+    },
+    dangerZone: {
+      marginTop: 28,
+      gap: 10,
+    },
+    dangerEyebrow: {
+      color: theme.colors.textMuted,
+      fontSize: 11,
+      fontFamily: "Satoshi-Black",
+      fontWeight: "900",
+      letterSpacing: 1.6,
+      textTransform: "uppercase",
+      paddingHorizontal: 4,
+    },
+    deleteButton: {
+      minHeight: 54,
+      borderRadius: 18,
+      borderWidth: 1,
+      borderColor: theme.colors.error,
+      backgroundColor: "transparent",
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 10,
+    },
+    deleteButtonDisabled: {
+      opacity: 0.55,
+    },
+    deleteText: {
+      color: theme.colors.error,
+      fontSize: 15,
+      fontFamily: "Satoshi-Bold",
+      fontWeight: "800",
+      letterSpacing: 0.2,
+    },
+    dangerBody: {
+      color: theme.colors.textMuted,
+      fontSize: 12,
+      lineHeight: 17,
+      paddingHorizontal: 4,
     },
   });

@@ -293,6 +293,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     eyebrow: {
       color: theme.colors.primary,
       fontSize: 11,
+      fontFamily: "Satoshi-Black",
       fontWeight: "900",
       letterSpacing: 1.4,
       textTransform: "uppercase",
@@ -300,6 +301,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     title: {
       color: theme.colors.textPrimary,
       fontSize: 26,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       letterSpacing: -0.8,
     },
@@ -320,6 +322,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     schedulerEyebrow: {
       color: theme.colors.textMuted,
       fontSize: 11,
+      fontFamily: "Satoshi-Black",
       fontWeight: "900",
       letterSpacing: 1.4,
       textTransform: "uppercase",
@@ -327,6 +330,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     schedulerSelectedText: {
       color: theme.colors.textPrimary,
       fontSize: 15,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
     },
     dayStripContent: {
@@ -351,6 +355,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     dayPillLabel: {
       color: theme.colors.textMuted,
       fontSize: 10,
+      fontFamily: "Satoshi-Black",
       fontWeight: "900",
       letterSpacing: 1.1,
     },
@@ -361,6 +366,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       marginTop: 2,
       color: theme.colors.textPrimary,
       fontSize: 20,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
     },
     dayPillNumberSelected: {
@@ -370,6 +376,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       marginTop: 2,
       color: theme.colors.textMuted,
       fontSize: 11,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "700",
     },
     dayPillMonthSelected: {
@@ -384,6 +391,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       color: theme.colors.error,
       fontSize: 14,
       lineHeight: 20,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "700",
     },
     primaryButton: {
@@ -400,6 +408,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     primaryButtonText: {
       color: theme.colors.surface,
       fontSize: 16,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
     },
     buttonRow: {
@@ -416,6 +425,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     cancelButtonText: {
       color: theme.colors.textMuted,
       fontSize: 13,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "700",
     },
   });

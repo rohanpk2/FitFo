@@ -595,6 +595,94 @@ def create_profile_with_apple(
     return _attach_profile_onboarding(result.data[0])
 
 
+# Tables that own per-user rows and must be purged when a profile is deleted.
+# Order is child-first so foreign keys don't block the cascade even if
+# individual FK constraints aren't `on delete cascade` in the DB.
+_USER_SCOPED_TABLES: Tuple[str, ...] = (
+    "body_weight_entries",
+    "completed_workouts",
+    "scheduled_workouts",
+    "saved_workouts",
+)
+
+
+def _delete_user_rows(table: str, user_id: str) -> None:
+    """Best-effort delete of a user's rows in a table. Swallows errors so a
+    single table failing doesn't block the rest of the cascade."""
+    try:
+        supa = get_supabase()
+        supa.table(table).delete().eq("user_id", user_id).execute()
+    except Exception:
+        # Account deletion must be resilient to partial schemas / bad rows.
+        pass
+
+
+def delete_profile(profile_id: str) -> Dict[str, Any]:
+    """
+    Hard-delete a user account and every row it owns.
+
+    Returns the pre-delete profile snapshot so callers can use fields like
+    `apple_user_id` to run post-delete cleanup (e.g. Apple token revocation)
+    without another round-trip to the DB.
+
+    Deletion order:
+      1. body_weight_entries, completed_workouts, scheduled_workouts,
+         saved_workouts (leaf tables keyed by user_id)
+      2. transcripts (via the user's ingestion_jobs — transcripts don't have
+         user_id but they cascade when the parent job goes)
+      3. workouts (keyed by user_id)
+      4. ingestion_jobs (keyed by user_id; deleting here releases any
+         remaining transcripts via `on delete cascade` if set, otherwise the
+         transcripts pass above has already cleared them)
+      5. profile_onboarding (keyed by user_id)
+      6. profiles (the account row itself)
+
+    App Store Guideline 5.1.1(v): we run this on explicit user request from
+    inside the app. For Apple Sign In users, the caller is also expected to
+    revoke the refresh token with Apple (see `apple_auth.revoke_refresh_token`).
+    """
+    supa = get_supabase()
+
+    existing = (
+        supa.table("profiles")
+        .select(PROFILE_SELECT_FIELDS)
+        .eq("id", profile_id)
+        .limit(1)
+        .execute()
+    )
+    if not existing.data:
+        raise ProfileNotFoundError(f"Profile {profile_id} not found")
+    snapshot = existing.data[0]
+
+    for table in _USER_SCOPED_TABLES:
+        _delete_user_rows(table, profile_id)
+
+    # Transcripts are keyed by job_id, not user_id. Pull the user's jobs and
+    # clear their transcripts before deleting the jobs themselves.
+    try:
+        jobs_result = (
+            supa.table("ingestion_jobs")
+            .select("id")
+            .eq("user_id", profile_id)
+            .execute()
+        )
+        job_ids = [row["id"] for row in (jobs_result.data or []) if row.get("id")]
+        if job_ids:
+            try:
+                supa.table("transcripts").delete().in_("job_id", job_ids).execute()
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+    _delete_user_rows("workouts", profile_id)
+    _delete_user_rows("ingestion_jobs", profile_id)
+    _delete_user_rows("profile_onboarding", profile_id)
+
+    supa.table("profiles").delete().eq("id", profile_id).execute()
+    return snapshot
+
+
 def update_profile_apple_fields(
     profile_id: str,
     *,

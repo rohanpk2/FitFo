@@ -125,3 +125,9 @@ class SaveOnboardingResponse(BaseModel):
     ok: bool
     profile: UserProfileResponse
     message: str
+
+
+class DeleteAccountResponse(BaseModel):
+    ok: bool
+    message: str
+    apple_revoked: bool

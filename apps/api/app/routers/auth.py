@@ -1,3 +1,4 @@
+import os
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -9,6 +10,7 @@ from app.schemas.auth import (
     AccountStatusResponse,
     AppleSignInRequest,
     AppleSignInResponse,
+    DeleteAccountResponse,
     MeResponse,
     SaveOnboardingRequest,
     SaveOnboardingResponse,
@@ -20,6 +22,38 @@ from app.schemas.auth import (
 from app.services import apple_auth, jwt_auth, supabase_db, twilio_verify
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+def _reviewer_credentials() -> Optional[Tuple[str, str]]:
+    """
+    Return (normalized_phone, code) for the Apple App Review demo account,
+    or None when the bypass is not configured.
+
+    Setting REVIEWER_PHONE + REVIEWER_OTP_CODE on the API lets the App Review
+    team sign in without Twilio-delivered SMS. These credentials go in App
+    Store Connect → App Review Information → Demo Account.
+    """
+    phone = (os.environ.get("REVIEWER_PHONE") or "").strip()
+    code = (os.environ.get("REVIEWER_OTP_CODE") or "").strip()
+    if not phone or not code:
+        return None
+    try:
+        normalized = supabase_db.normalize_phone_number(phone)
+    except ValueError:
+        return None
+    return normalized, code
+
+
+def _is_reviewer_request(normalized_phone: str, code: Optional[str] = None) -> bool:
+    creds = _reviewer_credentials()
+    if creds is None:
+        return False
+    expected_phone, expected_code = creds
+    if normalized_phone != expected_phone:
+        return False
+    if code is None:
+        return True
+    return code == expected_code
 
 
 def _normalize_and_lookup(phone: str) -> Tuple[str, Optional[Dict[str, Any]]]:
@@ -102,6 +136,17 @@ def send_otp(body: SendOtpRequest) -> SendOtpResponse:
     try:
         normalized_phone, existing = _normalize_and_lookup(body.phone)
 
+        # Apple App Review demo bypass — short-circuit BEFORE the login/signup
+        # existence checks so the reviewer can use either flow with the demo
+        # phone and never needs SMS delivery to work.
+        if _is_reviewer_request(normalized_phone):
+            return SendOtpResponse(
+                ok=True,
+                status="approved",
+                normalized_phone=normalized_phone,
+                message="Reviewer demo account: enter the demo code to continue.",
+            )
+
         if body.intent == "login":
             if existing is None:
                 raise HTTPException(
@@ -144,32 +189,61 @@ def send_otp(body: SendOtpRequest) -> SendOtpResponse:
 def verify_otp(body: VerifyOtpRequest) -> VerifyOtpResponse:
     try:
         normalized_phone, existing = _normalize_and_lookup(body.phone)
-        verification_check = twilio_verify.check_sms_otp(normalized_phone, body.code)
 
-        is_valid = bool(getattr(verification_check, "valid", False))
-        status_value = str(getattr(verification_check, "status", "") or "")
-        if not is_valid and status_value.lower() != "approved":
-            raise HTTPException(status_code=400, detail="Invalid or expired verification code.")
+        # Apple App Review demo bypass — compare against the env-configured
+        # reviewer code first so we never round-trip to Twilio for the demo
+        # account. Any other phone number goes through the normal flow.
+        if _is_reviewer_request(normalized_phone, body.code):
+            pass
+        else:
+            verification_check = twilio_verify.check_sms_otp(
+                normalized_phone, body.code
+            )
+
+            is_valid = bool(getattr(verification_check, "valid", False))
+            status_value = str(getattr(verification_check, "status", "") or "")
+            if not is_valid and status_value.lower() != "approved":
+                raise HTTPException(
+                    status_code=400, detail="Invalid or expired verification code."
+                )
+
+        is_reviewer = _is_reviewer_request(normalized_phone, body.code)
 
         if body.intent == "login":
             if existing is None:
-                raise HTTPException(
-                    status_code=400,
-                    detail="No account found for that phone number. Please sign up first.",
-                )
-            profile = existing
-            message = "Welcome back."
+                if is_reviewer:
+                    # Auto-provision the demo profile so the App Review team
+                    # can log in even before anyone signs the account up.
+                    profile = supabase_db.create_profile(
+                        full_name="App Review",
+                        phone=normalized_phone,
+                    )
+                    message = "Reviewer demo account created."
+                else:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="No account found for that phone number. Please sign up first.",
+                    )
+            else:
+                profile = existing
+                message = "Welcome back."
         else:
             if existing is not None:
-                raise HTTPException(
-                    status_code=400,
-                    detail="You already have an account. Please log in.",
+                if is_reviewer:
+                    # Reviewer tried to sign up again — just log them in.
+                    profile = existing
+                    message = "Welcome back."
+                else:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="You already have an account. Please log in.",
+                    )
+            else:
+                profile = supabase_db.create_profile(
+                    full_name=_clean_signup_name(body.full_name),
+                    phone=normalized_phone,
                 )
-            profile = supabase_db.create_profile(
-                full_name=_clean_signup_name(body.full_name),
-                phone=normalized_phone,
-            )
-            message = "Account created."
+                message = "Account created."
 
         access_token = jwt_auth.create_access_token(
             subject=str(profile["id"]),
@@ -295,6 +369,63 @@ def me(payload: Dict[str, Any] = Depends(require_access_payload)) -> MeResponse:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to load profile: {exc}") from exc
+
+
+@router.delete("/me", response_model=DeleteAccountResponse)
+def delete_account(
+    profile_id: str = Depends(require_profile_id),
+) -> DeleteAccountResponse:
+    """
+    Permanently delete the authenticated user's account and every row owned
+    by it. Required by App Store Guideline 5.1.1(v).
+
+    For Apple Sign In users we also ask Apple to revoke the refresh token so
+    the app disappears from Settings → Apple ID → Apps Using Apple ID. This
+    revocation is best-effort:
+      - If APPLE_SIGNIN_* env vars are not configured we skip it (and log a
+        warning) and still delete the local account.
+      - If Apple returns an error we still delete locally. The user can
+        manually revoke from iOS Settings.
+
+    This matches the behavior of most production apps and keeps account
+    deletion reliable even during upstream outages.
+    """
+    try:
+        snapshot = supabase_db.get_profile_by_id(profile_id)
+        if snapshot is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Account not found for this access token.",
+            )
+
+        # Revoke Apple first — if the profile row is already gone we lose the
+        # refresh token and can never revoke. If revocation fails we still
+        # continue and delete locally so the user's request is honored.
+        apple_revoked = False
+        apple_refresh_token = str(snapshot.get("apple_refresh_token") or "").strip()
+        if apple_refresh_token:
+            try:
+                apple_revoked = apple_auth.revoke_refresh_token(apple_refresh_token)
+            except Exception:
+                apple_revoked = False
+
+        supabase_db.delete_profile(profile_id)
+
+        return DeleteAccountResponse(
+            ok=True,
+            message="Your account and all associated data have been deleted.",
+            apple_revoked=apple_revoked,
+        )
+    except HTTPException:
+        raise
+    except supabase_db.ProfileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except supabase_db.SupabaseNotConfiguredError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to delete account: {exc}"
+        ) from exc
 
 
 @router.put("/onboarding", response_model=SaveOnboardingResponse)

@@ -178,6 +178,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     eyebrow: {
       color: theme.colors.primary,
       fontSize: 13,
+      fontFamily: "Satoshi-Black",
       fontWeight: "900",
       letterSpacing: 3,
       textTransform: "uppercase",
@@ -186,6 +187,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       color: theme.colors.textPrimary,
       fontSize: 42,
       lineHeight: 44,
+      fontFamily: "Satoshi-Black",
       fontWeight: "900",
       letterSpacing: -2.0,
     },
@@ -205,6 +207,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     orText: {
       color: theme.colors.textMuted,
       fontSize: 13,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       textTransform: "uppercase",
       letterSpacing: 1.2,
@@ -225,6 +228,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     label: {
       color: theme.colors.textMuted,
       fontSize: 12,
+      fontFamily: "Satoshi-Black",
       fontWeight: "900",
       letterSpacing: 3,
       textTransform: "uppercase",
@@ -244,6 +248,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       flex: 1,
       color: theme.colors.textPrimary,
       fontSize: 17,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "700",
     },
     noticeCard: {
@@ -255,6 +260,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       color: theme.colors.primary,
       fontSize: 14,
       lineHeight: 20,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "700",
     },
     errorCard: {
@@ -266,6 +272,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       color: theme.colors.error,
       fontSize: 14,
       lineHeight: 20,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "700",
     },
     primaryButton: {
@@ -287,17 +294,20 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     primaryButtonText: {
       color: theme.colors.surface,
       fontSize: 18,
+      fontFamily: "Satoshi-Black",
       fontWeight: "900",
       letterSpacing: 0.2,
     },
     footerText: {
       color: theme.colors.textSecondary,
       fontSize: 14,
+      fontFamily: "Satoshi-Medium",
       fontWeight: "600",
       textAlign: "center",
     },
     footerLink: {
       color: theme.colors.primary,
+      fontFamily: "Satoshi-Black",
       fontWeight: "900",
     },
   });

@@ -27,6 +27,19 @@ import type {
 
 const API_BASE = process.env.EXPO_PUBLIC_API_URL || "http://localhost:8000";
 
+// ─── Paywall / IAP policy (App Store Guideline 3.1.1) ──────────────────────
+//
+// Any future paywall in the iOS build MUST use StoreKit via Apple's In-App
+// Purchase system (we recommend `react-native-purchases` / RevenueCat). Do
+// NOT add calls to a web-hosted Stripe/Paddle/LemonSqueezy checkout here,
+// do NOT add "subscribe on our website" buttons, and do NOT deep-link to
+// an external purchase URL for digital unlocks. Apple will reject the
+// binary. Android can keep a Play Billing path (also via RevenueCat).
+//
+// Backend subscription verification must validate Apple App Store Server
+// receipts — never trust the client's claim of purchase status.
+// ───────────────────────────────────────────────────────────────────────────
+
 export class ApiError extends Error {
   status: number;
 
@@ -158,6 +171,26 @@ export async function saveOnboarding(
     method: "PUT",
     accessToken,
     body: JSON.stringify(body),
+  });
+}
+
+export interface DeleteAccountResponse {
+  ok: boolean;
+  message: string;
+  apple_revoked: boolean;
+}
+
+/**
+ * Permanently delete the authenticated user's account (App Store 5.1.1(v)).
+ * The server cascades deletion across every table the user owns and asks
+ * Apple to revoke Sign-in-with-Apple refresh tokens when configured.
+ */
+export async function deleteAccount(
+  accessToken: string,
+): Promise<DeleteAccountResponse> {
+  return request<DeleteAccountResponse>("/auth/me", {
+    method: "DELETE",
+    accessToken,
   });
 }
 

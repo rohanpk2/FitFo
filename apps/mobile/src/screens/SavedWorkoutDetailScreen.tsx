@@ -1,4 +1,5 @@
 import {
+  Alert,
   Image,
   Linking,
   Pressable,
@@ -134,6 +135,34 @@ export function SavedWorkoutDetailScreen({
     (sum, block) => sum + (block.exercises?.length || 0),
     0,
   );
+  // App Store Guideline 1.2 / 5.2 — mark any workout that was produced by our
+  // LLM pipeline so the user knows it's AI-generated and may contain errors.
+  // Manual workouts (no source URL, no parsed plan) don't get the badge.
+  const isAiGenerated = Boolean(sourceUrl && plan && totalExercises > 0);
+
+  const handleReportWorkout = () => {
+    const subject = encodeURIComponent(
+      `Report AI-parsed workout: ${routine.title}`,
+    );
+    const bodyLines = [
+      "Tell us what's wrong with this AI-parsed workout.",
+      "",
+      `Workout: ${routine.title}`,
+      sourceUrl ? `Source: ${sourceUrl}` : "Source: (not provided)",
+      `Routine ID: ${routine.id}`,
+      "",
+      "Describe the issue:",
+      "",
+    ];
+    const body = encodeURIComponent(bodyLines.join("\n"));
+    const mailto = `mailto:support@fitfo.app?subject=${subject}&body=${body}`;
+    Linking.openURL(mailto).catch(() => {
+      Alert.alert(
+        "Email unavailable",
+        "Send a note to support@fitfo.app with the workout title and a description of what's wrong and we'll fix it.",
+      );
+    });
+  };
 
   return (
     <ScrollView
@@ -357,6 +386,24 @@ export function SavedWorkoutDetailScreen({
           </View>
         )}
       </View>
+
+      {isAiGenerated ? (
+        <View style={styles.aiDisclosureCard}>
+          <View style={styles.aiDisclosureHeader}>
+            <View style={styles.aiDisclosureBadge}>
+              <Text style={styles.aiDisclosureBadgeText}>AI-Parsed</Text>
+            </View>
+            <Pressable onPress={handleReportWorkout} hitSlop={10}>
+              <Text style={styles.aiDisclosureReport}>Report an issue</Text>
+            </Pressable>
+          </View>
+          <Text style={styles.aiDisclosureBody}>
+            This workout was auto-extracted from a video by our AI. Sets, reps,
+            and exercise names may be inaccurate, verify before training and
+            adjust weights to what&apos;s safe for you.
+          </Text>
+        </View>
+      ) : null}
     </ScrollView>
   );
 }
@@ -418,6 +465,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     heroBadgeText: {
       color: theme.colors.surface,
       fontSize: 11,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       letterSpacing: 1.2,
       textTransform: "uppercase",
@@ -425,12 +473,14 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     title: {
       color: theme.colors.surface,
       fontSize: 34,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       letterSpacing: -1.2,
     },
     completedAt: {
       color: theme.colors.primarySoftText,
       fontSize: 13,
+      fontFamily: "Satoshi-Medium",
       fontWeight: "600",
     },
     summary: {
@@ -453,6 +503,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     heroStatLabel: {
       color: theme.colors.primarySoftText,
       fontSize: 11,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "700",
       textTransform: "uppercase",
       letterSpacing: 0.8,
@@ -460,6 +511,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     heroStatValue: {
       color: theme.colors.surface,
       fontSize: 15,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
     },
     primaryActionRow: {
@@ -482,6 +534,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     primaryButtonText: {
       color: theme.colors.surface,
       fontSize: 16,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       letterSpacing: 0.2,
     },
@@ -499,7 +552,61 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     secondaryButtonText: {
       color: theme.colors.error,
       fontSize: 14,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
+    },
+    aiDisclosureCard: {
+      marginHorizontal: 4,
+      borderRadius: theme.radii.large,
+      backgroundColor:
+        theme.mode === "dark"
+          ? "rgba(255, 90, 31, 0.08)"
+          : "rgba(255, 90, 31, 0.07)",
+      borderWidth: 1,
+      borderColor:
+        theme.mode === "dark"
+          ? "rgba(255, 90, 31, 0.24)"
+          : "rgba(255, 90, 31, 0.2)",
+      padding: 16,
+      gap: 10,
+    },
+    aiDisclosureHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 8,
+    },
+    aiDisclosureBadge: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 999,
+      backgroundColor:
+        theme.mode === "dark"
+          ? "rgba(255, 90, 31, 0.18)"
+          : "rgba(255, 90, 31, 0.14)",
+    },
+    aiDisclosureBadgeText: {
+      color: theme.colors.primary,
+      fontSize: 10,
+      fontFamily: "Satoshi-Black",
+      fontWeight: "900",
+      letterSpacing: 1.4,
+      textTransform: "uppercase",
+    },
+    aiDisclosureReport: {
+      color: theme.colors.primary,
+      fontSize: 12,
+      fontFamily: "Satoshi-Bold",
+      fontWeight: "800",
+      textDecorationLine: "underline",
+    },
+    aiDisclosureBody: {
+      color: theme.colors.textSecondary,
+      fontSize: 13,
+      lineHeight: 19,
     },
     section: {
       gap: 14,
@@ -520,6 +627,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     sectionTitle: {
       color: theme.colors.textPrimary,
       fontSize: 26,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       letterSpacing: -0.6,
     },
@@ -535,6 +643,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     detailLabel: {
       color: theme.colors.primary,
       fontSize: 11,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       letterSpacing: 1,
       textTransform: "uppercase",
@@ -542,6 +651,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     detailValue: {
       color: theme.colors.textPrimary,
       fontSize: 18,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "700",
     },
     detailBody: {
@@ -563,6 +673,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     detailChipText: {
       color: theme.colors.textPrimary,
       fontSize: 13,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "700",
     },
     tagChip: {
@@ -577,6 +688,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     tagChipText: {
       color: theme.colors.primary,
       fontSize: 13,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "700",
     },
     sourceButton: {
@@ -598,6 +710,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     sourceButtonText: {
       color: theme.colors.primary,
       fontSize: 14,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
     },
     exerciseList: {
@@ -609,6 +722,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     blockName: {
       color: theme.colors.primary,
       fontSize: 11,
+      fontFamily: "Satoshi-Black",
       fontWeight: "900",
       letterSpacing: 1.2,
       textTransform: "uppercase",
@@ -643,12 +757,14 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     exerciseName: {
       color: theme.colors.textPrimary,
       fontSize: 22,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       letterSpacing: -0.6,
     },
     exerciseSubtitle: {
       color: theme.colors.textSecondary,
       fontSize: 14,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "700",
     },
     exerciseNoteCard: {
@@ -660,6 +776,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     exerciseNoteLabel: {
       color: theme.colors.primary,
       fontSize: 10,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       letterSpacing: 1,
       textTransform: "uppercase",
@@ -682,6 +799,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     emptyTitle: {
       color: theme.colors.textPrimary,
       fontSize: 16,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       textAlign: "center",
     },

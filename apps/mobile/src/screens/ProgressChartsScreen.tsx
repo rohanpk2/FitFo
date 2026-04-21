@@ -224,16 +224,19 @@ function createStyles(
     brandBadgeText: {
       color: theme.colors.surface,
       fontSize: 13,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
     },
     brandText: {
       color: theme.colors.primaryBright,
       fontSize: 17,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
     },
     eyebrow: {
       color: theme.colors.primaryBright,
       fontSize: 11,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       letterSpacing: 1,
       marginBottom: 4,
@@ -242,6 +245,7 @@ function createStyles(
       color: theme.colors.textPrimary,
       fontSize: 34,
       lineHeight: 38,
+      fontFamily: "Satoshi-Black",
       fontWeight: "900",
     },
     pageTitleAccent: {
@@ -273,6 +277,7 @@ function createStyles(
       fontSize: 17,
       lineHeight: 26,
       fontStyle: "italic",
+      fontFamily: "Satoshi-Medium",
       fontWeight: "500",
       maxWidth: "92%",
     },
@@ -280,6 +285,7 @@ function createStyles(
       marginTop: 10,
       color: palette.quoteAuthor,
       fontSize: 12,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "700",
       letterSpacing: 0.3,
     },
@@ -307,6 +313,7 @@ function createStyles(
       color: theme.colors.textPrimary,
       fontSize: 20,
       lineHeight: 24,
+      fontFamily: "Satoshi-Black",
       fontWeight: "900",
       marginBottom: 14,
     },
@@ -324,6 +331,7 @@ function createStyles(
     feedbackTitle: {
       color: theme.colors.textPrimary,
       fontSize: 16,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
     },
     feedbackBody: {
@@ -343,6 +351,7 @@ function createStyles(
     retryButtonText: {
       color: palette.addPointText,
       fontSize: 12,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
     },
     prGrid: {
@@ -364,6 +373,7 @@ function createStyles(
     prExercise: {
       color: theme.colors.primaryBright,
       fontSize: 10,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       letterSpacing: 0.8,
       textTransform: "uppercase",
@@ -377,11 +387,13 @@ function createStyles(
       color: theme.colors.textPrimary,
       fontSize: 28,
       lineHeight: 30,
+      fontFamily: "Satoshi-Black",
       fontWeight: "900",
     },
     prUnit: {
       color: theme.colors.textMuted,
       fontSize: 12,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "700",
       marginLeft: 4,
       marginBottom: 4,
@@ -389,6 +401,7 @@ function createStyles(
     prDate: {
       color: theme.colors.textMuted,
       fontSize: 10,
+      fontFamily: "Satoshi-Medium",
       fontWeight: "600",
       marginTop: 6,
       minHeight: 14,
@@ -404,6 +417,7 @@ function createStyles(
     prBadgeText: {
       color: palette.badgeText,
       fontSize: 9,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       letterSpacing: 0.4,
     },
@@ -437,6 +451,7 @@ function createStyles(
     chartTabText: {
       color: theme.colors.textSecondary,
       fontSize: 12,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
     },
     chartTabTextActive: {
@@ -457,6 +472,7 @@ function createStyles(
       width: 46,
       color: theme.colors.textMuted,
       fontSize: 10,
+      fontFamily: "Satoshi-Medium",
       fontWeight: "600",
     },
     chartMain: {
@@ -498,6 +514,7 @@ function createStyles(
       position: "absolute",
       color: theme.colors.textMuted,
       fontSize: 10,
+      fontFamily: "Satoshi-Medium",
       fontWeight: "600",
       textAlign: "center",
     },
@@ -515,6 +532,7 @@ function createStyles(
     weightLabel: {
       color: theme.colors.textMuted,
       fontSize: 11,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       letterSpacing: 0.8,
     },
@@ -527,11 +545,13 @@ function createStyles(
       color: theme.colors.textPrimary,
       fontSize: 34,
       lineHeight: 36,
+      fontFamily: "Satoshi-Black",
       fontWeight: "900",
     },
     weightUnit: {
       color: theme.colors.textMuted,
       fontSize: 14,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "700",
       marginBottom: 5,
     },
@@ -551,6 +571,7 @@ function createStyles(
     weightPillText: {
       color: palette.weightLossText,
       fontSize: 11,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
     },
     weightPillTextGain: {
@@ -567,6 +588,7 @@ function createStyles(
     addPointButtonText: {
       color: palette.addPointText,
       fontSize: 12,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
     },
     statRow: {
@@ -590,6 +612,7 @@ function createStyles(
       color: theme.colors.textPrimary,
       fontSize: 28,
       lineHeight: 30,
+      fontFamily: "Satoshi-Black",
       fontWeight: "900",
       textAlign: "center",
     },
@@ -597,6 +620,7 @@ function createStyles(
       marginTop: 6,
       color: theme.colors.textMuted,
       fontSize: 10,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       letterSpacing: 0.7,
       textAlign: "center",
@@ -623,11 +647,13 @@ function createStyles(
     modalCloseText: {
       color: theme.colors.textSecondary,
       fontSize: 13,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "700",
     },
     modalEyebrow: {
       color: theme.colors.primaryBright,
       fontSize: 11,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       letterSpacing: 0.8,
       marginBottom: 6,
@@ -636,6 +662,7 @@ function createStyles(
       color: theme.colors.textPrimary,
       fontSize: 26,
       lineHeight: 30,
+      fontFamily: "Satoshi-Black",
       fontWeight: "900",
     },
     modalBody: {
@@ -660,12 +687,14 @@ function createStyles(
       flex: 1,
       color: theme.colors.textPrimary,
       fontSize: 22,
+      fontFamily: "Satoshi-Black",
       fontWeight: "900",
       paddingVertical: 0,
     },
     modalInputUnit: {
       color: theme.colors.textMuted,
       fontSize: 12,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       textTransform: "uppercase",
     },
@@ -680,6 +709,7 @@ function createStyles(
       color: palette.inlineErrorText,
       fontSize: 13,
       lineHeight: 18,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "700",
     },
     modalPrimaryButton: {
@@ -701,6 +731,7 @@ function createStyles(
     modalPrimaryButtonText: {
       color: "#FFFFFF",
       fontSize: 14,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
     },
   });

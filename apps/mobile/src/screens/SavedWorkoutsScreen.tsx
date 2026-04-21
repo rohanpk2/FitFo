@@ -745,11 +745,13 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     brandBadgeText: {
       color: theme.colors.surface,
       fontSize: 10,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
     },
     brandText: {
       color: theme.colors.primary,
       fontSize: 22,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       letterSpacing: -0.5,
     },
@@ -790,6 +792,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     eyebrow: {
       color: theme.colors.primary,
       fontSize: 11,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       letterSpacing: 1.4,
       textTransform: "uppercase",
@@ -798,6 +801,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       color: theme.colors.textPrimary,
       fontSize: 40,
       lineHeight: 44,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       letterSpacing: -1.6,
     },
@@ -826,6 +830,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     addText: {
       color: theme.colors.primary,
       fontSize: 13,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "700",
     },
     section: {
@@ -854,6 +859,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     sectionEyebrow: {
       color: theme.colors.primary,
       fontSize: 11,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       letterSpacing: 1.4,
       textTransform: "uppercase",
@@ -863,6 +869,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       color: theme.colors.textPrimary,
       fontSize: 26,
       lineHeight: 30,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       letterSpacing: -0.8,
     },
@@ -886,6 +893,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     feedbackTitle: {
       color: theme.colors.textPrimary,
       fontSize: 20,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       textAlign: "center",
     },
@@ -905,6 +913,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     retryButtonText: {
       color: theme.colors.surface,
       fontSize: 13,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "700",
     },
     workoutCard: {
@@ -940,6 +949,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     filterChipText: {
       color: theme.colors.textMuted,
       fontSize: 13,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
     },
     filterChipTextSelected: {
@@ -981,6 +991,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     calendarPillLabel: {
       color: theme.colors.textMuted,
       fontSize: 10,
+      fontFamily: "Satoshi-Black",
       fontWeight: "900",
       letterSpacing: 1.1,
     },
@@ -991,6 +1002,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       marginTop: 2,
       color: theme.colors.textPrimary,
       fontSize: 20,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
     },
     calendarPillNumberSelected: {
@@ -1000,6 +1012,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       marginTop: 2,
       color: theme.colors.textMuted,
       fontSize: 11,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "700",
     },
     calendarPillMonthSelected: {
@@ -1018,6 +1031,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     calendarSelectedLabel: {
       color: theme.colors.textPrimary,
       fontSize: 18,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       marginTop: 4,
       marginBottom: 4,
@@ -1041,6 +1055,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     workoutBadgeText: {
       color: theme.colors.primary,
       fontSize: 11,
+      fontFamily: "Satoshi-Black",
       fontWeight: "900",
       letterSpacing: 1.3,
       textTransform: "uppercase",
@@ -1061,6 +1076,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       color: theme.colors.textPrimary,
       fontSize: 24,
       lineHeight: 28,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       letterSpacing: -0.8,
     },
@@ -1089,6 +1105,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     creatorChipText: {
       color: theme.colors.primary,
       fontSize: 12,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
     },
     sourceButton: {
@@ -1108,6 +1125,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     sourceButtonText: {
       color: theme.colors.primary,
       fontSize: 12,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
     },
     workoutMetaRow: {
@@ -1119,6 +1137,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     workoutMeta: {
       color: theme.colors.textMuted,
       fontSize: 13,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
     },
     workoutCardPressed: {
@@ -1147,6 +1166,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     primaryButtonText: {
       color: theme.colors.surface,
       fontSize: 15,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
     },
     secondaryButton: {
@@ -1160,6 +1180,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     secondaryButtonText: {
       color: theme.colors.textPrimary,
       fontSize: 15,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
     },
     emptyStateCard: {
@@ -1183,6 +1204,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     emptyStateTitle: {
       color: theme.colors.textPrimary,
       fontSize: 20,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       textAlign: "center",
     },

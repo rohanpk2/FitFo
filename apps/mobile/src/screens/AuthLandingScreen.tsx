@@ -20,6 +20,7 @@ import { LinearGradient } from "expo-linear-gradient";
 
 import { AppleSignInButton } from "../components/AppleSignInButton";
 import { isAppleSignInAvailable } from "../lib/appleAuth";
+import { F } from "../lib/fonts";
 import type { ThemeMode } from "../theme";
 import type { AuthMode } from "../types";
 
@@ -27,37 +28,6 @@ import type { AuthMode } from "../types";
 
 const ORANGE = "#FF5A1F";
 const LAST_SLIDE_INDEX = 4;
-
-// ─── Font family helpers ───────────────────────────────────────────────────────
-// Body: Satoshi (Fontshare) — sleek modern grotesk, handles all UI chrome.
-// Display: Clash Display (Fontshare) — editorial display type for hero
-// headlines and brand moments. Paired for an Arc-browser / Linear feel.
-//
-// Satoshi only ships 300/400/500/700/900; extraBold (800) and semiBold (600)
-// get mapped to the nearest available weight so the visual rhythm stays
-// consistent without missing-font warnings on device.
-
-const F = {
-  // Display (Clash Display) — use F.display for the biggest hero lines.
-  // Semibold (600) reads cleaner at large sizes than Bold (700), which starts
-  // to look clunky once the type gets above ~36pt.
-  display:         "ClashDisplay-Semibold",
-  displayMedium:   "ClashDisplay-Medium",
-  displayLight:    "ClashDisplay-Medium",
-
-  // Body (Satoshi) — UI chrome, labels, buttons, copy.
-  black:           "Satoshi-Black",
-  extraBold:       "Satoshi-Bold",   // Satoshi has no 800; use 700.
-  bold:            "Satoshi-Bold",
-  semiBold:        "Satoshi-Medium", // Satoshi has no 600; use 500.
-  medium:          "Satoshi-Medium",
-  regular:         "Satoshi-Regular",
-
-  // Legacy "condensed" keys — remapped to Clash Display so existing brand
-  // moments (wordmark, eyebrows, tagline) pick up the sleek display family.
-  condensedBlack:  "ClashDisplay-Semibold",
-  condensedBold:   "ClashDisplay-Medium",
-} as const;
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -212,6 +182,9 @@ export function AuthLandingScreen({
 
               {/* Visual proof — input link → parsed workout preview */}
               <View style={S.proofCard}>
+                <View style={S.proofRibbonRow}>
+                  <PreviewRibbon />
+                </View>
                 <View style={S.proofInputRow}>
                   <Ionicons color="#A8A8A8" name="logo-tiktok" size={14} />
                   <Text style={S.proofInputText} numberOfLines={1}>
@@ -222,8 +195,7 @@ export function AuthLandingScreen({
                 <View style={S.proofArrowRow}>
                   <View style={S.proofArrowLine} />
                   <View style={S.proofArrowBadge}>
-                    <Ionicons color={ORANGE} name="sparkles" size={10} />
-                    <Text style={S.proofArrowText}>AI parsing</Text>
+                    <Text style={S.proofArrowText}>FitFo</Text>
                   </View>
                   <View style={S.proofArrowLine} />
                 </View>
@@ -281,6 +253,7 @@ export function AuthLandingScreen({
                   <SocialBadge icon="play-circle"    label="TikTok"    />
                 </View>
                 <View style={F1.card}>
+                  <PreviewRibbon />
                   <Text style={F1.cardTitle}>Import Workout</Text>
                   <Text style={F1.cardSub}>Paste a link and let FitFo do the rest.</Text>
                   <View style={F1.cardInput}>
@@ -322,6 +295,7 @@ export function AuthLandingScreen({
             heroColors={["#0C170C", "#111111", "#080808"]}
             hero={
               <View style={F2.card}>
+                <PreviewRibbon />
                 <View style={F2.timerBadge}>
                   <Text style={F2.timerLabel}>Time Elapsed</Text>
                   <Text style={F2.timerValue}>24:15</Text>
@@ -359,6 +333,7 @@ export function AuthLandingScreen({
             heroColors={["#11121C", "#101010", "#080808"]}
             hero={
               <View style={F3.card}>
+                <PreviewRibbon />
                 <View style={F3.statsGrid}>
                   <View style={F3.statCard}>
                     <Text style={F3.statVal}>24</Text>
@@ -571,6 +546,18 @@ function SocialBadge({ icon, label }: { icon: keyof typeof Ionicons.glyphMap; la
   );
 }
 
+// "Example" ribbon shown on every fabricated preview/mock UI card in the
+// onboarding carousel. App Store Guideline 4.0 / 2.3.3: in-app mockups must
+// not mislead users into thinking the data shown is their real account data.
+function PreviewRibbon() {
+  return (
+    <View style={FS.previewRibbon}>
+      <Ionicons color={ORANGE} name="eye-outline" size={10} />
+      <Text style={FS.previewRibbonText}>Example</Text>
+    </View>
+  );
+}
+
 function ExRow({ meta, name }: { meta: string; name: string }) {
   return (
     <View style={FS.exRow}>
@@ -773,6 +760,10 @@ const S = StyleSheet.create({
     shadowOpacity: 0.4,
     shadowRadius: 24,
     width: "100%",
+  },
+  proofRibbonRow: {
+    alignItems: "flex-start",
+    marginBottom: -4,
   },
   proofInputRow: {
     alignItems: "center",
@@ -1192,6 +1183,27 @@ const FS = StyleSheet.create({
     color: "#FFFFFF",
     fontFamily: F.bold,
     fontSize: 12,
+  },
+  // Tiny "Example" ribbon for every fabricated mock-up card in the carousel.
+  previewRibbon: {
+    alignSelf: "flex-start",
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+    backgroundColor: "rgba(255, 90, 31, 0.14)",
+    borderColor: "rgba(255, 90, 31, 0.28)",
+    borderWidth: 1,
+    marginBottom: 10,
+  },
+  previewRibbonText: {
+    color: ORANGE,
+    fontFamily: F.extraBold,
+    fontSize: 9,
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
   },
   exRow: {
     alignItems: "center",

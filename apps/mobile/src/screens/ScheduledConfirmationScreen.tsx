@@ -156,6 +156,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     eyebrow: {
       color: theme.colors.primary,
       fontSize: 11,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       letterSpacing: 1.6,
       textTransform: "uppercase",
@@ -163,6 +164,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     title: {
       color: theme.colors.textPrimary,
       fontSize: 32,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       letterSpacing: -1,
       textAlign: "center",
@@ -170,6 +172,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     scheduled: {
       color: theme.colors.textSecondary,
       fontSize: 15,
+      fontFamily: "Satoshi-Medium",
       fontWeight: "600",
     },
     punchline: {
@@ -177,6 +180,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       color: theme.colors.textPrimary,
       fontSize: 17,
       lineHeight: 24,
+      fontFamily: "Satoshi-Medium",
       fontWeight: "600",
       textAlign: "center",
       paddingHorizontal: 6,
@@ -185,6 +189,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       marginTop: 18,
       color: theme.colors.textMuted,
       fontSize: 12,
+      fontFamily: "Satoshi-Bold",
       fontWeight: "700",
       letterSpacing: 0.6,
       textTransform: "uppercase",
