@@ -29,16 +29,34 @@ const ORANGE = "#FF5A1F";
 const LAST_SLIDE_INDEX = 4;
 
 // ─── Font family helpers ───────────────────────────────────────────────────────
+// Body: Satoshi (Fontshare) — sleek modern grotesk, handles all UI chrome.
+// Display: Clash Display (Fontshare) — editorial display type for hero
+// headlines and brand moments. Paired for an Arc-browser / Linear feel.
+//
+// Satoshi only ships 300/400/500/700/900; extraBold (800) and semiBold (600)
+// get mapped to the nearest available weight so the visual rhythm stays
+// consistent without missing-font warnings on device.
 
 const F = {
-  black:         "Barlow_900Black",
-  extraBold:     "Barlow_800ExtraBold",
-  bold:          "Barlow_700Bold",
-  semiBold:      "Barlow_600SemiBold",
-  medium:        "Barlow_500Medium",
-  regular:       "Barlow_400Regular",
-  condensedBlack:"BarlowCondensed_900Black",
-  condensedBold: "BarlowCondensed_700Bold",
+  // Display (Clash Display) — use F.display for the biggest hero lines.
+  // Semibold (600) reads cleaner at large sizes than Bold (700), which starts
+  // to look clunky once the type gets above ~36pt.
+  display:         "ClashDisplay-Semibold",
+  displayMedium:   "ClashDisplay-Medium",
+  displayLight:    "ClashDisplay-Medium",
+
+  // Body (Satoshi) — UI chrome, labels, buttons, copy.
+  black:           "Satoshi-Black",
+  extraBold:       "Satoshi-Bold",   // Satoshi has no 800; use 700.
+  bold:            "Satoshi-Bold",
+  semiBold:        "Satoshi-Medium", // Satoshi has no 600; use 500.
+  medium:          "Satoshi-Medium",
+  regular:         "Satoshi-Regular",
+
+  // Legacy "condensed" keys — remapped to Clash Display so existing brand
+  // moments (wordmark, eyebrows, tagline) pick up the sleek display family.
+  condensedBlack:  "ClashDisplay-Semibold",
+  condensedBold:   "ClashDisplay-Medium",
 } as const;
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -722,7 +740,7 @@ const S = StyleSheet.create({
   // Primary headline — the promise, not the slogan.
   splashHeadline: {
     color: "#FFFFFF",
-    fontFamily: F.black,
+    fontFamily: F.display,
     fontSize: 38,
     letterSpacing: -1.4,
     lineHeight: 42,
@@ -730,7 +748,7 @@ const S = StyleSheet.create({
   },
   splashHeadlineAccent: {
     color: ORANGE,
-    fontFamily: F.black,
+    fontFamily: F.display,
   },
   splashSub: {
     color: "#9A9A9A",
@@ -939,14 +957,14 @@ const S = StyleSheet.create({
   },
   fTitle: {
     color: "#FFFFFF",
-    fontFamily: F.black,
+    fontFamily: F.display,
     fontSize: 44,
     letterSpacing: -1.2,
     lineHeight: 44,
   },
   fAccent: {
     color: ORANGE,
-    fontFamily: F.black,
+    fontFamily: F.display,
   },
   fDesc: {
     color: "#888888",
@@ -981,14 +999,14 @@ const S = StyleSheet.create({
   },
   authTitle: {
     color: "#FFFFFF",
-    fontFamily: F.black,
+    fontFamily: F.display,
     fontSize: 52,
     letterSpacing: -1.6,
     lineHeight: 52,
   },
   authDot: {
     color: ORANGE,
-    fontFamily: F.black,
+    fontFamily: F.display,
   },
   tabs: {
     backgroundColor: "#181818",

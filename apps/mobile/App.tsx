@@ -7,19 +7,7 @@ import {
   Text,
   View,
 } from "react-native";
-import {
-  useFonts,
-  Barlow_400Regular,
-  Barlow_500Medium,
-  Barlow_600SemiBold,
-  Barlow_700Bold,
-  Barlow_800ExtraBold,
-  Barlow_900Black,
-} from "@expo-google-fonts/barlow";
-import {
-  BarlowCondensed_700Bold,
-  BarlowCondensed_900Black,
-} from "@expo-google-fonts/barlow-condensed";
+import { useFonts } from "expo-font";
 
 import { AddWorkoutModal } from "./src/components/AddWorkoutModal";
 import { BottomNav } from "./src/components/BottomNav";
@@ -122,14 +110,15 @@ const AUTH_LANDING_AUTH_INDEX = 4;
 export default function App() {
   const themeMode: ThemeMode = "dark";
   const [fontsLoaded] = useFonts({
-    Barlow_400Regular,
-    Barlow_500Medium,
-    Barlow_600SemiBold,
-    Barlow_700Bold,
-    Barlow_800ExtraBold,
-    Barlow_900Black,
-    BarlowCondensed_700Bold,
-    BarlowCondensed_900Black,
+    // Body family — Satoshi (Fontshare). Replaces Barlow.
+    "Satoshi-Regular": require("./assets/fonts/Satoshi-Regular.ttf"),
+    "Satoshi-Medium": require("./assets/fonts/Satoshi-Medium.ttf"),
+    "Satoshi-Bold": require("./assets/fonts/Satoshi-Bold.ttf"),
+    "Satoshi-Black": require("./assets/fonts/Satoshi-Black.ttf"),
+    // Display family — Clash Display (Fontshare). Used for hero headlines.
+    "ClashDisplay-Medium": require("./assets/fonts/ClashDisplay-Medium.ttf"),
+    "ClashDisplay-Semibold": require("./assets/fonts/ClashDisplay-Semibold.ttf"),
+    "ClashDisplay-Bold": require("./assets/fonts/ClashDisplay-Bold.ttf"),
   });
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
