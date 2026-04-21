@@ -173,21 +173,60 @@ export function AuthLandingScreen({
               style={[S.glowBlob, { opacity: glowOpacity, transform: [{ scale: glowScale }] }]}
             />
 
-            {/* Content */}
-            <View style={S.splashContent}>
-              {/* Logo */}
-              <View style={S.logoRow}>
-                <Text style={S.logoText}>Fit</Text>
-                <Text style={[S.logoText, S.logoAccent]}>F</Text>
-                <Text style={S.logoText}>o</Text>
+            {/* Hero — left-aligned editorial stack anchored to the top */}
+            <View style={S.splashHero}>
+              {/* Brand bar: small wordmark + demoted tagline on one row */}
+              <View style={S.brandRow}>
+                <Text style={S.brandWordmark}>
+                  Fit<Text style={S.brandAccent}>F</Text>o
+                </Text>
+                <View style={S.brandDivider} />
+                <Text style={S.brandTagline}>Figure It The F*ck Out</Text>
               </View>
 
-              <Text style={S.tagline}>Figure It The F*ck Out</Text>
-              <Text style={S.splashSub}>
-                Turn fitness content into real{"\n"}workouts — instantly.
+              {/* Primary value headline — the promise, not the slogan */}
+              <Text style={S.splashHeadline}>
+                Turn fitness videos into <Text style={S.splashHeadlineAccent}>real workouts.</Text>
+                
               </Text>
 
-              {/* CTA */}
+             
+
+              {/* Visual proof — input link → parsed workout preview */}
+              <View style={S.proofCard}>
+                <View style={S.proofInputRow}>
+                  <Ionicons color="#A8A8A8" name="logo-tiktok" size={14} />
+                  <Text style={S.proofInputText} numberOfLines={1}>
+                    tiktok.com/@creator/legday
+                  </Text>
+                </View>
+
+                <View style={S.proofArrowRow}>
+                  <View style={S.proofArrowLine} />
+                  <View style={S.proofArrowBadge}>
+                    <Ionicons color={ORANGE} name="sparkles" size={10} />
+                    <Text style={S.proofArrowText}>AI parsing</Text>
+                  </View>
+                  <View style={S.proofArrowLine} />
+                </View>
+
+                <View style={S.proofOutput}>
+                  <View style={S.proofOutputHeader}>
+                    <Text style={S.proofOutputTitle}>Full Leg Day</Text>
+                    <View style={S.proofOutputBadge}>
+                      <Ionicons color={ORANGE} name="checkmark" size={10} />
+                      <Text style={S.proofOutputBadgeText}>Parsed</Text>
+                    </View>
+                  </View>
+                  <ProofRow meta="3 × 8 reps" name="Squats" />
+                  <ProofRow meta="3 × 10 reps" name="Leg Press" />
+                  <ProofRow last meta="3 × 8 reps" name="Romanian Deadlift" />
+                </View>
+              </View>
+            </View>
+
+            {/* Footer — CTA + trust hook + centered legal pinned to bottom */}
+            <View style={S.splashFooter}>
               <View style={S.ctaWrap}>
                 <Animated.View
                   pointerEvents="none"
@@ -197,10 +236,18 @@ export function AuthLandingScreen({
                   onPress={() => onChangeIndex(1)}
                   style={({ pressed }) => [S.ctaBtn, pressed && S.pressed]}
                 >
-                  <Text style={S.ctaBtnText}>Get Started</Text>
-                  <Ionicons color="#050505" name="arrow-forward" size={20} />
+                  <Text style={S.ctaBtnText}>Build your first workout</Text>
+                  <Ionicons color="#050505" name="arrow-forward" size={18} />
                 </Pressable>
               </View>
+
+              <Text style={S.splashTrust}>
+                Takes 10 seconds. Works with TikTok &amp; Instagram.
+              </Text>
+
+              <Text style={S.splashCaption}>
+                By continuing you agree to our Terms &amp; Privacy.
+              </Text>
             </View>
           </LinearGradient>
         </View>
@@ -236,7 +283,6 @@ export function AuthLandingScreen({
                 <View style={S.pillRow}>
                   <Pill label="TikTok videos"   />
                   <Pill label="Instagram Reels" />
-                  <Pill label="Instant parsing" />
                 </View>
               </>
             }
@@ -275,7 +321,6 @@ export function AuthLandingScreen({
                 <View style={S.pillRow}>
                   <Pill label="Live timer"         />
                   <Pill label="Auto-advance sets"  />
-                  <Pill label="Rest tracking"      />
                 </View>
               </>
             }
@@ -522,6 +567,32 @@ function ExRow({ meta, name }: { meta: string; name: string }) {
   );
 }
 
+// Compact exercise row used inside the splash proof card. Smaller and
+// borderless so the preview card stays visually dense but readable.
+function ProofRow({
+  last,
+  meta,
+  name,
+}: {
+  last?: boolean;
+  meta: string;
+  name: string;
+}) {
+  return (
+    <View style={[S.proofRow, last ? S.proofRowLast : null]}>
+      <View style={S.proofRowIcon}>
+        <Ionicons color={ORANGE} name="barbell-outline" size={13} />
+      </View>
+      <View style={S.proofRowCopy}>
+        <Text style={S.proofRowName} numberOfLines={1}>
+          {name}
+        </Text>
+        <Text style={S.proofRowMeta}>{meta}</Text>
+      </View>
+    </View>
+  );
+}
+
 function SlideFooter({
   activeDot,
   nextLabel = "Next",
@@ -584,13 +655,15 @@ const S = StyleSheet.create({
 
   // ── Splash ──
   splashSlide: {
-    alignItems: "center",
+    // Stretch so inner blocks can own their own horizontal alignment.
+    alignItems: "stretch",
     flex: 1,
-    justifyContent: "center",
+    // Two-section layout: hero sits at top, CTA pinned to bottom.
+    justifyContent: "space-between",
     overflow: "hidden",
-    paddingBottom: 54,
-    paddingHorizontal: 28,
-    paddingTop: Platform.OS === "ios" ? 74 : 54,
+    paddingBottom: Platform.OS === "ios" ? 36 : 28,
+    paddingHorizontal: 26,
+    paddingTop: Platform.OS === "ios" ? 64 : 48,
   },
   glowBlob: {
     backgroundColor: "rgba(176, 70, 23, 0.08)",
@@ -607,79 +680,248 @@ const S = StyleSheet.create({
     top: "54%",
     width: 560,
   },
-  splashContent: {
+  splashHero: {
+    alignItems: "flex-start",
+    width: "100%",
+  },
+  splashFooter: {
+    alignItems: "stretch",
+    gap: 10,
+    width: "100%",
+  },
+
+  // Brand bar: wordmark + divider + demoted tagline, one row at the top.
+  brandRow: {
     alignItems: "center",
-    gap: 0,
-  },
-  logoRow: {
-    alignItems: "flex-end",
     flexDirection: "row",
+    gap: 12,
   },
-  logoText: {
+  brandWordmark: {
     color: "#FFFFFF",
     fontFamily: F.condensedBlack,
-    fontSize: 64,
-    letterSpacing: -2,
-    lineHeight: 64,
+    fontSize: 24,
+    letterSpacing: -0.6,
+    lineHeight: 24,
   },
-  logoAccent: {
+  brandAccent: {
     color: ORANGE,
   },
-  tagline: {
-    color: ORANGE,
-    fontFamily: F.condensedBlack,
-    fontSize: 11,
-    letterSpacing: 4,
-    marginTop: 12,
+  brandDivider: {
+    backgroundColor: "rgba(255, 90, 31, 0.45)",
+    height: 1,
+    width: 18,
+  },
+  brandTagline: {
+    color: "rgba(255, 90, 31, 0.85)",
+    fontFamily: F.condensedBold,
+    fontSize: 10,
+    letterSpacing: 2.2,
     textTransform: "uppercase",
   },
+
+  // Primary headline — the promise, not the slogan.
+  splashHeadline: {
+    color: "#FFFFFF",
+    fontFamily: F.black,
+    fontSize: 38,
+    letterSpacing: -1.4,
+    lineHeight: 42,
+    marginTop: 28,
+  },
+  splashHeadlineAccent: {
+    color: ORANGE,
+    fontFamily: F.black,
+  },
   splashSub: {
-    color: "#888888",
+    color: "#9A9A9A",
+    fontFamily: F.regular,
+    fontSize: 15,
+    lineHeight: 22,
+    marginTop: 14,
+    textAlign: "left",
+  },
+
+  // Visual proof card — input link → AI parsing → structured workout.
+  proofCard: {
+    backgroundColor: "rgba(18, 18, 18, 0.88)",
+    borderColor: "rgba(255, 255, 255, 0.06)",
+    borderRadius: 20,
+    borderWidth: 1,
+    gap: 10,
+    marginTop: 26,
+    padding: 14,
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.4,
+    shadowRadius: 24,
+    width: "100%",
+  },
+  proofInputRow: {
+    alignItems: "center",
+    backgroundColor: "#1C1C1C",
+    borderRadius: 12,
+    flexDirection: "row",
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  proofInputText: {
+    color: "#A8A8A8",
+    flex: 1,
     fontFamily: F.medium,
-    fontSize: 17,
-    lineHeight: 26,
-    marginTop: 18,
-    textAlign: "center",
+    fontSize: 12,
+  },
+  proofArrowRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 10,
+    paddingHorizontal: 4,
+  },
+  proofArrowLine: {
+    backgroundColor: "rgba(255, 90, 31, 0.25)",
+    flex: 1,
+    height: 1,
+  },
+  proofArrowBadge: {
+    alignItems: "center",
+    backgroundColor: "rgba(255, 90, 31, 0.12)",
+    borderColor: "rgba(255, 90, 31, 0.35)",
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  proofArrowText: {
+    color: ORANGE,
+    fontFamily: F.extraBold,
+    fontSize: 9,
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+  },
+  proofOutput: {
+    backgroundColor: "#161616",
+    borderRadius: 14,
+    padding: 12,
+  },
+  proofOutputHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 6,
+  },
+  proofOutputTitle: {
+    color: "#FFFFFF",
+    fontFamily: F.extraBold,
+    fontSize: 14,
+    letterSpacing: -0.2,
+  },
+  proofOutputBadge: {
+    alignItems: "center",
+    backgroundColor: "rgba(255, 90, 31, 0.14)",
+    borderRadius: 999,
+    flexDirection: "row",
+    gap: 3,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  proofOutputBadgeText: {
+    color: ORANGE,
+    fontFamily: F.extraBold,
+    fontSize: 9,
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+  },
+  proofRow: {
+    alignItems: "center",
+    borderBottomColor: "rgba(255, 255, 255, 0.05)",
+    borderBottomWidth: 1,
+    flexDirection: "row",
+    gap: 10,
+    paddingVertical: 8,
+  },
+  proofRowLast: {
+    borderBottomWidth: 0,
+    paddingBottom: 2,
+  },
+  proofRowIcon: {
+    alignItems: "center",
+    backgroundColor: "#252525",
+    borderRadius: 8,
+    height: 28,
+    justifyContent: "center",
+    width: 28,
+  },
+  proofRowCopy: {
+    flex: 1,
+  },
+  proofRowName: {
+    color: "#FFFFFF",
+    fontFamily: F.extraBold,
+    fontSize: 12,
+  },
+  proofRowMeta: {
+    color: "#7A7A7A",
+    fontFamily: F.regular,
+    fontSize: 11,
+    marginTop: 1,
   },
   ctaWrap: {
-    alignItems: "center",
+    alignItems: "stretch",
     justifyContent: "center",
-    marginTop: 44,
-    minHeight: 100,
     width: "100%",
   },
   ctaGlow: {
-    backgroundColor: "rgba(255, 90, 31, 0.16)",
+    backgroundColor: "rgba(255, 90, 31, 0.08)",
     borderRadius: 999,
-    height: 108,
+    height: 72,
     position: "absolute",
     shadowColor: "#FF5A1F",
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.58,
-    shadowRadius: 56,
-    width: "88%",
+    shadowOpacity: 0.32,
+    shadowRadius: 32,
+    width: "100%",
   },
   ctaBtn: {
     alignItems: "center",
     backgroundColor: ORANGE,
     borderRadius: 999,
     flexDirection: "row",
-    gap: 12,
+    gap: 10,
     justifyContent: "center",
-    minHeight: 80,
-    paddingHorizontal: 40,
-    paddingVertical: 20,
+    minHeight: 60,
+    paddingHorizontal: 28,
+    paddingVertical: 16,
     shadowColor: "#FF5A1F",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.44,
-    shadowRadius: 30,
-    width: "88%",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.32,
+    shadowRadius: 20,
+    width: "100%",
   },
   ctaBtnText: {
     color: "#050505",
     fontFamily: F.black,
-    fontSize: 19,
-    letterSpacing: 0.3,
+    fontSize: 16,
+    letterSpacing: 0.4,
+  },
+  // Trust hook — sits directly under CTA, left-aligned with rest of column.
+  splashTrust: {
+    color: "#B8B8B8",
+    fontFamily: F.semiBold,
+    fontSize: 13,
+    letterSpacing: 0.1,
+    marginTop: 6,
+    textAlign: "center",
+  },
+  // Legal — pinned to bottom of footer, centered.
+  splashCaption: {
+    color: "#4A4A4A",
+    fontFamily: F.medium,
+    fontSize: 11,
+    letterSpacing: 0.2,
+    marginTop: 2,
+    textAlign: "center",
   },
   pressed: {
     opacity: 0.9,
