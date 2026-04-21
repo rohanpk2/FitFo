@@ -440,6 +440,10 @@ export default function App() {
       setSelectedCompletedWorkout(null);
       setSelectedSavedRoutine(null);
       setIsAddWorkoutVisible(false);
+      // Clear the share-driven state too so the auto-replay effect below
+      // doesn't re-open the modal and kick off a second ingestion job.
+      setSharedIngestUrl(null);
+      setIsShareDrivenIngest(false);
       resetImportFlow();
     },
     [latestImportedRoutine, resetImportFlow],
@@ -555,6 +559,10 @@ export default function App() {
       setSubmitError(null);
       setActiveTab("saved");
       setIsAddWorkoutVisible(false);
+      // Clear the share-driven state too so the auto-replay effect doesn't
+      // re-open the modal and kick off a second ingestion job.
+      setSharedIngestUrl(null);
+      setIsShareDrivenIngest(false);
       resetImportFlow();
     } catch (error) {
       setSubmitError(
