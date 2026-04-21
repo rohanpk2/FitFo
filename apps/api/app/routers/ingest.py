@@ -29,6 +29,10 @@ async def ingest_video(
     http_status: int | None = None
 
     if source_type == "tiktok":
+        # Share-sheet handoffs (iOS Share Extension / Android ACTION_SEND) give us
+        # `tiktok.com/t/<code>` or `vm.tiktok.com/<code>` shortlinks. oEmbed only
+        # accepts canonical `@user/video/<id>` URLs, so resolve the redirect first.
+        normalized = await tiktok_url.resolve_tiktok_shortlink(normalized)
         embed_ok, http_status, err = await tiktok_url.verify_video_via_oembed(normalized)
         if not embed_ok:
             return IngestCheckResponse(
