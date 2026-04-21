@@ -33,7 +33,9 @@ ProviderName = Literal["groq", "openai"]
 GROQ_CHAT_URL = "https://api.groq.com/openai/v1/chat/completions"
 OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions"
 DEFAULT_OPENAI_VISION_MODEL = "gpt-4o-mini"
-DEFAULT_FRAME_COUNT = 6
+DEFAULT_FRAME_COUNT = 12
+SCENE_CHANGE_THRESHOLD = 0.35
+MAX_SCENE_FRAMES = 20
 DEFAULT_PROVIDER_PRIORITY = ("groq", "openai")
 
 
@@ -48,6 +50,20 @@ class OCRExtractionResult:
     fallback_used: bool
     error: str | None = None
     reason: str | None = None
+
+
+def _failure(reason: str, frame_count: int = 0, error: str | None = None) -> OCRExtractionResult:
+    return OCRExtractionResult(
+        text="",
+        ok=False,
+        provider=None,
+        model=None,
+        frame_count=frame_count,
+        char_count=0,
+        fallback_used=False,
+        reason=reason,
+        error=error,
+    )
 
 
 def _clean_text(value: object) -> str:
@@ -177,6 +193,54 @@ def sample_frames(video_path: Path, count: int = DEFAULT_FRAME_COUNT) -> list[by
     return frames
 
 
+def sample_frames_by_scene_change(
+    video_path: Path,
+    *,
+    threshold: float = SCENE_CHANGE_THRESHOLD,
+    max_frames: int = MAX_SCENE_FRAMES,
+) -> list[bytes]:
+    """
+    Extract frames at scene boundaries using ffmpeg's built-in scene detector.
+    Works well for workout videos that cut between exercise slides. Falls back
+    to an empty list so callers can try even sampling instead.
+    """
+    if not video_path.exists():
+        return []
+
+    output_dir = video_path.parent / "frames_scene"
+    output_dir.mkdir(exist_ok=True)
+    out_pattern = str(output_dir / "scene_%04d.jpg")
+
+    cmd = [
+        "ffmpeg",
+        "-y",
+        "-i",
+        str(video_path),
+        "-vf",
+        f"select='gt(scene,{threshold})',scale=512:-2",
+        "-vsync",
+        "vfr",
+        "-q:v",
+        "4",
+        "-frames:v",
+        str(max_frames),
+        out_pattern,
+    ]
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, check=False, timeout=60)
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return []
+
+    if proc.returncode != 0:
+        return []
+
+    frames: list[bytes] = []
+    for path in sorted(output_dir.glob("scene_*.jpg")):
+        if path.stat().st_size > 0:
+            frames.append(path.read_bytes())
+    return frames
+
+
 VISION_SYSTEM_PROMPT = (
     "You are transcribing the on-screen text of a short fitness video. "
     "You will be given a handful of frames sampled from the video. Output "
@@ -231,7 +295,7 @@ async def _request_vision_ocr(
             {"role": "user", "content": _build_user_content(frames)},
         ],
         "temperature": 0,
-        "max_tokens": 800,
+        "max_tokens": 1500,
     }
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -301,42 +365,14 @@ async def extract_on_screen_text(frames: list[bytes]) -> OCRExtractionResult:
     """
     frame_count = len(frames)
     if frame_count == 0:
-        return OCRExtractionResult(
-            text="",
-            ok=False,
-            provider=None,
-            model=None,
-            frame_count=0,
-            char_count=0,
-            fallback_used=False,
-            reason="no_frames",
-        )
+        return _failure("no_frames")
 
     if (os.environ.get("ENABLE_FRAME_OCR") or "1").strip() == "0":
-        return OCRExtractionResult(
-            text="",
-            ok=False,
-            provider=None,
-            model=None,
-            frame_count=frame_count,
-            char_count=0,
-            fallback_used=False,
-            reason="disabled",
-        )
+        return _failure("disabled", frame_count)
 
-    priority = configured_provider_priority()
-    configured = [provider for provider in priority if is_provider_configured(provider)]
+    configured = [p for p in configured_provider_priority() if is_provider_configured(p)]
     if not configured:
-        return OCRExtractionResult(
-            text="",
-            ok=False,
-            provider=None,
-            model=None,
-            frame_count=frame_count,
-            char_count=0,
-            fallback_used=False,
-            reason="no_provider_configured",
-        )
+        return _failure("no_provider_configured", frame_count)
 
     errors: list[str] = []
     for index, provider in enumerate(configured):
@@ -358,16 +394,10 @@ async def extract_on_screen_text(frames: list[bytes]) -> OCRExtractionResult:
             reason=None if text else "no_text_detected",
         )
 
-    return OCRExtractionResult(
-        text="",
-        ok=False,
-        provider=None,
-        model=None,
-        frame_count=frame_count,
-        char_count=0,
-        fallback_used=False,
-        error="; ".join(errors) if errors else "No OCR providers succeeded",
-        reason="provider_error",
+    return _failure(
+        "provider_error",
+        frame_count,
+        "; ".join(errors) if errors else "No OCR providers succeeded",
     )
 
 
@@ -378,30 +408,12 @@ async def extract_on_screen_text_from_video(
 ) -> OCRExtractionResult:
     """Convenience wrapper: sample + extract in a single call."""
     if (os.environ.get("ENABLE_FRAME_OCR") or "1").strip() == "0":
-        return OCRExtractionResult(
-            text="",
-            ok=False,
-            provider=None,
-            model=None,
-            frame_count=0,
-            char_count=0,
-            fallback_used=False,
-            reason="disabled",
-        )
+        return _failure("disabled")
 
-    if not any(
-        is_provider_configured(provider) for provider in configured_provider_priority()
-    ):
-        return OCRExtractionResult(
-            text="",
-            ok=False,
-            provider=None,
-            model=None,
-            frame_count=0,
-            char_count=0,
-            fallback_used=False,
-            reason="no_provider_configured",
-        )
+    if not any(is_provider_configured(p) for p in configured_provider_priority()):
+        return _failure("no_provider_configured")
 
-    frames = sample_frames(video_path, count=count)
+    frames = sample_frames_by_scene_change(video_path)
+    if len(frames) < 2:
+        frames = sample_frames(video_path, count=count)
     return await extract_on_screen_text(frames)
