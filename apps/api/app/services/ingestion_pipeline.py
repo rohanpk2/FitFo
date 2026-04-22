@@ -13,6 +13,7 @@ from app.services import (
     supabase_db,
     tikwm,
     url_detection,
+    visual_analyzer,
     whisper,
     workout_parser,
 )
@@ -77,6 +78,14 @@ def _read_bytes(p: Path) -> bytes:
     return p.read_bytes()
 
 
+_WHISPER_WEAK_CHARS = 30
+
+
+def _transcript_is_weak(text: str) -> bool:
+    """Return True when Whisper text is too short to be useful."""
+    return len((text or "").strip()) < _WHISPER_WEAK_CHARS
+
+
 async def _run_transcription(job_id: str, audio_path: Path) -> None:
     """Send the prepared transcription audio to Whisper and save the transcript."""
     if not audio_path.exists() or audio_path.stat().st_size == 0:
@@ -137,8 +146,13 @@ def _extract_on_screen_text_from_provider_meta(provider_meta: dict | None) -> st
     return ""
 
 
-async def _run_parsing(job_id: str) -> None:
-    """Pull transcript + caption + OCR text, send to LLM, save workout."""
+async def _run_parsing(job_id: str, *, video_path: Path | None = None) -> None:
+    """
+    Pull transcript + caption + OCR text and send to LLM.
+    When all text sources are empty and a video file is available,
+    falls back to the visual-only analysis pipeline which sets the job
+    status to review_pending instead of complete.
+    """
     try:
         transcript_row = supabase_db.get_transcript_by_job(job_id)
     except Exception:
@@ -156,7 +170,12 @@ async def _run_parsing(job_id: str) -> None:
     has_any_source = bool(
         (transcript_text or "").strip() or caption or on_screen_text
     )
+
     if not has_any_source:
+        # Attempt visual-only fallback when the video file is still on disk.
+        if video_path is not None and video_path.exists() and visual_analyzer.is_enabled():
+            await _run_visual_analysis(job_id, video_path, provider_meta)
+            return
         raise IngestionPipelineError(
             "No transcript, caption, or on-screen text found; nothing to parse"
         )
@@ -180,6 +199,31 @@ async def _run_parsing(job_id: str) -> None:
     )
 
     supabase_db.update_ingestion_job(job_id, status="complete")
+
+
+async def _run_visual_analysis(
+    job_id: str,
+    video_path: Path,
+    provider_meta: dict | None,
+) -> None:
+    """
+    Visual-only fallback.  Segments the video, classifies exercise blocks,
+    and stores the result in provider_meta.  Sets job status to
+    'review_pending' so the frontend can show the review UI.
+    """
+    supabase_db.update_ingestion_job(job_id, status="analyzing")
+
+    result = await visual_analyzer.analyze_video(video_path)
+
+    merged = supabase_db.merge_provider_meta(
+        provider_meta,
+        {"visual_analysis": result.to_dict()},
+    )
+    supabase_db.update_ingestion_job(
+        job_id,
+        status="review_pending",
+        provider_meta=merged,
+    )
 
 
 async def _maybe_extract_on_screen_text(
@@ -319,7 +363,7 @@ async def _run_tiktok_pipeline(job_id: str, source_url: str) -> None:
         ) or provider_meta
 
         await _run_transcription(job_id, audio_path)
-        await _run_parsing(job_id)
+        await _run_parsing(job_id, video_path=video_path)
 
 
 async def _run_instagram_pipeline(job_id: str, source_url: str) -> None:
@@ -440,7 +484,7 @@ async def _run_instagram_pipeline(job_id: str, source_url: str) -> None:
 
             await _run_transcription(job_id, audio_path)
 
-        await _run_parsing(job_id)
+        await _run_parsing(job_id, video_path=video_path)
 
 
 async def run_ingestion_job(job_id: str, source_url: str) -> None:

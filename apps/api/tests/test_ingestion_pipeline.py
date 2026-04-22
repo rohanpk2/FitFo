@@ -7,6 +7,31 @@ from unittest.mock import AsyncMock, patch
 from app.services import ingestion_pipeline
 
 
+class TranscriptWeaknessTests(unittest.TestCase):
+    def test_empty_string_is_weak(self):
+        self.assertTrue(ingestion_pipeline._transcript_is_weak(""))
+
+    def test_whitespace_only_is_weak(self):
+        self.assertTrue(ingestion_pipeline._transcript_is_weak("   "))
+
+    def test_short_text_is_weak(self):
+        self.assertTrue(ingestion_pipeline._transcript_is_weak("a" * 29))
+
+    def test_exactly_threshold_is_not_weak(self):
+        self.assertFalse(ingestion_pipeline._transcript_is_weak("a" * 30))
+
+    def test_long_text_is_not_weak(self):
+        self.assertFalse(ingestion_pipeline._transcript_is_weak("10 pushups 3 sets, 3 rounds of squats"))
+
+    def test_padded_text_strips_before_comparing(self):
+        # 30 a's surrounded by spaces — still not weak
+        self.assertFalse(ingestion_pipeline._transcript_is_weak("  " + "a" * 30 + "  "))
+
+    def test_none_coerced_to_empty(self):
+        # type: ignore[arg-type]
+        self.assertTrue(ingestion_pipeline._transcript_is_weak(None))
+
+
 class IngestionPipelineTests(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
         self.update_calls: list[dict] = []
