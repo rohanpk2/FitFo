@@ -49,8 +49,7 @@ class FetchReelPayloadTests(unittest.IsolatedAsyncioTestCase):
             await apify_reel.fetch_reel("https://www.instagram.com/reel/abc123/")
 
         timeout: httpx.Timeout = client_cls.call_args.kwargs["timeout"]
-        self.assertEqual(timeout.read, 60.0)
-        self.assertEqual(timeout.connect, 15.0)
+        self.assertEqual(timeout, httpx.Timeout(60.0, connect=15.0))
 
     async def test_fetch_reel_raises_when_empty_dataset(self) -> None:
         mock_client = self._make_client_mock([])
