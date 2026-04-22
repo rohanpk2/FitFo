@@ -132,6 +132,52 @@ class IngestionPipelineTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(failed_call["status"], "failed")
         self.assertIn("whisper boom", failed_call["error"])
 
+    async def test_instagram_pipeline_marks_failed_when_audio_extraction_fails(self) -> None:
+        async def fake_download(url: str, dest: Path) -> None:
+            dest.write_bytes(b"video")
+
+        with (
+            patch("app.services.ingestion_pipeline._download_to_file", side_effect=fake_download),
+            patch(
+                "app.services.ingestion_pipeline._extract_audio_ffmpeg",
+                side_effect=ingestion_pipeline.IngestionPipelineError("audio extraction failed"),
+            ),
+            patch(
+                "app.services.ingestion_pipeline.apify_reel.fetch_reel",
+                AsyncMock(return_value={"videoUrl": "https://cdn.example.com/video.mp4"}),
+            ),
+            patch(
+                "app.services.ingestion_pipeline.apify_reel.pick_video_url",
+                return_value="https://cdn.example.com/video.mp4",
+            ),
+            patch("app.services.ingestion_pipeline.apify_reel.pick_owner_username", return_value="coach"),
+            patch("app.services.ingestion_pipeline.apify_reel.pick_caption", return_value="workout"),
+            patch(
+                "app.services.ingestion_pipeline.supabase_db.get_ingestion_job",
+                return_value={"provider_meta": {}, "user_id": "user-123"},
+            ),
+            patch(
+                "app.services.ingestion_pipeline.supabase_db.update_ingestion_job",
+                side_effect=self._record_update,
+            ),
+            patch(
+                "app.services.ingestion_pipeline.supabase_db.upload_bytes_to_storage",
+                side_effect=self._record_upload,
+            ),
+            patch(
+                "app.services.ingestion_pipeline.supabase_db.merge_provider_meta",
+                side_effect=ingestion_pipeline.supabase_db.merge_provider_meta,
+            ),
+        ):
+            await ingestion_pipeline.run_ingestion_job(
+                "job-ig-audio-fail",
+                "https://www.instagram.com/reel/abc123/",
+            )
+
+        failed_call = next(call for call in self.update_calls if call.get("status") == "failed")
+        self.assertIn("audio extraction failed", failed_call["error"])
+        self.assertFalse(failed_call["provider_meta"]["audio_extraction"]["ok"])
+
     async def test_instagram_pipeline_uses_whisper_and_skips_ocr_when_strong(self) -> None:
         """After the refactor: Whisper is primary. Strong transcript → OCR is skipped."""
 
