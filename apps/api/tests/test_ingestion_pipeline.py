@@ -222,3 +222,35 @@ class IngestionPipelineTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(extraction_meta["reason"], "provider_error")
         self.assertIn("groq timeout", extraction_meta["error"])
         self.assertEqual(self.update_calls[-1]["status"], "complete")
+
+    async def test_run_transcription_returns_transcript_text(self) -> None:
+        import tempfile
+
+        audio_file = Path(tempfile.mkstemp(suffix=".mp3")[1])
+        audio_file.write_bytes(b"fake audio bytes")
+        try:
+            with (
+                patch(
+                    "app.services.ingestion_pipeline.whisper.transcribe_file",
+                    AsyncMock(
+                        return_value={
+                            "text": "3 sets of 10 pushups",
+                            "segments": [],
+                            "language": "en",
+                            "model": "whisper-large-v3-turbo",
+                        }
+                    ),
+                ),
+                patch(
+                    "app.services.ingestion_pipeline.supabase_db.create_transcript",
+                    return_value={"id": "tx-1"},
+                ),
+                patch(
+                    "app.services.ingestion_pipeline.supabase_db.update_ingestion_job",
+                    return_value={},
+                ),
+            ):
+                result = await ingestion_pipeline._run_transcription("job-rt", audio_file)
+            self.assertEqual(result, "3 sets of 10 pushups")
+        finally:
+            audio_file.unlink(missing_ok=True)

@@ -86,7 +86,7 @@ def _transcript_is_weak(text: str | None) -> bool:
     return len((text or "").strip()) < _WHISPER_WEAK_CHARS
 
 
-async def _run_transcription(job_id: str, audio_path: Path) -> None:
+async def _run_transcription(job_id: str, audio_path: Path) -> str:
     """Send the prepared transcription audio to Whisper and save the transcript."""
     if not audio_path.exists() or audio_path.stat().st_size == 0:
         raise IngestionPipelineError("Audio file missing or empty for transcription")
@@ -107,6 +107,7 @@ async def _run_transcription(job_id: str, audio_path: Path) -> None:
     )
 
     supabase_db.update_ingestion_job(job_id, status="parsing")
+    return text
 
 
 def _extract_caption_from_provider_meta(provider_meta: dict | None) -> str:
