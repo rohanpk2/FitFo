@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import logging
 import os
 import subprocess
 import tempfile
+import time
 from pathlib import Path
 
 import httpx
@@ -17,6 +19,9 @@ from app.services import (
     whisper,
     workout_parser,
 )
+
+
+_log = logging.getLogger(__name__)
 
 
 class IngestionPipelineError(RuntimeError):
@@ -369,15 +374,17 @@ async def _run_tiktok_pipeline(job_id: str, source_url: str) -> None:
 
 async def _run_instagram_pipeline(job_id: str, source_url: str) -> None:
     """
-    Instagram branch: Apify scraper returns the video plus a pre-built transcript,
-    so we can skip Whisper when the transcript is present. We still download the
-    video into Supabase Storage so the UI stays symmetric with TikTok imports.
+    Instagram branch: Apify resolves only the CDN video URL (no transcript,
+    no server-side download). Download, audio extraction, Whisper transcription,
+    and lazy OCR all run locally — same pattern as the TikTok pipeline.
     """
     supabase_db.update_ingestion_job(job_id, status="fetching")
 
+    t0 = time.monotonic()
     item = await apify_reel.fetch_reel(source_url)
-    download_url = apify_reel.pick_video_url(item)
-    transcript_text = apify_reel.pick_transcript(item)
+    _log.info("[instagram:%s] apify_resolve=%.1fs", job_id, time.monotonic() - t0)
+
+    download_url = apify_reel.pick_video_url(item)  # raises ApifyReelError if no URL
     owner_username = apify_reel.pick_owner_username(item)
     caption = apify_reel.pick_caption(item)
 
@@ -391,7 +398,6 @@ async def _run_instagram_pipeline(job_id: str, source_url: str) -> None:
             "download_url": download_url,
             "owner_username": owner_username,
             "caption": caption,
-            "has_apify_transcript": bool(transcript_text),
         },
     )
     supabase_db.update_ingestion_job(job_id, provider_meta=provider_meta)
@@ -401,7 +407,10 @@ async def _run_instagram_pipeline(job_id: str, source_url: str) -> None:
         video_path = tmp / "video.mp4"
         audio_path = tmp / "audio.mp3"
 
+        t2 = time.monotonic()
         await _download_to_file(download_url, video_path)
+        _log.info("[instagram:%s] video_download=%.1fs", job_id, time.monotonic() - t2)
+
         provider_meta = supabase_db.merge_provider_meta(
             provider_meta,
             {"downloaded": {"video_bytes": video_path.stat().st_size}},
@@ -420,72 +429,58 @@ async def _run_instagram_pipeline(job_id: str, source_url: str) -> None:
             upsert=True,
         )
 
-        storage_meta: dict[str, object] = {
-            "bucket": bucket,
-            "video_path": video_storage_path,
-        }
-
-        supabase_db.update_ingestion_job(
-            job_id, status="transcribing", provider_meta=provider_meta
-        )
-
-        provider_meta = (
-            await _maybe_extract_on_screen_text(job_id, video_path, provider_meta)
-        ) or provider_meta
-
-        if transcript_text:
-            # Apify already transcribed the reel for us; persist it and move on.
-            supabase_db.create_transcript(
-                job_id,
-                text=transcript_text,
-                segments=None,
-                language=None,
-                model="apify_instagram_reel",
+        try:
+            t4 = time.monotonic()
+            _extract_audio_ffmpeg(video_path, audio_path)
+            _log.info("[instagram:%s] audio_extraction=%.1fs", job_id, time.monotonic() - t4)
+            supabase_db.upload_bytes_to_storage(
+                bucket=bucket,
+                path=audio_storage_path,
+                content=_read_bytes(audio_path),
+                content_type="audio/mpeg",
+                upsert=True,
             )
             provider_meta = supabase_db.merge_provider_meta(
                 provider_meta,
                 {
-                    "transcription_audio_source": "apify",
-                    "storage": storage_meta,
+                    "audio_extraction": {"ok": True},
+                    "transcription_audio_source": "audio",
+                    "storage": {
+                        "bucket": bucket,
+                        "video_path": video_storage_path,
+                        "audio_path": audio_storage_path,
+                    },
                 },
             )
             supabase_db.update_ingestion_job(
-                job_id, status="parsing", provider_meta=provider_meta
+                job_id, status="transcribing", provider_meta=provider_meta
             )
+        except Exception as exc:
+            provider_meta = supabase_db.merge_provider_meta(
+                provider_meta,
+                {"audio_extraction": {"ok": False, "error": str(exc)}},
+            )
+            supabase_db.update_ingestion_job(
+                job_id, status="failed", error=str(exc), provider_meta=provider_meta
+            )
+            return
+
+        t6 = time.monotonic()
+        transcript_text = await _run_transcription(job_id, audio_path)
+        _log.info("[instagram:%s] whisper=%.1fs", job_id, time.monotonic() - t6)
+
+        if _transcript_is_weak(transcript_text):
+            t8 = time.monotonic()
+            provider_meta = (
+                await _maybe_extract_on_screen_text(job_id, video_path, provider_meta)
+            ) or provider_meta
+            _log.info("[instagram:%s] ocr=%.1fs", job_id, time.monotonic() - t8)
         else:
-            # Fallback: extract audio and run Whisper like the TikTok path.
-            try:
-                _extract_audio_ffmpeg(video_path, audio_path)
-                supabase_db.upload_bytes_to_storage(
-                    bucket=bucket,
-                    path=audio_storage_path,
-                    content=_read_bytes(audio_path),
-                    content_type="audio/mpeg",
-                    upsert=True,
-                )
-                storage_meta["audio_path"] = audio_storage_path
-                provider_meta = supabase_db.merge_provider_meta(
-                    provider_meta,
-                    {
-                        "audio_extraction": {"ok": True},
-                        "transcription_audio_source": "audio",
-                        "storage": storage_meta,
-                    },
-                )
-                supabase_db.update_ingestion_job(job_id, provider_meta=provider_meta)
-            except Exception as exc:
-                provider_meta = supabase_db.merge_provider_meta(
-                    provider_meta,
-                    {"audio_extraction": {"ok": False, "error": str(exc)}},
-                )
-                supabase_db.update_ingestion_job(
-                    job_id, status="failed", error=str(exc), provider_meta=provider_meta
-                )
-                return
+            _log.info("[instagram:%s] ocr=skipped(whisper_ok)", job_id)
 
-            await _run_transcription(job_id, audio_path)
-
+        t10 = time.monotonic()
         await _run_parsing(job_id, video_path=video_path)
+        _log.info("[instagram:%s] parsing=%.1fs", job_id, time.monotonic() - t10)
 
 
 async def run_ingestion_job(job_id: str, source_url: str) -> None:
