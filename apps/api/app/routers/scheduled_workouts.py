@@ -87,17 +87,19 @@ def update_scheduled_workout(
     body: ScheduledWorkoutUpdateRequest,
     profile_id: str = Depends(require_profile_id),
 ) -> ScheduledWorkoutResponse:
+    # PATCH supports both scheduling changes (scheduled_for / status) and
+    # user-driven inline content edits (title, description, workout_plan,
+    # etc.). Only the fields present in the request body are patched.
+    patch = body.model_dump(exclude_unset=True)
+    if "scheduled_for" in patch and patch["scheduled_for"] is not None:
+        patch["scheduled_for"] = _parse_date(patch["scheduled_for"], "scheduled_for")
+    if not patch:
+        raise HTTPException(status_code=400, detail="No fields to update")
     try:
-        scheduled_for = (
-            _parse_date(body.scheduled_for, "scheduled_for")
-            if body.scheduled_for
-            else None
-        )
         row = supabase_db.update_scheduled_workout(
             scheduled_workout_id,
             user_id=profile_id,
-            scheduled_for=scheduled_for,
-            status=body.status,
+            fields=patch,
         )
         return ScheduledWorkoutResponse(**row)
     except HTTPException:

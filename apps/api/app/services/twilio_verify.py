@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 from functools import lru_cache
 from pathlib import Path
@@ -7,6 +8,8 @@ from pathlib import Path
 from dotenv import load_dotenv
 from twilio.base.exceptions import TwilioRestException
 from twilio.rest import Client
+
+logger = logging.getLogger(__name__)
 
 
 def _load_env_if_missing() -> None:
@@ -53,20 +56,36 @@ def _friendly_name() -> str:
 
 def send_sms_otp(phone: str):
     service = _client().verify.v2.services(_service_sid())
+    desired_name = _friendly_name()
 
     try:
         return service.verifications.create(
             to=phone,
             channel="sms",
-            custom_friendly_name=_friendly_name(),
+            custom_friendly_name=desired_name,
         )
     except TwilioRestException as exc:
         detail = str(exc.msg or exc).lower()
         if "custom friendly name not allowed" not in detail:
             raise
 
-        # Some Verify services/accounts reject per-verification branding overrides.
-        # In that case, fall back to the service-level friendly name instead.
+        # Some Verify services/accounts reject per-verification branding
+        # overrides. In that case, fall back to the service-level friendly
+        # name instead — but warn loudly so the operator notices, because
+        # Twilio will quietly use whatever is configured on the Verify
+        # Service in the Twilio Console (which may not be "FitFo"). If the
+        # SMS body shows the wrong brand, rename the Verify Service in the
+        # Twilio Console to match TWILIO_VERIFY_FRIENDLY_NAME.
+        logger.warning(
+            "Twilio rejected custom_friendly_name=%r; falling back to the "
+            "service-level friendly name configured in the Twilio Console. "
+            "SMS body branding depends on Service SID %s. Rename the Verify "
+            "Service in the Twilio Console to %r if the SMS shows the wrong "
+            "name.",
+            desired_name,
+            _service_sid(),
+            desired_name,
+        )
         return service.verifications.create(
             to=phone,
             channel="sms",

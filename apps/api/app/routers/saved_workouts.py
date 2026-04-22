@@ -1,7 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.routers.deps import require_profile_id
-from app.schemas.workout_persistence import SavedWorkoutResponse, SavedWorkoutUpsertRequest
+from app.schemas.workout_persistence import (
+    SavedWorkoutResponse,
+    SavedWorkoutUpdateRequest,
+    SavedWorkoutUpsertRequest,
+)
 from app.services import supabase_db
 
 router = APIRouter(prefix="/saved-workouts", tags=["saved-workouts"])
@@ -43,6 +47,33 @@ def save_workout_for_later(
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to save workout: {exc}") from exc
+
+
+@router.patch("/{saved_workout_id}", response_model=SavedWorkoutResponse)
+def update_saved_workout(
+    saved_workout_id: str,
+    body: SavedWorkoutUpdateRequest,
+    profile_id: str = Depends(require_profile_id),
+) -> SavedWorkoutResponse:
+    # Partial update for inline edits (title, description, plan, etc.).
+    # Only fields the client explicitly sent are touched; everything else is
+    # left as-is so a rename doesn't accidentally wipe out the workout plan.
+    patch = body.model_dump(exclude_unset=True)
+    if not patch:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    try:
+        row = supabase_db.update_saved_workout(
+            saved_workout_id,
+            user_id=profile_id,
+            fields=patch,
+        )
+        return SavedWorkoutResponse(**row)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except supabase_db.SupabaseNotConfiguredError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to update saved workout: {exc}") from exc
 
 
 @router.delete("/{saved_workout_id}", response_model=SavedWorkoutResponse)

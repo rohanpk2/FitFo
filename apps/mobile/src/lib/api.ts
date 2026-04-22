@@ -14,6 +14,7 @@ import type {
   SaveOnboardingRequest,
   SaveOnboardingResponse,
   SavedWorkoutRecord,
+  SavedWorkoutUpdateRequest,
   SavedWorkoutUpsertRequest,
   ScheduledWorkoutCreateRequest,
   ScheduledWorkoutRecord,
@@ -209,6 +210,18 @@ export async function saveWorkoutForLater(
 ): Promise<SavedWorkoutRecord> {
   return request<SavedWorkoutRecord>("/saved-workouts", {
     method: "POST",
+    accessToken,
+    body: JSON.stringify(body),
+  });
+}
+
+export async function updateSavedWorkout(
+  accessToken: string,
+  savedWorkoutId: string,
+  body: SavedWorkoutUpdateRequest,
+): Promise<SavedWorkoutRecord> {
+  return request<SavedWorkoutRecord>(`/saved-workouts/${savedWorkoutId}`, {
+    method: "PATCH",
     accessToken,
     body: JSON.stringify(body),
   });

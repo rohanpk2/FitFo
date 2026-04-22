@@ -109,16 +109,24 @@ export function AddWorkoutModal({
   const [isPickingDate, setIsPickingDate] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const autoSubmittedRef = useRef<string | null>(null);
+  const wasVisibleRef = useRef(visible);
   const theme = getTheme(themeMode);
   const styles = createStyles(theme);
 
+  // Reset transient local state when the modal transitions from closed -> open
+  // (not the other way around). Resetting on close would cause the visible
+  // content to flip (e.g. date picker snapping back to the URL form) while the
+  // modal is still fading out, which reads as the modal "popping" a second
+  // time. Parent-driven props (routine, job, etc.) are held stable for the
+  // same reason via a delayed cleanup in App.tsx.
   useEffect(() => {
-    if (!visible) {
+    if (visible && !wasVisibleRef.current) {
       setUrl("");
       setIsPickingDate(false);
       setSelectedDate(null);
       autoSubmittedRef.current = null;
     }
+    wasVisibleRef.current = visible;
   }, [visible]);
 
   useEffect(() => {

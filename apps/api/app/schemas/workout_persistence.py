@@ -15,6 +15,20 @@ class SavedWorkoutUpsertRequest(BaseModel):
     workout_plan: Optional[Dict[str, Any]] = None
 
 
+class SavedWorkoutUpdateRequest(BaseModel):
+    # Partial update for user-driven inline edits on SavedWorkoutDetailScreen.
+    # All fields are optional; only ones the client sends are patched. Fields
+    # like workout_id/job_id are intentionally NOT included — those identify
+    # the provenance of the record and should never change via user edits.
+    title: Optional[str] = Field(default=None, min_length=1, max_length=200)
+    description: Optional[str] = Field(default=None, max_length=2000)
+    meta_left: Optional[str] = Field(default=None, max_length=120)
+    meta_right: Optional[str] = Field(default=None, max_length=120)
+    badge_label: Optional[str] = Field(default=None, max_length=60)
+    workout_plan: Optional[Dict[str, Any]] = None
+    source_url: Optional[str] = Field(default=None, max_length=4096)
+
+
 class SavedWorkoutResponse(BaseModel):
     id: str
     user_id: str

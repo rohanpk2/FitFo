@@ -47,6 +47,8 @@ import {
   saveOnboarding,
   saveWorkoutForLater,
   sendOtp,
+  updateSavedWorkout,
+  updateScheduledWorkout,
   verifyOtp,
 } from "./src/lib/api";
 import { signInWithApple } from "./src/lib/appleAuth";
@@ -73,7 +75,10 @@ import { OnboardingScreen } from "./src/screens/OnboardingScreen";
 import { OtpVerificationScreen } from "./src/screens/OtpVerificationScreen";
 import { ProfileScreen } from "./src/screens/ProfileScreen";
 import { ProgressChartsScreen } from "./src/screens/ProgressChartsScreen";
-import { SavedWorkoutDetailScreen } from "./src/screens/SavedWorkoutDetailScreen";
+import {
+  SavedWorkoutDetailScreen,
+  type SavedRoutineUpdate,
+} from "./src/screens/SavedWorkoutDetailScreen";
 import { SavedWorkoutsScreen } from "./src/screens/SavedWorkoutsScreen";
 import { ScheduledConfirmationScreen } from "./src/screens/ScheduledConfirmationScreen";
 import { WorkoutSummaryScreen } from "./src/screens/WorkoutSummaryScreen";
@@ -203,6 +208,12 @@ export default function App() {
   >(null);
 
   const handledImportedWorkoutId = useRef<string | null>(null);
+  // Tracks any pending post-close cleanup of AddWorkoutModal so we can cancel
+  // it if the user re-opens the modal before the cleanup fires (otherwise a
+  // late reset would wipe out freshly re-populated state).
+  const pendingAddWorkoutCleanupRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
   const { job, workout, error: pollError } = useIngestionJob(jobId, accessToken);
   const theme = getTheme(themeMode);
   const styles = createStyles(theme);
@@ -236,19 +247,49 @@ export default function App() {
     handledImportedWorkoutId.current = null;
   }, []);
 
+  const cancelPendingAddWorkoutCleanup = useCallback(() => {
+    if (pendingAddWorkoutCleanupRef.current) {
+      clearTimeout(pendingAddWorkoutCleanupRef.current);
+      pendingAddWorkoutCleanupRef.current = null;
+    }
+  }, []);
+
+  // Clears state that feeds AddWorkoutModal's visible content after a short
+  // delay so the modal can fade out cleanly without its body visibly snapping
+  // back to the URL-import form mid-animation. Matches the iOS Modal fade-out
+  // duration (~300ms) with a small buffer.
+  const scheduleAddWorkoutCleanup = useCallback(() => {
+    cancelPendingAddWorkoutCleanup();
+    pendingAddWorkoutCleanupRef.current = setTimeout(() => {
+      pendingAddWorkoutCleanupRef.current = null;
+      setSharedIngestUrl(null);
+      setIsShareDrivenIngest(false);
+      resetImportFlow();
+    }, 320);
+  }, [cancelPendingAddWorkoutCleanup, resetImportFlow]);
+
   const handleCloseAddWorkout = useCallback(() => {
+    cancelPendingAddWorkoutCleanup();
     setIsAddWorkoutVisible(false);
     setSharedIngestUrl(null);
     setIsShareDrivenIngest(false);
     resetImportFlow();
-  }, [resetImportFlow]);
+  }, [cancelPendingAddWorkoutCleanup, resetImportFlow]);
 
   const handleOpenAddWorkout = useCallback(() => {
+    cancelPendingAddWorkoutCleanup();
     setIsAddWorkoutVisible(true);
     setSharedIngestUrl(null);
     setIsShareDrivenIngest(false);
     resetImportFlow();
-  }, [resetImportFlow]);
+  }, [cancelPendingAddWorkoutCleanup, resetImportFlow]);
+
+  useEffect(
+    () => () => {
+      cancelPendingAddWorkoutCleanup();
+    },
+    [cancelPendingAddWorkoutCleanup],
+  );
 
   const loadSavedWorkouts = useCallback(async (token: string) => {
     setSavedWorkoutsLoading(true);
@@ -512,9 +553,13 @@ export default function App() {
           scheduledFor: scheduled.scheduled_for,
           origin: isShareDrivenIngest ? "share" : "manual",
         });
-        setSharedIngestUrl(null);
-        setIsShareDrivenIngest(false);
-        resetImportFlow();
+        // Defer clearing the state that feeds AddWorkoutModal's rendered
+        // content (routine, job, share URL) until after the modal has
+        // finished its fade-out animation. Clearing them in the same commit
+        // as setIsAddWorkoutVisible(false) causes the modal's body to snap
+        // from the "Schedule for X" view back to the empty URL-import form
+        // mid-animation, which looks like the modal popping a second time.
+        scheduleAddWorkoutCleanup();
       } catch (error) {
         setSubmitError(
           error instanceof Error
@@ -525,7 +570,14 @@ export default function App() {
         setIsSchedulingWorkout(false);
       }
     },
-    [accessToken, isShareDrivenIngest, job, latestImportedRoutine, resetImportFlow, workout],
+    [
+      accessToken,
+      isShareDrivenIngest,
+      job,
+      latestImportedRoutine,
+      scheduleAddWorkoutCleanup,
+      workout,
+    ],
   );
 
   const handleSaveImportedWorkout = useCallback(async () => {
@@ -558,11 +610,11 @@ export default function App() {
       setSubmitError(null);
       setActiveTab("saved");
       setIsAddWorkoutVisible(false);
-      // Clear the share-driven state too so the auto-replay effect doesn't
-      // re-open the modal and kick off a second ingestion job.
-      setSharedIngestUrl(null);
-      setIsShareDrivenIngest(false);
-      resetImportFlow();
+      // Same rationale as handleScheduleImportedWorkout: defer clearing the
+      // modal's input props (routine/job/share URL) until the fade-out is
+      // done, otherwise the preview visibly snaps back to the URL form while
+      // the modal is still animating closed.
+      scheduleAddWorkoutCleanup();
     } catch (error) {
       setSubmitError(
         error instanceof Error
@@ -572,7 +624,13 @@ export default function App() {
     } finally {
       setIsSavingImportedWorkout(false);
     }
-  }, [accessToken, job, latestImportedRoutine, resetImportFlow, workout]);
+  }, [
+    accessToken,
+    job,
+    latestImportedRoutine,
+    scheduleAddWorkoutCleanup,
+    workout,
+  ]);
 
   const handleUnscheduleWorkout = useCallback(
     async (scheduledWorkoutId: string) => {
@@ -597,6 +655,126 @@ export default function App() {
       }
     },
     [accessToken],
+  );
+
+  const handleUpdateSavedRoutine = useCallback(
+    (updates: SavedRoutineUpdate) => {
+      if (!accessToken) {
+        return;
+      }
+      const targetId = selectedSavedRoutine?.id;
+      if (!targetId) {
+        return;
+      }
+      const scheduledId = selectedSavedRoutine?.scheduledWorkoutId ?? null;
+      const savedId = selectedSavedRoutine?.savedWorkoutId ?? null;
+      // Editing a scheduled view should patch the scheduled_workouts row (so
+      // the calendar stays correct). Editing a plain saved view should patch
+      // saved_workouts. If neither id is present there's nothing to persist.
+      if (!scheduledId && !savedId) {
+        return;
+      }
+
+      // Optimistically merge the edit into the currently-displayed routine
+      // and all cached lists so the UI reflects the change instantly while
+      // the PATCH is in flight. On failure we refetch to snap back.
+      const mergeIntoPreview = (
+        preview: SavedRoutinePreview,
+      ): SavedRoutinePreview => ({
+        ...preview,
+        ...(updates.title !== undefined ? { title: updates.title } : {}),
+        ...(updates.description !== undefined
+          ? { description: updates.description }
+          : {}),
+        ...(updates.workoutPlan !== undefined
+          ? { workoutPlan: updates.workoutPlan }
+          : {}),
+      });
+
+      setSelectedSavedRoutine((current) =>
+        current && current.id === targetId ? mergeIntoPreview(current) : current,
+      );
+      if (savedId) {
+        setSavedWorkouts((current) =>
+          current.map((item) =>
+            item.id === savedId || item.savedWorkoutId === savedId
+              ? mergeIntoPreview(item)
+              : item,
+          ),
+        );
+      }
+      if (scheduledId) {
+        setScheduledWorkouts((current) =>
+          current.map((record) => {
+            if (record.id !== scheduledId) {
+              return record;
+            }
+            return {
+              ...record,
+              title: updates.title ?? record.title,
+              description:
+                updates.description !== undefined
+                  ? updates.description
+                  : record.description,
+              workout_plan:
+                updates.workoutPlan !== undefined
+                  ? updates.workoutPlan
+                  : record.workout_plan,
+            };
+          }),
+        );
+      }
+
+      // Build the actual PATCH body. We only send the fields that changed so
+      // the server-side allowlists leave every other column untouched.
+      const payload: {
+        title?: string;
+        description?: string | null;
+        workout_plan?: WorkoutPlan | null;
+      } = {};
+      if (updates.title !== undefined) {
+        payload.title = updates.title;
+      }
+      if (updates.description !== undefined) {
+        payload.description = updates.description || null;
+      }
+      if (updates.workoutPlan !== undefined) {
+        payload.workout_plan = updates.workoutPlan;
+      }
+      if (Object.keys(payload).length === 0) {
+        return;
+      }
+
+      void (async () => {
+        try {
+          if (scheduledId) {
+            await updateScheduledWorkout(accessToken, scheduledId, payload);
+          } else if (savedId) {
+            await updateSavedWorkout(accessToken, savedId, payload);
+          }
+        } catch (error) {
+          // Best-effort recovery: surface the error on the relevant list and
+          // reload authoritative data so the UI stops showing stale edits.
+          const message =
+            error instanceof Error
+              ? error.message
+              : "Couldn't save that change. Try again.";
+          if (scheduledId) {
+            setScheduledWorkoutsError(message);
+            void loadScheduledWorkouts(accessToken);
+          } else {
+            setSavedWorkoutsError(message);
+            void loadSavedWorkouts(accessToken);
+          }
+        }
+      })();
+    },
+    [
+      accessToken,
+      loadSavedWorkouts,
+      loadScheduledWorkouts,
+      selectedSavedRoutine,
+    ],
   );
 
   const handleRequestScheduleAgainForCompleted = useCallback(
@@ -1371,6 +1549,7 @@ export default function App() {
                 }
               : undefined
           }
+          onUpdate={handleUpdateSavedRoutine}
           removeLabel={isScheduledView ? "Unschedule" : "Unsave"}
           themeMode={themeMode}
         />

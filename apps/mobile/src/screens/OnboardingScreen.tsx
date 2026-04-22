@@ -243,7 +243,7 @@ export function OnboardingScreen({
               <Text style={styles.heroCopyNew}>
                 {isEditing
                   ? `${firstName}, update your goals whenever your training changes.`
-                  : `Hey ${firstName} — pick every goal that fires you up. We'll tune the rest around you.`}
+                  : `Hey ${firstName}, pick every goal that fires you up. We'll tune the rest around you.`}
               </Text>
             </View>
           </LinearGradient>

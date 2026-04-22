@@ -283,6 +283,48 @@ def create_or_update_saved_workout(
     return result.data[0]
 
 
+_SAVED_WORKOUT_UPDATABLE_FIELDS = frozenset(
+    {
+        "title",
+        "description",
+        "meta_left",
+        "meta_right",
+        "badge_label",
+        "workout_plan",
+        "source_url",
+    }
+)
+
+
+def update_saved_workout(
+    saved_workout_id: str,
+    *,
+    user_id: str,
+    fields: Dict[str, Any],
+) -> Dict[str, Any]:
+    # Whitelist so unexpected keys (e.g. user_id, id, workout_id) can't be
+    # smuggled in via the PATCH body. `fields` is already the pydantic
+    # `exclude_unset=True` dict so absent fields won't accidentally null out
+    # columns; we still guard against empty patches at the router level.
+    patch: Dict[str, Any] = {
+        key: value for key, value in fields.items() if key in _SAVED_WORKOUT_UPDATABLE_FIELDS
+    }
+    if not patch:
+        raise ValueError("No fields to update")
+
+    supa = get_supabase()
+    result = (
+        supa.table("saved_workouts")
+        .update(patch)
+        .eq("id", saved_workout_id)
+        .eq("user_id", user_id)
+        .execute()
+    )
+    if not result.data:
+        raise RuntimeError("Saved workout not found")
+    return result.data[0]
+
+
 def delete_saved_workout(saved_workout_id: str, *, user_id: str) -> Dict[str, Any]:
     supa = get_supabase()
     existing = (
@@ -368,22 +410,37 @@ def create_scheduled_workout(
     return result.data[0]
 
 
+_SCHEDULED_WORKOUT_UPDATABLE_FIELDS = frozenset(
+    {
+        "scheduled_for",
+        "status",
+        "title",
+        "description",
+        "meta_left",
+        "meta_right",
+        "badge_label",
+        "workout_plan",
+        "source_url",
+    }
+)
+
+
 def update_scheduled_workout(
     scheduled_workout_id: str,
     *,
     user_id: str,
-    scheduled_for: Optional[str] = None,
-    status: Optional[str] = None,
+    fields: Dict[str, Any],
 ) -> Dict[str, Any]:
-    supa = get_supabase()
-    patch: Dict[str, Any] = {}
-    if scheduled_for is not None:
-        patch["scheduled_for"] = scheduled_for
-    if status is not None:
-        patch["status"] = status
+    # See update_saved_workout for the rationale behind the allowlist.
+    patch: Dict[str, Any] = {
+        key: value
+        for key, value in fields.items()
+        if key in _SCHEDULED_WORKOUT_UPDATABLE_FIELDS
+    }
     if not patch:
         raise ValueError("No fields to update")
 
+    supa = get_supabase()
     result = (
         supa.table("scheduled_workouts")
         .update(patch)

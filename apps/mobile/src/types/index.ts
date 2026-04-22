@@ -298,6 +298,16 @@ export interface SavedWorkoutUpsertRequest {
   workout_plan?: WorkoutPlan | null;
 }
 
+export interface SavedWorkoutUpdateRequest {
+  title?: string;
+  description?: string | null;
+  meta_left?: string | null;
+  meta_right?: string | null;
+  badge_label?: string | null;
+  workout_plan?: WorkoutPlan | null;
+  source_url?: string | null;
+}
+
 export type ScheduledWorkoutStatus =
   | "scheduled"
   | "completed"
@@ -340,6 +350,13 @@ export interface ScheduledWorkoutCreateRequest {
 export interface ScheduledWorkoutUpdateRequest {
   scheduled_for?: string;
   status?: ScheduledWorkoutStatus;
+  title?: string;
+  description?: string | null;
+  meta_left?: string | null;
+  meta_right?: string | null;
+  badge_label?: string | null;
+  workout_plan?: WorkoutPlan | null;
+  source_url?: string | null;
 }
 
 export interface CompletedWorkoutRecord {

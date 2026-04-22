@@ -21,8 +21,18 @@ class ScheduledWorkoutCreateRequest(BaseModel):
 
 
 class ScheduledWorkoutUpdateRequest(BaseModel):
+    # Partial update: re-schedule, mark completed/skipped, and inline-edit
+    # the user-facing content fields (title/description/plan/etc.) so the
+    # detail screen can save edits without going through a separate endpoint.
     scheduled_for: Optional[str] = Field(default=None, min_length=10, max_length=10)
     status: Optional[ScheduledWorkoutStatus] = None
+    title: Optional[str] = Field(default=None, min_length=1, max_length=200)
+    description: Optional[str] = Field(default=None, max_length=2000)
+    meta_left: Optional[str] = Field(default=None, max_length=120)
+    meta_right: Optional[str] = Field(default=None, max_length=120)
+    badge_label: Optional[str] = Field(default=None, max_length=60)
+    workout_plan: Optional[Dict[str, Any]] = None
+    source_url: Optional[str] = Field(default=None, max_length=4096)
 
 
 class ScheduledWorkoutResponse(BaseModel):

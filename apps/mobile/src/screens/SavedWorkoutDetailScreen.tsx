@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import {
   Alert,
   Image,
@@ -10,18 +11,41 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
+import { InlineEditableText } from "../components/InlineEditableText";
 import { getCreatorHandle, titleCase } from "../lib/fitfo";
 import {
   MUSCLE_GROUP_LABELS,
   getMuscleGroupsForPlan,
 } from "../lib/muscleGroups";
 import { getTheme, type ThemeMode } from "../theme";
-import type { SavedRoutinePreview, WorkoutExercise } from "../types";
+import type {
+  SavedRoutinePreview,
+  WorkoutBlock,
+  WorkoutExercise,
+  WorkoutPlan,
+} from "../types";
+
+/**
+ * Partial inline-edit patch dispatched to the parent. The parent is
+ * responsible for merging it into local state AND PATCH-ing the backend
+ * (saved vs scheduled workout) — the screen stays dumb about persistence.
+ */
+export interface SavedRoutineUpdate {
+  title?: string;
+  description?: string;
+  workoutPlan?: WorkoutPlan;
+}
 
 interface SavedWorkoutDetailScreenProps {
   onBack: () => void;
   onRemove?: () => void;
   onStart: () => void;
+  /**
+   * Fired whenever the user commits an inline edit (on blur / submit). The
+   * parent should update its cached routine optimistically and fire the
+   * corresponding PATCH. When omitted, every field renders as read-only.
+   */
+  onUpdate?: (updates: SavedRoutineUpdate) => void;
   removeLabel?: string;
   routine: SavedRoutinePreview;
   themeMode?: ThemeMode;
@@ -71,28 +95,6 @@ function getSourceLabel(
   return "Open source";
 }
 
-function formatExerciseTargetLine(exercise: WorkoutExercise): string {
-  const parts: string[] = [];
-
-  if (exercise.sets != null && exercise.reps != null) {
-    parts.push(`${exercise.sets} × ${exercise.reps} reps`);
-  } else if (exercise.sets != null && exercise.duration_sec != null) {
-    parts.push(`${exercise.sets} × ${exercise.duration_sec}s`);
-  } else if (exercise.sets != null) {
-    parts.push(`${exercise.sets} sets`);
-  } else if (exercise.reps != null) {
-    parts.push(`${exercise.reps} reps`);
-  } else if (exercise.duration_sec != null) {
-    parts.push(`${exercise.duration_sec}s`);
-  }
-
-  if (exercise.rest_sec != null) {
-    parts.push(`${exercise.rest_sec}s rest`);
-  }
-
-  return parts.join(" • ");
-}
-
 function formatScheduledDate(isoDate: string | undefined): string | null {
   if (!isoDate) {
     return null;
@@ -110,10 +112,65 @@ function formatScheduledDate(isoDate: string | undefined): string | null {
   }
 }
 
+/**
+ * Immutably replaces one exercise inside a plan. We build a new plan with
+ * fresh block / exercise references so React sees the props as changed and
+ * re-renders the relevant rows.
+ */
+function replaceExercise(
+  plan: WorkoutPlan,
+  blockIndex: number,
+  exerciseIndex: number,
+  next: WorkoutExercise,
+): WorkoutPlan {
+  const blocks = plan.blocks.map((block, bIdx) => {
+    if (bIdx !== blockIndex) {
+      return block;
+    }
+    const exercises = (block.exercises || []).map((exercise, eIdx) =>
+      eIdx === exerciseIndex ? next : exercise,
+    );
+    return { ...block, exercises };
+  });
+  return { ...plan, blocks };
+}
+
+function replaceBlock(
+  plan: WorkoutPlan,
+  blockIndex: number,
+  next: WorkoutBlock,
+): WorkoutPlan {
+  const blocks = plan.blocks.map((block, bIdx) =>
+    bIdx === blockIndex ? next : block,
+  );
+  return { ...plan, blocks };
+}
+
+/**
+ * Parse a user-typed integer field. Empty input clears the value; non-numeric
+ * or negative input is rejected by returning `undefined` so we preserve the
+ * existing value.
+ */
+function parseIntegerInput(raw: string): number | null | undefined {
+  const trimmed = raw.trim();
+  if (trimmed.length === 0) {
+    return null;
+  }
+  if (!/^\d+$/.test(trimmed)) {
+    return undefined;
+  }
+  const n = Number.parseInt(trimmed, 10);
+  if (!Number.isFinite(n) || n < 0) {
+    return undefined;
+  }
+  return n;
+}
+
 export function SavedWorkoutDetailScreen({
   onBack,
   onRemove,
   onStart,
+  onUpdate,
   removeLabel = "Unsave",
   routine,
   themeMode = "light",
@@ -139,6 +196,45 @@ export function SavedWorkoutDetailScreen({
   // LLM pipeline so the user knows it's AI-generated and may contain errors.
   // Manual workouts (no source URL, no parsed plan) don't get the badge.
   const isAiGenerated = Boolean(sourceUrl && plan && totalExercises > 0);
+
+  const canEdit = Boolean(onUpdate);
+
+  // Stable references to the commit handlers so InlineEditableText's `onSave`
+  // doesn't churn on every render.
+  const handleSaveTitle = useMemo(
+    () => (next: string) => {
+      const trimmed = next.trim();
+      if (!trimmed || trimmed === routine.title) {
+        return;
+      }
+      onUpdate?.({ title: trimmed });
+    },
+    [onUpdate, routine.title],
+  );
+
+  const handleSaveDescription = useMemo(
+    () => (next: string) => {
+      if (next === routine.description) {
+        return;
+      }
+      onUpdate?.({ description: next });
+    },
+    [onUpdate, routine.description],
+  );
+
+  const handleSavePlanNotes = useMemo(
+    () => (next: string) => {
+      if (!plan) {
+        return;
+      }
+      const normalized = next.trim() ? next : "";
+      if ((plan.notes || "") === normalized) {
+        return;
+      }
+      onUpdate?.({ workoutPlan: { ...plan, notes: normalized || null } });
+    },
+    [onUpdate, plan],
+  );
 
   const handleReportWorkout = () => {
     const subject = encodeURIComponent(
@@ -169,6 +265,7 @@ export function SavedWorkoutDetailScreen({
       style={styles.container}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
     >
       <View style={styles.header}>
         <Pressable onPress={onBack} style={styles.backButton}>
@@ -191,11 +288,35 @@ export function SavedWorkoutDetailScreen({
             </Text>
           </View>
         </View>
-        <Text style={styles.title}>{routine.title}</Text>
+        {canEdit ? (
+          <InlineEditableText
+            value={routine.title}
+            onSave={handleSaveTitle}
+            placeholder="Untitled workout"
+            maxLength={200}
+            textStyle={styles.title}
+            themeMode={themeMode}
+            hideHint
+          />
+        ) : (
+          <Text style={styles.title}>{routine.title}</Text>
+        )}
         {scheduledLabel ? (
           <Text style={styles.completedAt}>Scheduled for {scheduledLabel}</Text>
         ) : null}
-        {routine.description ? (
+        {canEdit ? (
+          <InlineEditableText
+            value={routine.description || ""}
+            onSave={handleSaveDescription}
+            placeholder="Add a description"
+            multiline
+            maxLength={2000}
+            textStyle={styles.summary}
+            placeholderStyle={styles.summaryPlaceholder}
+            themeMode={themeMode}
+            hideHint
+          />
+        ) : routine.description ? (
           <Text style={styles.summary}>{routine.description}</Text>
         ) : null}
 
@@ -231,7 +352,8 @@ export function SavedWorkoutDetailScreen({
       {(muscleGroups.length > 0 ||
         equipment.length > 0 ||
         creatorHandle ||
-        sourceUrl) && (
+        sourceUrl ||
+        canEdit) && (
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <View style={styles.sectionAccent} />
@@ -298,10 +420,22 @@ export function SavedWorkoutDetailScreen({
             </View>
           ) : null}
 
-          {planNotes ? (
+          {plan && (canEdit || planNotes) ? (
             <View style={styles.detailCard}>
               <Text style={styles.detailLabel}>Notes</Text>
-              <Text style={styles.detailBody}>{planNotes}</Text>
+              {canEdit ? (
+                <InlineEditableText
+                  value={planNotes}
+                  onSave={handleSavePlanNotes}
+                  placeholder="Add workout notes (cues, tempo, etc.)"
+                  multiline
+                  maxLength={2000}
+                  textStyle={styles.detailBody}
+                  themeMode={themeMode}
+                />
+              ) : (
+                <Text style={styles.detailBody}>{planNotes}</Text>
+              )}
             </View>
           ) : null}
         </View>
@@ -320,16 +454,87 @@ export function SavedWorkoutDetailScreen({
               if (exercises.length === 0) {
                 return null;
               }
+
+              const handleSaveBlockName = (next: string) => {
+                const trimmed = next.trim();
+                const nextValue = trimmed.length > 0 ? trimmed : null;
+                if ((block.name || null) === nextValue) {
+                  return;
+                }
+                onUpdate?.({
+                  workoutPlan: replaceBlock(plan, blockIndex, {
+                    ...block,
+                    name: nextValue,
+                  }),
+                });
+              };
+
               return (
                 <View
                   key={`${block.name || "block"}-${blockIndex}`}
                   style={styles.blockCard}
                 >
-                  {block.name ? (
+                  {canEdit ? (
+                    <InlineEditableText
+                      value={block.name || ""}
+                      onSave={handleSaveBlockName}
+                      placeholder="Name this block"
+                      maxLength={120}
+                      textStyle={styles.blockName}
+                      themeMode={themeMode}
+                    />
+                  ) : block.name ? (
                     <Text style={styles.blockName}>{block.name}</Text>
                   ) : null}
                   {exercises.map((exercise, exerciseIndex) => {
-                    const targetLine = formatExerciseTargetLine(exercise);
+                    // Each of these handlers captures the current indices so
+                    // on-blur saves always patch the right exercise even if
+                    // the user edits several in rapid succession.
+                    const saveExercise = (next: WorkoutExercise) => {
+                      onUpdate?.({
+                        workoutPlan: replaceExercise(
+                          plan,
+                          blockIndex,
+                          exerciseIndex,
+                          next,
+                        ),
+                      });
+                    };
+
+                    const handleSaveName = (nextName: string) => {
+                      const trimmed = nextName.trim();
+                      if (!trimmed || trimmed === exercise.name) {
+                        return;
+                      }
+                      saveExercise({ ...exercise, name: trimmed });
+                    };
+
+                    const handleSaveNotes = (nextNotes: string) => {
+                      const normalized = nextNotes.trim()
+                        ? nextNotes
+                        : "";
+                      if ((exercise.notes || "") === normalized) {
+                        return;
+                      }
+                      saveExercise({
+                        ...exercise,
+                        notes: normalized || null,
+                      });
+                    };
+
+                    const handleSaveIntField = (
+                      field: "sets" | "reps" | "duration_sec" | "rest_sec",
+                    ) => (raw: string) => {
+                      const parsed = parseIntegerInput(raw);
+                      if (parsed === undefined) {
+                        return;
+                      }
+                      if (exercise[field] === parsed) {
+                        return;
+                      }
+                      saveExercise({ ...exercise, [field]: parsed });
+                    };
+
                     return (
                       <View
                         key={`${exercise.name}-${exerciseIndex}`}
@@ -344,24 +549,52 @@ export function SavedWorkoutDetailScreen({
                             />
                           </View>
                           <View style={styles.exerciseCopy}>
-                            <Text style={styles.exerciseName}>
-                              {titleCase(exercise.name) || exercise.name}
-                            </Text>
-                            {targetLine ? (
-                              <Text style={styles.exerciseSubtitle}>
-                                {targetLine}
+                            {canEdit ? (
+                              <InlineEditableText
+                                value={
+                                  titleCase(exercise.name) || exercise.name
+                                }
+                                onSave={handleSaveName}
+                                placeholder="Exercise name"
+                                maxLength={120}
+                                textStyle={styles.exerciseName}
+                                themeMode={themeMode}
+                                hideHint
+                              />
+                            ) : (
+                              <Text style={styles.exerciseName}>
+                                {titleCase(exercise.name) || exercise.name}
                               </Text>
-                            ) : null}
+                            )}
+                            <ExerciseTargetRow
+                              exercise={exercise}
+                              canEdit={canEdit}
+                              themeMode={themeMode}
+                              onSaveField={handleSaveIntField}
+                              styles={styles}
+                            />
                           </View>
                         </View>
-                        {exercise.notes ? (
+                        {canEdit || exercise.notes ? (
                           <View style={styles.exerciseNoteCard}>
                             <Text style={styles.exerciseNoteLabel}>
                               Coach Notes
                             </Text>
-                            <Text style={styles.exerciseNoteBody}>
-                              {exercise.notes}
-                            </Text>
+                            {canEdit ? (
+                              <InlineEditableText
+                                value={exercise.notes || ""}
+                                onSave={handleSaveNotes}
+                                placeholder="Add form cues, tempo, or a reminder"
+                                multiline
+                                maxLength={1000}
+                                textStyle={styles.exerciseNoteBody}
+                                themeMode={themeMode}
+                              />
+                            ) : (
+                              <Text style={styles.exerciseNoteBody}>
+                                {exercise.notes}
+                              </Text>
+                            )}
                           </View>
                         ) : null}
                       </View>
@@ -405,6 +638,123 @@ export function SavedWorkoutDetailScreen({
         </View>
       ) : null}
     </ScrollView>
+  );
+}
+
+/**
+ * Renders the sets × reps / duration / rest "target" row. In edit mode each
+ * number becomes its own tiny inline input so the user can change one value
+ * without retyping the whole string.
+ */
+function ExerciseTargetRow({
+  exercise,
+  canEdit,
+  themeMode,
+  onSaveField,
+  styles,
+}: {
+  exercise: WorkoutExercise;
+  canEdit: boolean;
+  themeMode: ThemeMode;
+  onSaveField: (
+    field: "sets" | "reps" | "duration_sec" | "rest_sec",
+  ) => (raw: string) => void;
+  styles: ReturnType<typeof createStyles>;
+}) {
+  if (!canEdit) {
+    const parts: string[] = [];
+    if (exercise.sets != null && exercise.reps != null) {
+      parts.push(`${exercise.sets} × ${exercise.reps} reps`);
+    } else if (exercise.sets != null && exercise.duration_sec != null) {
+      parts.push(`${exercise.sets} × ${exercise.duration_sec}s`);
+    } else if (exercise.sets != null) {
+      parts.push(`${exercise.sets} sets`);
+    } else if (exercise.reps != null) {
+      parts.push(`${exercise.reps} reps`);
+    } else if (exercise.duration_sec != null) {
+      parts.push(`${exercise.duration_sec}s`);
+    }
+    if (exercise.rest_sec != null) {
+      parts.push(`${exercise.rest_sec}s rest`);
+    }
+    if (parts.length === 0) {
+      return null;
+    }
+    return <Text style={styles.exerciseSubtitle}>{parts.join(" • ")}</Text>;
+  }
+
+  return (
+    <View style={styles.targetRow}>
+      <TargetField
+        label="Sets"
+        value={exercise.sets}
+        onSave={onSaveField("sets")}
+        themeMode={themeMode}
+        styles={styles}
+      />
+      <TargetField
+        label="Reps"
+        value={exercise.reps}
+        onSave={onSaveField("reps")}
+        themeMode={themeMode}
+        styles={styles}
+      />
+      <TargetField
+        label="Duration"
+        value={exercise.duration_sec}
+        unit="s"
+        onSave={onSaveField("duration_sec")}
+        themeMode={themeMode}
+        styles={styles}
+      />
+      <TargetField
+        label="Rest"
+        value={exercise.rest_sec}
+        unit="s"
+        onSave={onSaveField("rest_sec")}
+        themeMode={themeMode}
+        styles={styles}
+      />
+    </View>
+  );
+}
+
+function TargetField({
+  label,
+  value,
+  unit,
+  onSave,
+  themeMode,
+  styles,
+}: {
+  label: string;
+  value: number | null;
+  unit?: string;
+  onSave: (raw: string) => void;
+  themeMode: ThemeMode;
+  styles: ReturnType<typeof createStyles>;
+}) {
+  const displayValue = value == null ? "" : String(value);
+  return (
+    <View style={styles.targetField}>
+      <Text style={styles.targetLabel}>{label}</Text>
+      <View style={styles.targetValueRow}>
+        <InlineEditableText
+          value={displayValue}
+          onSave={onSave}
+          placeholder="—"
+          keyboardType="number-pad"
+          maxLength={4}
+          textStyle={styles.targetValue}
+          placeholderStyle={styles.targetPlaceholder}
+          themeMode={themeMode}
+          hideHint
+        />
+        {unit && displayValue.length > 0 ? (
+          <Text style={styles.targetUnit}>{unit}</Text>
+        ) : null}
+      </View>
+    </View>
   );
 }
 
@@ -487,6 +837,9 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       color: theme.colors.surface,
       fontSize: 15,
       lineHeight: 22,
+    },
+    summaryPlaceholder: {
+      color: "rgba(255, 255, 255, 0.7)",
     },
     heroStats: {
       flexDirection: "row",
@@ -752,7 +1105,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     },
     exerciseCopy: {
       flex: 1,
-      gap: 4,
+      gap: 6,
     },
     exerciseName: {
       color: theme.colors.textPrimary,
@@ -808,5 +1161,45 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       fontSize: 13,
       lineHeight: 19,
       textAlign: "center",
+    },
+    targetRow: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 14,
+      marginTop: 2,
+    },
+    targetField: {
+      minWidth: 64,
+      gap: 2,
+    },
+    targetLabel: {
+      color: theme.colors.textMuted,
+      fontSize: 10,
+      fontFamily: "Satoshi-Black",
+      fontWeight: "900",
+      letterSpacing: 1,
+      textTransform: "uppercase",
+    },
+    targetValueRow: {
+      flexDirection: "row",
+      alignItems: "baseline",
+      gap: 2,
+    },
+    targetValue: {
+      color: theme.colors.textPrimary,
+      fontSize: 18,
+      fontFamily: "Satoshi-Bold",
+      fontWeight: "800",
+      minWidth: 24,
+    },
+    targetPlaceholder: {
+      color: theme.colors.textMuted,
+      fontStyle: "normal",
+    },
+    targetUnit: {
+      color: theme.colors.textMuted,
+      fontSize: 14,
+      fontFamily: "Satoshi-Bold",
+      fontWeight: "700",
     },
   });
