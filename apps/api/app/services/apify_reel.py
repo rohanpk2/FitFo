@@ -34,12 +34,13 @@ async def fetch_reel(source_url: str) -> dict[str, Any]:
     payload = {
         "username": [source_url],
         "resultsLimit": 1,
-        "includeTranscript": True,
-        "includeDownloadedVideo": True,
+        "includeTranscript": False,
+        "includeDownloadedVideo": False,
         "skipPinnedPosts": False,
     }
-    # The Apify actor can take 15-60s to return a reel with transcript.
-    timeout = httpx.Timeout(180.0, connect=15.0)
+    # Apify only needs to resolve metadata now (no transcript, no server-side download).
+    # 60s is generous for a page scrape that just returns the CDN video URL.
+    timeout = httpx.Timeout(60.0, connect=15.0)
     params = {"token": token}
 
     try:
