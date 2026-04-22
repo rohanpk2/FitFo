@@ -185,3 +185,34 @@ async def parse_transcript_to_workout(
         raise WorkoutParserError(f"Missing 'blocks' key in parsed workout: {list(plan.keys())}")
 
     return plan
+
+
+def build_workout_from_visual_blocks(confirmed_blocks: list[dict[str, Any]]) -> dict[str, Any]:
+    """
+    Build a WorkoutPlan dict from user-confirmed visual analysis blocks.
+    Sets/reps are left null because they cannot be determined from video alone.
+    Only blocks with segment_type == "exercise" and a non-null exercise_label
+    are included.
+    """
+    exercises = []
+    for block in confirmed_blocks:
+        label = block.get("exercise_label") or block.get("exercise_key")
+        if not label or block.get("segment_type") != "exercise":
+            continue
+        exercises.append({
+            "name": label,
+            "sets": None,
+            "reps": None,
+            "duration_sec": None,
+            "rest_sec": None,
+            "notes": "Detected visually — confirm sets and reps before training",
+        })
+
+    return {
+        "title": None,
+        "workout_type": "strength",
+        "muscle_groups": [],
+        "equipment": [],
+        "blocks": [{"name": None, "exercises": exercises}],
+        "notes": "Created from visual analysis. Review and edit before use.",
+    }

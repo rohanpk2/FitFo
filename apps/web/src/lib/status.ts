@@ -32,6 +32,18 @@ const STATUS_MAP: Record<JobStatus, StatusInfo> = {
     color: "text-purple-500",
     progressPercent: 80,
   },
+  analyzing: {
+    label: "Analyzing",
+    description: "Analyzing video — no audio detected, scanning visually…",
+    color: "text-amber-500",
+    progressPercent: 70,
+  },
+  review_pending: {
+    label: "Review",
+    description: "Visual analysis complete — review detected exercises",
+    color: "text-sky-500",
+    progressPercent: 90,
+  },
   complete: {
     label: "Ready",
     description: "Workout ready!",

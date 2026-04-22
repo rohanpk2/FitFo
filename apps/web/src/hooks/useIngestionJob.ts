@@ -2,15 +2,21 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { getJob, getWorkoutByJob } from "@/lib/api";
-import type { JobResponse, JobStatus, WorkoutRow } from "@/types";
+import { getJob, getVisualBlocks, getWorkoutByJob } from "@/lib/api";
+import type {
+  JobResponse,
+  JobStatus,
+  VisualAnalysis,
+  WorkoutRow,
+} from "@/types";
 
 const POLL_INTERVAL_MS = 1500;
-const TERMINAL_STATUSES: JobStatus[] = ["complete", "failed"];
+const TERMINAL_STATUSES: JobStatus[] = ["complete", "failed", "review_pending"];
 
 interface UseIngestionJobReturn {
   job: JobResponse | null;
   workout: WorkoutRow | null;
+  visualAnalysis: VisualAnalysis | null;
   error: string | null;
   isPolling: boolean;
 }
@@ -18,6 +24,7 @@ interface UseIngestionJobReturn {
 export function useIngestionJob(jobId: string | null): UseIngestionJobReturn {
   const [job, setJob] = useState<JobResponse | null>(null);
   const [workout, setWorkout] = useState<WorkoutRow | null>(null);
+  const [visualAnalysis, setVisualAnalysis] = useState<VisualAnalysis | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPolling, setIsPolling] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -38,6 +45,7 @@ export function useIngestionJob(jobId: string | null): UseIngestionJobReturn {
 
     setJob(null);
     setWorkout(null);
+    setVisualAnalysis(null);
     setError(null);
     setIsPolling(true);
 
@@ -52,6 +60,14 @@ export function useIngestionJob(jobId: string | null): UseIngestionJobReturn {
             setWorkout(w);
           } catch {
             setError("Workout data not found");
+          }
+          stopPolling();
+        } else if (data.status === "review_pending") {
+          try {
+            const vb = await getVisualBlocks(jobId);
+            setVisualAnalysis(vb.visual_analysis);
+          } catch {
+            setError("Could not load visual analysis results");
           }
           stopPolling();
         } else if (data.status === "failed") {
@@ -70,5 +86,5 @@ export function useIngestionJob(jobId: string | null): UseIngestionJobReturn {
     return () => stopPolling();
   }, [jobId, stopPolling]);
 
-  return { job, workout, error, isPolling };
+  return { job, workout, visualAnalysis, error, isPolling };
 }

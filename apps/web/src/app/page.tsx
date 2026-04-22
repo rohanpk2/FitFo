@@ -4,20 +4,25 @@ import { useCallback, useState } from "react";
 
 import { StatusCard } from "@/components/StatusCard";
 import { TikTokUrlForm } from "@/components/TikTokUrlForm";
+import { VisualReviewView } from "@/components/VisualReviewView";
 import { WorkoutPlanView } from "@/components/WorkoutPlanView";
 import { useIngestionJob } from "@/hooks/useIngestionJob";
-import { createIngestionJob } from "@/lib/api";
+import { createIngestionJob, getWorkoutByJob } from "@/lib/api";
+import type { WorkoutRow } from "@/types";
 
 export default function Home() {
   const [jobId, setJobId] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // workout can arrive from polling OR after visual-review confirmation
+  const [confirmedWorkout, setConfirmedWorkout] = useState<WorkoutRow | null>(null);
 
-  const { job, workout, error: pollError, isPolling } = useIngestionJob(jobId);
+  const { job, workout, visualAnalysis, error: pollError, isPolling } = useIngestionJob(jobId);
 
   const handleSubmit = useCallback(async (url: string) => {
     setSubmitError(null);
     setJobId(null);
+    setConfirmedWorkout(null);
     setIsSubmitting(true);
     try {
       const res = await createIngestionJob(url);
@@ -37,11 +42,34 @@ export default function Home() {
     setJobId(null);
     setSubmitError(null);
     setIsSubmitting(false);
+    setConfirmedWorkout(null);
   }, []);
 
-  const showForm = !jobId && !isSubmitting;
-  const showStatus = job && job.status !== "complete";
-  const showWorkout = job?.status === "complete" && workout?.plan;
+  // Called by VisualReviewView after the user confirms and the backend marks
+  // the job complete.  We re-fetch the workout row to display it.
+  const handleVisualConfirmed = useCallback(async () => {
+    if (!jobId) return;
+    try {
+      const w = await getWorkoutByJob(jobId);
+      setConfirmedWorkout(w);
+    } catch {
+      // show generic success path without plan detail
+      setConfirmedWorkout(null);
+    }
+    setJobId(null); // stop the hook so status card disappears
+  }, [jobId]);
+
+  const activeWorkout = confirmedWorkout ?? workout;
+
+  const showForm = !jobId && !isSubmitting && !activeWorkout;
+  const isInProgress =
+    job &&
+    job.status !== "complete" &&
+    job.status !== "failed" &&
+    job.status !== "review_pending";
+  const showStatus = isInProgress;
+  const showReview = job?.status === "review_pending" && visualAnalysis;
+  const showWorkout = activeWorkout?.plan;
   const error = submitError || pollError;
 
   return (
@@ -63,7 +91,7 @@ export default function Home() {
         )}
 
         {/* Error */}
-        {error && !showStatus && (
+        {error && !showStatus && !showReview && (
           <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
             <p>{error}</p>
             <button
@@ -93,10 +121,19 @@ export default function Home() {
           </div>
         )}
 
+        {/* Visual review — no audio/text detected */}
+        {showReview && (
+          <VisualReviewView
+            jobId={job.id}
+            analysis={visualAnalysis}
+            onConfirmed={handleVisualConfirmed}
+          />
+        )}
+
         {/* Workout Result */}
         {showWorkout && (
           <div className="space-y-6">
-            <WorkoutPlanView plan={workout.plan} />
+            <WorkoutPlanView plan={activeWorkout.plan} />
             <div className="flex justify-center">
               <button
                 onClick={handleReset}

@@ -3,6 +3,8 @@ export type JobStatus =
   | "fetching"
   | "transcribing"
   | "parsing"
+  | "analyzing"
+  | "review_pending"
   | "complete"
   | "failed";
 
@@ -65,4 +67,51 @@ export interface WorkoutRow {
   plan: WorkoutPlan;
   parser_model: string | null;
   created_at: string;
+}
+
+// ---- Visual analysis types ----
+
+export type SegmentType =
+  | "exercise"
+  | "transition"
+  | "rest"
+  | "talking_setup"
+  | "unknown";
+
+export type LowConfidenceReason =
+  | "clip_too_short"
+  | "body_out_of_frame"
+  | "poor_lighting"
+  | "angle_unclear"
+  | "visually_similar"
+  | "low_motion"
+  | "model_uncertain";
+
+export interface VisualBlock {
+  id: string;
+  start_time: number;
+  end_time: number;
+  segment_type: SegmentType;
+  exercise_key: string | null;
+  exercise_label: string | null;
+  confidence: number; // 0.0 – 1.0
+  low_confidence_reasons: LowConfidenceReason[];
+  window_count: number;
+}
+
+export interface VisualAnalysis {
+  ok: boolean;
+  video_duration: number;
+  window_count: number;
+  blocks: VisualBlock[];
+  provider: string | null;
+  model: string | null;
+  error: string | null;
+  reason: string | null;
+}
+
+export interface VisualBlocksResponse {
+  job_id: string;
+  status: JobStatus;
+  visual_analysis: VisualAnalysis;
 }

@@ -1,4 +1,11 @@
-import type { IngestRequest, IngestResponse, JobResponse, WorkoutRow } from "@/types";
+import type {
+  IngestRequest,
+  IngestResponse,
+  JobResponse,
+  VisualBlock,
+  VisualBlocksResponse,
+  WorkoutRow,
+} from "@/types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -48,4 +55,18 @@ export async function getJob(jobId: string): Promise<JobResponse> {
 
 export async function getWorkoutByJob(jobId: string): Promise<WorkoutRow> {
   return request<WorkoutRow>(`/jobs/${jobId}/workout`);
+}
+
+export async function getVisualBlocks(jobId: string): Promise<VisualBlocksResponse> {
+  return request<VisualBlocksResponse>(`/jobs/${jobId}/visual-blocks`);
+}
+
+export async function confirmVisualBlocks(
+  jobId: string,
+  confirmedBlocks: VisualBlock[],
+): Promise<{ ok: boolean; job_id: string }> {
+  return request(`/jobs/${jobId}/visual-blocks/confirm`, {
+    method: "POST",
+    body: JSON.stringify({ confirmed_blocks: confirmedBlocks }),
+  });
 }
