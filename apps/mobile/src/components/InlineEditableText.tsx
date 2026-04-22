@@ -194,6 +194,8 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       padding: 0,
       margin: 0,
       color: theme.colors.textPrimary,
+      fontFamily: "Satoshi-Regular",
+      fontWeight: "400",
     },
     inputActive: {
       // The active editor uses a stronger underline so the transition between

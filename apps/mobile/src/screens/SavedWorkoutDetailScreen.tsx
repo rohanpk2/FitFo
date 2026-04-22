@@ -837,9 +837,13 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       color: theme.colors.surface,
       fontSize: 15,
       lineHeight: 22,
+      fontFamily: "Satoshi-Regular",
+      fontWeight: "400",
     },
     summaryPlaceholder: {
       color: "rgba(255, 255, 255, 0.7)",
+      fontFamily: "Satoshi-Regular",
+      fontWeight: "400",
     },
     heroStats: {
       flexDirection: "row",
@@ -960,6 +964,8 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       color: theme.colors.textSecondary,
       fontSize: 13,
       lineHeight: 19,
+      fontFamily: "Satoshi-Regular",
+      fontWeight: "400",
     },
     section: {
       gap: 14,
@@ -1011,6 +1017,8 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       color: theme.colors.textSecondary,
       fontSize: 15,
       lineHeight: 22,
+      fontFamily: "Satoshi-Regular",
+      fontWeight: "400",
     },
     chipRow: {
       flexDirection: "row",
@@ -1138,6 +1146,8 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       color: theme.colors.textSecondary,
       fontSize: 14,
       lineHeight: 20,
+      fontFamily: "Satoshi-Regular",
+      fontWeight: "400",
     },
     emptyCard: {
       borderRadius: theme.radii.large,
@@ -1195,6 +1205,8 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     targetPlaceholder: {
       color: theme.colors.textMuted,
       fontStyle: "normal",
+      fontFamily: "Satoshi-Bold",
+      fontWeight: "800",
     },
     targetUnit: {
       color: theme.colors.textMuted,
