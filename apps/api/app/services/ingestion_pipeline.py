@@ -81,7 +81,7 @@ def _read_bytes(p: Path) -> bytes:
 _WHISPER_WEAK_CHARS = 30
 
 
-def _transcript_is_weak(text: str) -> bool:
+def _transcript_is_weak(text: str | None) -> bool:
     """Return True when Whisper text is too short to be useful."""
     return len((text or "").strip()) < _WHISPER_WEAK_CHARS
 

@@ -28,7 +28,6 @@ class TranscriptWeaknessTests(unittest.TestCase):
         self.assertFalse(ingestion_pipeline._transcript_is_weak("  " + "a" * 30 + "  "))
 
     def test_none_coerced_to_empty(self):
-        # type: ignore[arg-type]
         self.assertTrue(ingestion_pipeline._transcript_is_weak(None))
 
 
