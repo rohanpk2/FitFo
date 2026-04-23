@@ -1,10 +1,47 @@
 from __future__ import annotations
 
+import subprocess
 import unittest
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from app.services import ingestion_pipeline
+
+
+class HasAudioStreamTests(unittest.TestCase):
+    def test_returns_true_when_ffprobe_finds_audio(self):
+        with patch("app.services.ingestion_pipeline.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0, stdout="audio\n", stderr="")
+            result = ingestion_pipeline.has_audio_stream(Path("/fake/video.mp4"))
+        self.assertTrue(result)
+
+    def test_returns_false_when_ffprobe_finds_no_audio(self):
+        with patch("app.services.ingestion_pipeline.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
+            result = ingestion_pipeline.has_audio_stream(Path("/fake/video.mp4"))
+        self.assertFalse(result)
+
+    def test_returns_true_when_ffprobe_not_found(self):
+        with patch(
+            "app.services.ingestion_pipeline.subprocess.run",
+            side_effect=FileNotFoundError("ffprobe not found"),
+        ):
+            result = ingestion_pipeline.has_audio_stream(Path("/fake/video.mp4"))
+        self.assertTrue(result)
+
+    def test_returns_true_when_ffprobe_times_out(self):
+        with patch(
+            "app.services.ingestion_pipeline.subprocess.run",
+            side_effect=subprocess.TimeoutExpired(cmd=["ffprobe"], timeout=30),
+        ):
+            result = ingestion_pipeline.has_audio_stream(Path("/fake/video.mp4"))
+        self.assertTrue(result)
+
+    def test_returns_true_when_ffprobe_exits_nonzero(self):
+        with patch("app.services.ingestion_pipeline.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=1, stdout="", stderr="error")
+            result = ingestion_pipeline.has_audio_stream(Path("/fake/video.mp4"))
+        self.assertTrue(result)
 
 
 class TranscriptWeaknessTests(unittest.TestCase):

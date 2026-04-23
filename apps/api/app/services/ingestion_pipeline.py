@@ -79,6 +79,30 @@ def _extract_audio_ffmpeg(video_path: Path, audio_path: Path) -> None:
     _run_ffmpeg(cmd, output_path=audio_path, error_prefix="ffmpeg audio extraction failed")
 
 
+def has_audio_stream(video_path: Path) -> bool:
+    """Return True if the video has at least one audio stream.
+
+    Fails open: returns True when ffprobe is unavailable, times out, or exits
+    non-zero so extraction is still attempted rather than silently skipped.
+    Only returns False when ffprobe succeeds with zero returncode and empty output.
+    """
+    cmd = [
+        "ffprobe",
+        "-v", "error",
+        "-select_streams", "a:0",
+        "-show_entries", "stream=codec_type",
+        "-of", "default=noprint_wrappers=1:nokey=1",
+        str(video_path),
+    ]
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, check=False, timeout=30)
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return True
+    if proc.returncode != 0:
+        return True
+    return bool((proc.stdout or "").strip())
+
+
 def _read_bytes(p: Path) -> bytes:
     return p.read_bytes()
 
