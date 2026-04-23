@@ -16,6 +16,13 @@
   --text-primary: #f5f5f4;
   --text-secondary: #a1a1aa;
   --text-muted: #71717a;
+
+  /*
+   * Shared easing + durations so every animation on the site feels like it
+   * comes from the same family — a soft cubic out inspired by Apple / Stripe
+   * marketing pages.
+   */
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /*
@@ -87,4 +94,177 @@ body {
 
 .text-pretty {
   text-wrap: pretty;
+}
+
+/* ─── Motion system ──────────────────────────────────────────────────────── */
+
+/*
+ * Hero entrance — these elements ship invisible and fade/slide in on page
+ * load. Callers set an explicit `animation-delay` to stagger siblings.
+ */
+@keyframes fitfo-enter-up {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fitfo-enter-right {
+  from {
+    opacity: 0;
+    transform: translateX(32px) rotate(var(--enter-rotate, 0deg))
+      scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) rotate(var(--enter-rotate, 0deg)) scale(1);
+  }
+}
+
+.hero-anim {
+  opacity: 0;
+  animation: fitfo-enter-up 800ms var(--ease-out-soft) forwards;
+}
+
+.hero-anim-right {
+  opacity: 0;
+  animation: fitfo-enter-right 1000ms var(--ease-out-soft) forwards;
+}
+
+/*
+ * Scroll-reveal — default state is hidden + offset, `.in-view` is the target
+ * state that the <Reveal> client component applies when the element enters
+ * the viewport.
+ */
+.reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition:
+    opacity 800ms var(--ease-out-soft),
+    transform 800ms var(--ease-out-soft);
+  will-change: opacity, transform;
+}
+
+.reveal-up {
+  transform: translateY(28px);
+}
+
+.reveal-scale {
+  transform: translateY(16px) scale(0.97);
+}
+
+.reveal.in-view {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+/*
+ * Ambient motion — infinite loops that run quietly in the background.
+ */
+@keyframes fitfo-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(var(--float-rotate, 0deg));
+  }
+  50% {
+    transform: translateY(-10px) rotate(var(--float-rotate, 0deg));
+  }
+}
+
+.float {
+  animation: fitfo-float 7s ease-in-out infinite;
+}
+
+.float-slow {
+  animation: fitfo-float 9s ease-in-out infinite;
+}
+
+@keyframes fitfo-pulse-dot {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 0 rgba(255, 106, 44, 0.55),
+      0 0 10px rgba(255, 106, 44, 0.8);
+    transform: scale(1);
+  }
+  70% {
+    box-shadow:
+      0 0 0 8px rgba(255, 106, 44, 0),
+      0 0 14px rgba(255, 106, 44, 0.6);
+    transform: scale(1.08);
+  }
+}
+
+.pulse-dot {
+  animation: fitfo-pulse-dot 2.2s ease-out infinite;
+}
+
+@keyframes fitfo-glow-breathe {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.glow-breathe {
+  animation: fitfo-glow-breathe 6s ease-in-out infinite;
+}
+
+@keyframes fitfo-arrow-nudge {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(3px);
+  }
+}
+
+.arrow-nudge {
+  display: inline-block;
+  animation: fitfo-arrow-nudge 1.8s ease-in-out infinite;
+}
+
+/*
+ * CTA button hover — slight lift + stronger shadow. Works on anything with
+ * the `cta-lift` class on top of Tailwind's transition utilities.
+ */
+.cta-lift {
+  transition:
+    transform 300ms var(--ease-out-soft),
+    box-shadow 300ms var(--ease-out-soft),
+    background-color 300ms var(--ease-out-soft);
+}
+
+.cta-lift:hover {
+  transform: translateY(-2px);
+}
+
+/*
+ * Respect users who've opted out of motion — kill all animation/transition
+ * durations but keep final states intact by applying the `.in-view` target
+ * styles unconditionally.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+
+  .reveal,
+  .hero-anim,
+  .hero-anim-right {
+    opacity: 1 !important;
+    transform: none !important;
+  }
 }

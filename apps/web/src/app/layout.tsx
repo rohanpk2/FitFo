@@ -33,11 +33,11 @@ export const metadata: Metadata = {
     template: "%s · FitFo",
   },
   description:
-    "FitFo turns fitness videos you find on TikTok and Instagram into structured, followable workouts. Paste a link, get a plan you can actually do.",
+    "FitFo turns fitness videos you find on TikTok and Instagram into structured, followable workouts. Available now on the App Store.",
   openGraph: {
-    title: "FitFo - Turn fitness videos into real workouts",
+    title: "FitFo — Now on the App Store",
     description:
-      "Paste any TikTok or Instagram fitness video. FitFo extracts the exercises, sets, and reps into a clean, trackable workout.",
+      "Paste any TikTok or Instagram fitness video. FitFo extracts the exercises, sets, and reps into a clean, trackable workout. Available now on iOS.",
     url: "https://fitfo.app",
     siteName: "FitFo",
     type: "website",
@@ -45,9 +45,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "FitFo, Turn fitness videos into real workouts",
+    title: "FitFo — Now on the App Store",
     description:
-      "Paste any TikTok or Instagram fitness video. FitFo extracts the exercises, sets, and reps into a clean, trackable workout.",
+      "Paste any TikTok or Instagram fitness video. FitFo extracts the exercises, sets, and reps into a clean, trackable workout. Available now on iOS.",
     images: ["/fitfo-logo.png"],
   },
   // Favicon + Apple touch icon are picked up automatically from the

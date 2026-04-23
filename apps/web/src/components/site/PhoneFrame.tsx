@@ -1,5 +1,5 @@
 import Image from "next/image";
-import type { ComponentPropsWithoutRef } from "react";
+import type { ComponentPropsWithoutRef, CSSProperties } from "react";
 
 interface PhoneFrameProps extends ComponentPropsWithoutRef<"div"> {
   src: string;
@@ -13,6 +13,17 @@ interface PhoneFrameProps extends ComponentPropsWithoutRef<"div"> {
   /** Adds a soft orange radial glow behind the phone. */
   glow?: boolean;
   priority?: boolean;
+  /**
+   * Enable the ambient float animation. When `rotate` is also set, the
+   * underlying keyframes compose around it via a CSS custom property so the
+   * phone keeps its tilt while gently bobbing.
+   */
+  float?: boolean | "slow";
+  /**
+   * Persistent rotation applied to the phone (in degrees). Used both as the
+   * resting transform and as the baseline for the float keyframes.
+   */
+  rotate?: number;
 }
 
 /**
@@ -28,21 +39,36 @@ export function PhoneFrame({
   width = 280,
   glow = false,
   priority = false,
+  float = false,
+  rotate,
   className = "",
+  style,
   ...rest
 }: PhoneFrameProps) {
   const height = Math.round(width * 2.17);
 
+  // The ambient float keyframes read `--float-rotate` so any phone with a
+  // persistent tilt keeps its tilt while bobbing. If no rotation is set, the
+  // variable falls back to 0 inside the keyframes.
+  const floatClass = float === "slow" ? "float-slow" : float ? "float" : "";
+  const rotateStyle: CSSProperties | undefined =
+    rotate != null
+      ? ({
+          transform: `rotate(${rotate}deg)`,
+          "--float-rotate": `${rotate}deg`,
+        } as CSSProperties)
+      : undefined;
+
   return (
     <div
-      className={`relative mx-auto ${className}`}
-      style={{ width }}
+      className={`relative mx-auto ${floatClass} ${className}`}
+      style={{ width, ...rotateStyle, ...style }}
       {...rest}
     >
       {glow && (
         <div
           aria-hidden
-          className="bg-orange-glow pointer-events-none absolute -inset-16 -z-10"
+          className="bg-orange-glow glow-breathe pointer-events-none absolute -inset-16 -z-10"
         />
       )}
       <div

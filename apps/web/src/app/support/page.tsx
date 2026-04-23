@@ -136,10 +136,10 @@ const FAQS: { q: string; a: React.ReactNode }[] = [
     a: (
       <>
         <p>
-          FitFo is free to use while we&apos;re in beta. If we add premium
-          features in the future (e.g. higher video volume, advanced analytics)
-          we&apos;ll give everyone plenty of notice and the core &ldquo;paste a
-          link, get a workout&rdquo; loop will always remain available.
+          Yes — FitFo is free to download on the App Store. If we add premium
+          features later (e.g. higher video volume, advanced analytics) we will
+          give everyone plenty of notice and the core &ldquo;paste a link, get
+          a workout&rdquo; loop will always remain available.
         </p>
       </>
     ),

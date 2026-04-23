@@ -101,7 +101,17 @@ export default function MarketingPage() {
                 &ldquo;execution.&rdquo;
               </p>
               <p>
-                FitFo is built by Vaayu Athletics LLC and is available on iOS.
+                FitFo is built by Vaayu Athletics LLC and is available now on
+                the App Store. Download it{" "}
+                <a
+                  href="https://apps.apple.com/app/id6762418380"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-[var(--primary-bright)] underline underline-offset-2"
+                >
+                  here
+                </a>
+                .
               </p>
             </div>
           </div>
@@ -174,7 +184,7 @@ export default function MarketingPage() {
               <Fact term="Product" value="FitFo — iOS fitness app" />
               <Fact term="Launched" value="2026" />
               <Fact term="Platforms" value="iOS (iPhone)" />
-              <Fact term="Price" value="Free during beta" />
+              <Fact term="Price" value="Free to download" />
               <Fact
                 term="Category"
                 value="Health & Fitness"

@@ -42,7 +42,9 @@ export function Nav() {
             Press
           </Link>
           <a
-            href="mailto:nirv@fitfo.app"
+            href="https://apps.apple.com/app/id6762418380"
+            target="_blank"
+            rel="noreferrer"
             className="ml-1 rounded-full bg-[var(--primary)] px-3.5 py-1.5 text-[12px] font-bold text-white shadow-[0_8px_24px_-8px_rgba(255,90,20,0.6)] transition hover:bg-[var(--primary-bright)]"
           >
             Download Now
