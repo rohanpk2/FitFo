@@ -117,57 +117,109 @@ class IngestionPipelineTests(unittest.IsolatedAsyncioTestCase):
             ["jobs/job-123/video.mp4", "jobs/job-123/audio.mp3"],
         )
 
-    async def test_run_ingestion_job_marks_job_failed_when_audio_extraction_fails(self) -> None:
+    async def test_tiktok_pipeline_continues_when_audio_extraction_fails(self) -> None:
         async def fake_download(url: str, dest: Path) -> None:
             dest.write_bytes(b"video")
 
+        run_parsing = AsyncMock()
+        ocr_mock = AsyncMock(return_value=None)
+
         with (
             patch("app.services.ingestion_pipeline._download_to_file", side_effect=fake_download),
+            patch("app.services.ingestion_pipeline.has_audio_stream", return_value=True),
             patch(
                 "app.services.ingestion_pipeline._extract_audio_ffmpeg",
                 side_effect=ingestion_pipeline.IngestionPipelineError("audio extraction failed"),
             ),
+            patch("app.services.ingestion_pipeline._run_parsing", run_parsing),
+            patch("app.services.ingestion_pipeline._maybe_extract_on_screen_text", ocr_mock),
             patch("app.services.ingestion_pipeline.tikwm.resolve_tiktok_url", AsyncMock(return_value={"data": {}})),
             patch("app.services.ingestion_pipeline.tikwm.pick_download_url", return_value="https://cdn.example.com/video.mp4"),
-            patch("app.services.ingestion_pipeline.supabase_db.get_ingestion_job", return_value={"provider_meta": {"oembed_verified": True}}),
-            patch("app.services.ingestion_pipeline.supabase_db.update_ingestion_job", side_effect=self._record_update),
-            patch("app.services.ingestion_pipeline.supabase_db.upload_bytes_to_storage", side_effect=self._record_upload),
+            patch(
+                "app.services.ingestion_pipeline.supabase_db.get_ingestion_job",
+                return_value={"provider_meta": {}},
+            ),
+            patch(
+                "app.services.ingestion_pipeline.supabase_db.update_ingestion_job",
+                side_effect=self._record_update,
+            ),
+            patch(
+                "app.services.ingestion_pipeline.supabase_db.upload_bytes_to_storage",
+                side_effect=self._record_upload,
+            ),
+            patch(
+                "app.services.ingestion_pipeline.supabase_db.merge_provider_meta",
+                side_effect=ingestion_pipeline.supabase_db.merge_provider_meta,
+            ),
         ):
-            await ingestion_pipeline.run_ingestion_job("job-fail", "https://www.tiktok.com/@coach/video/4")
+            await ingestion_pipeline.run_ingestion_job(
+                "job-fail", "https://www.tiktok.com/@coach/video/4"
+            )
 
-        failed_call = next(call for call in self.update_calls if call.get("status") == "failed")
-        self.assertIn("audio extraction failed", failed_call["error"])
-        self.assertFalse(failed_call["provider_meta"]["audio_extraction"]["ok"])
+        failed_calls = [c for c in self.update_calls if c.get("status") == "failed"]
+        self.assertEqual(failed_calls, [])
+        audio_update = next(
+            c for c in self.update_calls
+            if isinstance(c.get("provider_meta"), dict)
+            and c["provider_meta"].get("audio_extraction", {}).get("state") == "audio_extract_failed_nonfatal"
+        )
+        self.assertFalse(audio_update["provider_meta"]["audio_extraction"]["ok"])
+        ocr_mock.assert_awaited_once()
+        run_parsing.assert_awaited_once()
 
-    async def test_run_ingestion_job_marks_job_failed_when_transcription_raises(self) -> None:
+    async def test_tiktok_pipeline_continues_when_transcription_fails(self) -> None:
         async def fake_download(url: str, dest: Path) -> None:
             dest.write_bytes(b"video")
 
         def fake_extract_audio(video_path: Path, audio_path: Path) -> None:
             audio_path.write_bytes(b"full audio")
 
+        run_parsing = AsyncMock()
+        ocr_mock = AsyncMock(return_value=None)
+
         with (
             patch("app.services.ingestion_pipeline._download_to_file", side_effect=fake_download),
+            patch("app.services.ingestion_pipeline.has_audio_stream", return_value=True),
             patch("app.services.ingestion_pipeline._extract_audio_ffmpeg", side_effect=fake_extract_audio),
             patch(
                 "app.services.ingestion_pipeline._run_transcription",
-                side_effect=ingestion_pipeline.IngestionPipelineError("whisper boom"),
+                AsyncMock(side_effect=ingestion_pipeline.IngestionPipelineError("whisper boom")),
             ),
-            patch("app.services.ingestion_pipeline._run_parsing", AsyncMock()),
+            patch("app.services.ingestion_pipeline._run_parsing", run_parsing),
+            patch("app.services.ingestion_pipeline._maybe_extract_on_screen_text", ocr_mock),
             patch("app.services.ingestion_pipeline.tikwm.resolve_tiktok_url", AsyncMock(return_value={"data": {}})),
             patch("app.services.ingestion_pipeline.tikwm.pick_download_url", return_value="https://cdn.example.com/video.mp4"),
-            patch("app.services.ingestion_pipeline.supabase_db.get_ingestion_job", return_value={"provider_meta": {"oembed_verified": True}}),
-            patch("app.services.ingestion_pipeline.supabase_db.update_ingestion_job", side_effect=self._record_update),
-            patch("app.services.ingestion_pipeline.supabase_db.upload_bytes_to_storage", side_effect=self._record_upload),
+            patch(
+                "app.services.ingestion_pipeline.supabase_db.get_ingestion_job",
+                return_value={"provider_meta": {}},
+            ),
+            patch(
+                "app.services.ingestion_pipeline.supabase_db.update_ingestion_job",
+                side_effect=self._record_update,
+            ),
+            patch(
+                "app.services.ingestion_pipeline.supabase_db.upload_bytes_to_storage",
+                side_effect=self._record_upload,
+            ),
+            patch(
+                "app.services.ingestion_pipeline.supabase_db.merge_provider_meta",
+                side_effect=ingestion_pipeline.supabase_db.merge_provider_meta,
+            ),
         ):
-            with self.assertRaisesRegex(ingestion_pipeline.IngestionPipelineError, "whisper boom"):
-                await ingestion_pipeline.run_ingestion_job("job-transcription", "https://www.tiktok.com/@coach/video/5")
+            await ingestion_pipeline.run_ingestion_job(
+                "job-transcription", "https://www.tiktok.com/@coach/video/5"
+            )
 
-        transcribing_call = next(call for call in self.update_calls if call.get("status") == "transcribing")
-        self.assertEqual(transcribing_call["provider_meta"]["transcription_audio_source"], "audio")
-        failed_call = self.update_calls[-1]
-        self.assertEqual(failed_call["status"], "failed")
-        self.assertIn("whisper boom", failed_call["error"])
+        failed_calls = [c for c in self.update_calls if c.get("status") == "failed"]
+        self.assertEqual(failed_calls, [])
+        audio_update = next(
+            c for c in self.update_calls
+            if isinstance(c.get("provider_meta"), dict)
+            and c["provider_meta"].get("audio_extraction", {}).get("state") == "audio_present"
+        )
+        self.assertTrue(audio_update["provider_meta"]["audio_extraction"]["ok"])
+        ocr_mock.assert_awaited_once()
+        run_parsing.assert_awaited_once()
 
     async def test_instagram_pipeline_marks_failed_when_audio_extraction_fails(self) -> None:
         async def fake_download(url: str, dest: Path) -> None:
@@ -482,6 +534,52 @@ class IngestionPipelineTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(extraction_meta["reason"], "provider_error")
         self.assertIn("groq timeout", extraction_meta["error"])
         self.assertEqual(self.update_calls[-1]["status"], "complete")
+
+    async def test_tiktok_pipeline_continues_when_no_audio_stream(self) -> None:
+        async def fake_download(url: str, dest: Path) -> None:
+            dest.write_bytes(b"video")
+
+        run_parsing = AsyncMock()
+        ocr_mock = AsyncMock(return_value=None)
+
+        with (
+            patch("app.services.ingestion_pipeline._download_to_file", side_effect=fake_download),
+            patch("app.services.ingestion_pipeline.has_audio_stream", return_value=False),
+            patch("app.services.ingestion_pipeline._run_parsing", run_parsing),
+            patch("app.services.ingestion_pipeline._maybe_extract_on_screen_text", ocr_mock),
+            patch("app.services.ingestion_pipeline.tikwm.resolve_tiktok_url", AsyncMock(return_value={"data": {}})),
+            patch("app.services.ingestion_pipeline.tikwm.pick_download_url", return_value="https://cdn.example.com/v.mp4"),
+            patch(
+                "app.services.ingestion_pipeline.supabase_db.get_ingestion_job",
+                return_value={"provider_meta": {}},
+            ),
+            patch(
+                "app.services.ingestion_pipeline.supabase_db.update_ingestion_job",
+                side_effect=self._record_update,
+            ),
+            patch(
+                "app.services.ingestion_pipeline.supabase_db.upload_bytes_to_storage",
+                side_effect=self._record_upload,
+            ),
+            patch(
+                "app.services.ingestion_pipeline.supabase_db.merge_provider_meta",
+                side_effect=ingestion_pipeline.supabase_db.merge_provider_meta,
+            ),
+        ):
+            await ingestion_pipeline.run_ingestion_job(
+                "job-tt-silent", "https://www.tiktok.com/@coach/video/9"
+            )
+
+        failed_calls = [c for c in self.update_calls if c.get("status") == "failed"]
+        self.assertEqual(failed_calls, [])
+        audio_update = next(
+            c for c in self.update_calls
+            if isinstance(c.get("provider_meta"), dict)
+            and c["provider_meta"].get("audio_extraction", {}).get("state") == "audio_missing"
+        )
+        self.assertIsNotNone(audio_update)
+        ocr_mock.assert_awaited_once()
+        run_parsing.assert_awaited_once()
 
     async def test_run_transcription_returns_transcript_text(self) -> None:
         import tempfile

@@ -405,7 +405,7 @@ async def _maybe_extract_on_screen_text(
 
 
 async def _run_tiktok_pipeline(job_id: str, source_url: str) -> None:
-    """TikTok branch: resolve via TikWM, extract audio, transcribe with Whisper."""
+    """TikTok branch: resolve via TikWM, attempt audio transcription, always run OCR."""
     supabase_db.update_ingestion_job(job_id, status="fetching")
 
     tikwm_json = await tikwm.resolve_tiktok_url(source_url)
@@ -447,49 +447,22 @@ async def _run_tiktok_pipeline(job_id: str, source_url: str) -> None:
             content_type="video/mp4",
             upsert=True,
         )
-        try:
-            _extract_audio_ffmpeg(video_path, audio_path)
-            supabase_db.upload_bytes_to_storage(
-                bucket=bucket,
-                path=audio_storage_path,
-                content=_read_bytes(audio_path),
-                content_type="audio/mpeg",
-                upsert=True,
-            )
-            provider_meta = supabase_db.merge_provider_meta(
-                provider_meta,
-                {"audio_extraction": {"ok": True}},
-            )
-        except Exception as exc:
-            provider_meta = supabase_db.merge_provider_meta(
-                provider_meta,
-                {"audio_extraction": {"ok": False, "error": str(exc)}},
-            )
-            supabase_db.update_ingestion_job(
-                job_id, status="failed", error=str(exc), provider_meta=provider_meta
-            )
-            return
 
-        provider_meta = supabase_db.merge_provider_meta(
+        _transcript, provider_meta = await _try_audio_transcription(
+            job_id,
+            video_path,
+            audio_path,
             provider_meta,
-            {
-                "transcription_audio_source": "audio",
-                "storage": {
-                    "bucket": bucket,
-                    "video_path": video_storage_path,
-                    "audio_path": audio_storage_path,
-                },
-            },
-        )
-        supabase_db.update_ingestion_job(
-            job_id, status="transcribing", provider_meta=provider_meta
+            log_prefix=f"tiktok:{job_id}",
+            bucket=bucket,
+            video_storage_path=video_storage_path,
+            audio_storage_path=audio_storage_path,
         )
 
         provider_meta = (
             await _maybe_extract_on_screen_text(job_id, video_path, provider_meta)
         ) or provider_meta
 
-        await _run_transcription(job_id, audio_path)
         await _run_parsing(job_id, video_path=video_path)
 
 
