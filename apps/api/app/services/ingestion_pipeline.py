@@ -103,6 +103,81 @@ def has_audio_stream(video_path: Path) -> bool:
     return bool((proc.stdout or "").strip())
 
 
+async def _try_audio_transcription(
+    job_id: str,
+    video_path: Path,
+    audio_path: Path,
+    provider_meta: dict,
+    *,
+    log_prefix: str,
+    bucket: str,
+    video_storage_path: str,
+    audio_storage_path: str,
+) -> tuple[str | None, dict]:
+    """
+    Attempt audio detection, extraction, upload, and transcription. Never raises.
+    Returns (transcript_text | None, updated_provider_meta).
+    Records audio_extraction.state as one of:
+      audio_present | audio_missing | audio_extract_failed_nonfatal
+    """
+    if not has_audio_stream(video_path):
+        _log.info("[%s] audio=audio_missing", log_prefix)
+        updated = supabase_db.merge_provider_meta(
+            provider_meta,
+            {"audio_extraction": {"ok": False, "state": "audio_missing"}},
+        )
+        supabase_db.update_ingestion_job(job_id, provider_meta=updated)
+        return None, updated
+
+    try:
+        _extract_audio_ffmpeg(video_path, audio_path)
+    except Exception as exc:
+        _log.warning("[%s] audio=audio_extract_failed_nonfatal error=%s", log_prefix, exc)
+        updated = supabase_db.merge_provider_meta(
+            provider_meta,
+            {
+                "audio_extraction": {
+                    "ok": False,
+                    "state": "audio_extract_failed_nonfatal",
+                    "error": str(exc),
+                }
+            },
+        )
+        supabase_db.update_ingestion_job(job_id, provider_meta=updated)
+        return None, updated
+
+    supabase_db.upload_bytes_to_storage(
+        bucket=bucket,
+        path=audio_storage_path,
+        content=_read_bytes(audio_path),
+        content_type="audio/mpeg",
+        upsert=True,
+    )
+
+    updated = supabase_db.merge_provider_meta(
+        provider_meta,
+        {
+            "audio_extraction": {"ok": True, "state": "audio_present"},
+            "transcription_audio_source": "audio",
+            "storage": {
+                "bucket": bucket,
+                "video_path": video_storage_path,
+                "audio_path": audio_storage_path,
+            },
+        },
+    )
+    supabase_db.update_ingestion_job(job_id, status="transcribing", provider_meta=updated)
+
+    try:
+        transcript_text = await _run_transcription(job_id, audio_path)
+    except Exception as exc:
+        _log.warning("[%s] transcription_failed error=%s", log_prefix, exc)
+        return None, updated
+
+    _log.info("[%s] audio=audio_present", log_prefix)
+    return transcript_text, updated
+
+
 def _read_bytes(p: Path) -> bytes:
     return p.read_bytes()
 

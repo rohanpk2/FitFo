@@ -514,3 +514,169 @@ class IngestionPipelineTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(result, "3 sets of 10 pushups")
         finally:
             audio_file.unlink(missing_ok=True)
+
+
+class TryAudioTranscriptionTests(unittest.IsolatedAsyncioTestCase):
+    def setUp(self):
+        self.update_calls: list[dict] = []
+        self.upload_calls: list[dict] = []
+
+    def _record_update(self, job_id, **kwargs):
+        self.update_calls.append({"job_id": job_id, **kwargs})
+
+    def _record_upload(self, **kwargs):
+        self.upload_calls.append(kwargs)
+
+    async def test_returns_none_with_audio_missing_state_when_no_audio_stream(self):
+        with (
+            patch("app.services.ingestion_pipeline.has_audio_stream", return_value=False),
+            patch(
+                "app.services.ingestion_pipeline.supabase_db.update_ingestion_job",
+                side_effect=self._record_update,
+            ),
+            patch(
+                "app.services.ingestion_pipeline.supabase_db.merge_provider_meta",
+                side_effect=ingestion_pipeline.supabase_db.merge_provider_meta,
+            ),
+        ):
+            transcript, meta = await ingestion_pipeline._try_audio_transcription(
+                "job-1",
+                Path("/fake/video.mp4"),
+                Path("/fake/audio.mp3"),
+                {},
+                log_prefix="tiktok:job-1",
+                bucket="raw-media",
+                video_storage_path="jobs/job-1/video.mp4",
+                audio_storage_path="jobs/job-1/audio.mp3",
+            )
+        self.assertIsNone(transcript)
+        self.assertEqual(meta["audio_extraction"]["state"], "audio_missing")
+        self.assertFalse(meta["audio_extraction"]["ok"])
+
+    async def test_returns_none_with_nonfatal_state_when_extraction_fails(self):
+        with (
+            patch("app.services.ingestion_pipeline.has_audio_stream", return_value=True),
+            patch(
+                "app.services.ingestion_pipeline._extract_audio_ffmpeg",
+                side_effect=ingestion_pipeline.IngestionPipelineError("ffmpeg failed"),
+            ),
+            patch(
+                "app.services.ingestion_pipeline.supabase_db.update_ingestion_job",
+                side_effect=self._record_update,
+            ),
+            patch(
+                "app.services.ingestion_pipeline.supabase_db.merge_provider_meta",
+                side_effect=ingestion_pipeline.supabase_db.merge_provider_meta,
+            ),
+        ):
+            transcript, meta = await ingestion_pipeline._try_audio_transcription(
+                "job-2",
+                Path("/fake/video.mp4"),
+                Path("/fake/audio.mp3"),
+                {},
+                log_prefix="tiktok:job-2",
+                bucket="raw-media",
+                video_storage_path="jobs/job-2/video.mp4",
+                audio_storage_path="jobs/job-2/audio.mp3",
+            )
+        self.assertIsNone(transcript)
+        self.assertEqual(meta["audio_extraction"]["state"], "audio_extract_failed_nonfatal")
+        self.assertFalse(meta["audio_extraction"]["ok"])
+        self.assertIn("ffmpeg failed", meta["audio_extraction"]["error"])
+
+    async def test_returns_none_when_transcription_fails_but_records_audio_present(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as d:
+            video_path = Path(d) / "video.mp4"
+            audio_path = Path(d) / "audio.mp3"
+            video_path.write_bytes(b"video")
+
+            def fake_extract(vp, ap):
+                ap.write_bytes(b"audio")
+
+            with (
+                patch("app.services.ingestion_pipeline.has_audio_stream", return_value=True),
+                patch("app.services.ingestion_pipeline._extract_audio_ffmpeg", side_effect=fake_extract),
+                patch(
+                    "app.services.ingestion_pipeline._run_transcription",
+                    AsyncMock(side_effect=ingestion_pipeline.IngestionPipelineError("whisper failed")),
+                ),
+                patch(
+                    "app.services.ingestion_pipeline.supabase_db.upload_bytes_to_storage",
+                    side_effect=self._record_upload,
+                ),
+                patch(
+                    "app.services.ingestion_pipeline.supabase_db.update_ingestion_job",
+                    side_effect=self._record_update,
+                ),
+                patch(
+                    "app.services.ingestion_pipeline.supabase_db.merge_provider_meta",
+                    side_effect=ingestion_pipeline.supabase_db.merge_provider_meta,
+                ),
+            ):
+                transcript, meta = await ingestion_pipeline._try_audio_transcription(
+                    "job-3",
+                    video_path,
+                    audio_path,
+                    {},
+                    log_prefix="tiktok:job-3",
+                    bucket="raw-media",
+                    video_storage_path="jobs/job-3/video.mp4",
+                    audio_storage_path="jobs/job-3/audio.mp3",
+                )
+        self.assertIsNone(transcript)
+        self.assertEqual(meta["audio_extraction"]["state"], "audio_present")
+        self.assertTrue(meta["audio_extraction"]["ok"])
+
+    async def test_returns_transcript_and_sets_storage_when_all_succeeds(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as d:
+            video_path = Path(d) / "video.mp4"
+            audio_path = Path(d) / "audio.mp3"
+            video_path.write_bytes(b"video")
+
+            def fake_extract(vp, ap):
+                ap.write_bytes(b"audio")
+
+            with (
+                patch("app.services.ingestion_pipeline.has_audio_stream", return_value=True),
+                patch("app.services.ingestion_pipeline._extract_audio_ffmpeg", side_effect=fake_extract),
+                patch(
+                    "app.services.ingestion_pipeline._run_transcription",
+                    AsyncMock(return_value="3 sets of 10 pushups"),
+                ),
+                patch(
+                    "app.services.ingestion_pipeline.supabase_db.upload_bytes_to_storage",
+                    side_effect=self._record_upload,
+                ),
+                patch(
+                    "app.services.ingestion_pipeline.supabase_db.update_ingestion_job",
+                    side_effect=self._record_update,
+                ),
+                patch(
+                    "app.services.ingestion_pipeline.supabase_db.merge_provider_meta",
+                    side_effect=ingestion_pipeline.supabase_db.merge_provider_meta,
+                ),
+            ):
+                transcript, meta = await ingestion_pipeline._try_audio_transcription(
+                    "job-4",
+                    video_path,
+                    audio_path,
+                    {},
+                    log_prefix="tiktok:job-4",
+                    bucket="raw-media",
+                    video_storage_path="jobs/job-4/video.mp4",
+                    audio_storage_path="jobs/job-4/audio.mp3",
+                )
+        self.assertEqual(transcript, "3 sets of 10 pushups")
+        self.assertEqual(meta["audio_extraction"]["state"], "audio_present")
+        self.assertTrue(meta["audio_extraction"]["ok"])
+        self.assertEqual(meta["transcription_audio_source"], "audio")
+        self.assertEqual(meta["storage"]["audio_path"], "jobs/job-4/audio.mp3")
+        self.assertEqual(meta["storage"]["video_path"], "jobs/job-4/video.mp4")
+        transcribing_update = next(c for c in self.update_calls if c.get("status") == "transcribing")
+        self.assertIsNotNone(transcribing_update)
+        audio_upload = next(c for c in self.upload_calls if c["path"] == "jobs/job-4/audio.mp3")
+        self.assertIsNotNone(audio_upload)
