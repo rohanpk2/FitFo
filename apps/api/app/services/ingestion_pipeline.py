@@ -115,8 +115,15 @@ async def _try_audio_transcription(
     audio_storage_path: str,
 ) -> tuple[str | None, dict]:
     """
-    Attempt audio detection, extraction, upload, and transcription. Never raises.
+    Attempt audio detection, extraction, upload, and transcription.
+    Does not raise on audio-related failures (missing stream, ffmpeg error, upload
+    error, transcription error) — those are caught and recorded in provider_meta.
+    Infrastructure failures (Supabase down, etc.) propagate normally, consistent
+    with the rest of the pipeline.
     Returns (transcript_text | None, updated_provider_meta).
+    transcript_text is None on any non-success path, including when audio was
+    successfully uploaded but transcription failed — in that case
+    audio_extraction.state is still "audio_present" / ok=True.
     Records audio_extraction.state as one of:
       audio_present | audio_missing | audio_extract_failed_nonfatal
     """
