@@ -25,10 +25,10 @@ const FAQS: { q: string; a: React.ReactNode }[] = [
           <li>
             Still nothing? Email us at{" "}
             <a
-              href="mailto:support@fitfo.app"
+              href="mailto:nirv@fitfo.app"
               className="text-[var(--primary-bright)] underline underline-offset-2"
             >
-              support@fitfo.app
+              nirv@fitfo.app
             </a>{" "}
             with the number you tried and we&apos;ll fix it.
           </li>
@@ -77,10 +77,10 @@ const FAQS: { q: string; a: React.ReactNode }[] = [
         <p className="mt-3">
           Can&apos;t sign in to delete? Email{" "}
           <a
-            href="mailto:support@fitfo.app"
+            href="mailto:nirv@fitfo.app"
             className="text-[var(--primary-bright)] underline underline-offset-2"
           >
-            support@fitfo.app
+            nirv@fitfo.app
           </a>{" "}
           from the email associated with your account and we&apos;ll action it
           within 72 hours.
@@ -121,10 +121,10 @@ const FAQS: { q: string; a: React.ReactNode }[] = [
           on every imported workout. If you&apos;re a creator and want your
           content removed, email{" "}
           <a
-            href="mailto:support@fitfo.app"
+            href="mailto:nirv@fitfo.app"
             className="text-[var(--primary-bright)] underline underline-offset-2"
           >
-            support@fitfo.app
+            nirv@fitfo.app
           </a>{" "}
           with the URL and we&apos;ll remove it from our systems.
         </p>
@@ -169,26 +169,26 @@ export default function SupportPage() {
           <div aria-hidden className="bg-grid absolute inset-0 -z-10" />
           <div className="mx-auto max-w-4xl px-5 pb-20 pt-20 sm:px-8 sm:pb-24 sm:pt-28">
             <p
-              className="text-[11px] font-black uppercase tracking-[0.3em] text-[var(--primary-bright)]"
+              className="text-[10px] font-black uppercase tracking-[0.3em] text-[var(--primary-bright)]"
               style={{ fontFamily: "var(--font-sans)" }}
             >
               Support
             </p>
             <h1
-              className="mt-4 text-5xl font-bold leading-[0.98] tracking-[-0.035em] sm:text-6xl text-balance"
+              className="mt-3 text-4xl font-bold leading-[1.02] tracking-[-0.03em] sm:text-5xl text-balance"
               style={{ fontFamily: "var(--font-display)" }}
             >
               We&apos;re on call — <span className="text-[var(--primary)]">mostly</span>.
             </h1>
-            <p className="mt-6 max-w-2xl text-lg leading-relaxed text-[var(--text-secondary)] text-pretty">
+            <p className="mt-5 max-w-2xl text-[15px] leading-relaxed text-[var(--text-secondary)] text-pretty sm:text-base">
               Something broken? A workout parsed wrong? Want your creator
               content removed? This page has the most common fixes. For
               anything else we respond fast at{" "}
               <a
-                href="mailto:support@fitfo.app"
+                href="mailto:nirv@fitfo.app"
                 className="text-[var(--primary-bright)] underline underline-offset-2"
               >
-                support@fitfo.app
+                nirv@fitfo.app
               </a>
               .
             </p>
@@ -197,8 +197,8 @@ export default function SupportPage() {
               <ContactCard
                 title="Email support"
                 body="Best for account issues, takedowns, and anything that needs a reply."
-                cta="support@fitfo.app"
-                href="mailto:support@fitfo.app"
+                cta="nirv@fitfo.app"
+                href="mailto:nirv@fitfo.app"
               />
               <ContactCard
                 title="Report a workout"
@@ -213,7 +213,7 @@ export default function SupportPage() {
         <section>
           <div className="mx-auto max-w-4xl px-5 py-20 sm:px-8 sm:py-24">
             <h2
-              className="text-3xl font-bold tracking-[-0.02em] sm:text-4xl"
+              className="text-2xl font-bold tracking-[-0.015em] sm:text-3xl"
               style={{ fontFamily: "var(--font-display)" }}
             >
               Frequently asked questions
@@ -224,7 +224,7 @@ export default function SupportPage() {
                 <details key={i} className="group p-6 sm:p-7">
                   <summary className="flex cursor-pointer list-none items-start justify-between gap-6 text-left">
                     <h3
-                      className="text-lg font-semibold tracking-[-0.01em] text-[var(--text-primary)] sm:text-xl"
+                      className="text-base font-semibold tracking-[-0.005em] text-[var(--text-primary)] sm:text-lg"
                       style={{ fontFamily: "var(--font-display)" }}
                     >
                       {faq.q}
@@ -233,7 +233,7 @@ export default function SupportPage() {
                       +
                     </span>
                   </summary>
-                  <div className="mt-4 max-w-3xl text-[15px] leading-relaxed text-[var(--text-secondary)]">
+                  <div className="mt-4 max-w-3xl text-[13px] leading-relaxed text-[var(--text-secondary)]">
                     {faq.a}
                   </div>
                 </details>
@@ -243,10 +243,10 @@ export default function SupportPage() {
             <p className="mt-10 text-sm text-[var(--text-muted)]">
               Didn&apos;t find what you needed? Email us at{" "}
               <a
-                href="mailto:support@fitfo.app"
+                href="mailto:nirv@fitfo.app"
                 className="text-[var(--primary-bright)] underline underline-offset-2"
               >
-                support@fitfo.app
+                nirv@fitfo.app
               </a>{" "}
               and we&apos;ll get back to you within a business day.
             </p>
@@ -275,15 +275,15 @@ function ContactCard({
       className="group block rounded-3xl border border-[var(--border-soft)] bg-[var(--surface)] p-6 transition hover:border-[var(--primary)]/60 hover:bg-[var(--surface-muted)]"
     >
       <h3
-        className="text-lg font-bold tracking-[-0.01em]"
+        className="text-base font-bold tracking-[-0.005em]"
         style={{ fontFamily: "var(--font-display)" }}
       >
         {title}
       </h3>
-      <p className="mt-2 text-sm leading-relaxed text-[var(--text-secondary)]">
+      <p className="mt-2 text-[13px] leading-relaxed text-[var(--text-secondary)]">
         {body}
       </p>
-      <p className="mt-5 text-[13px] font-semibold text-[var(--primary-bright)]">
+      <p className="mt-4 text-[12px] font-semibold text-[var(--primary-bright)]">
         {cta} <span aria-hidden>→</span>
       </p>
     </a>

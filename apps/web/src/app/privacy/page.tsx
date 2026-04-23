@@ -18,23 +18,23 @@ export default function PrivacyPage() {
           <div aria-hidden className="bg-grid absolute inset-0 -z-10" />
           <div className="mx-auto max-w-3xl px-5 pb-16 pt-20 sm:px-8 sm:pb-20 sm:pt-28">
             <p
-              className="text-[11px] font-black uppercase tracking-[0.3em] text-[var(--primary-bright)]"
+              className="text-[10px] font-black uppercase tracking-[0.3em] text-[var(--primary-bright)]"
               style={{ fontFamily: "var(--font-sans)" }}
             >
               Privacy
             </p>
             <h1
-              className="mt-4 text-5xl font-bold leading-[0.98] tracking-[-0.035em] sm:text-6xl text-balance"
+              className="mt-3 text-4xl font-bold leading-[1.02] tracking-[-0.03em] sm:text-5xl text-balance"
               style={{ fontFamily: "var(--font-display)" }}
             >
               Privacy Policy.
             </h1>
-            <p className="mt-6 text-lg leading-relaxed text-[var(--text-secondary)] text-pretty">
+            <p className="mt-5 text-[15px] leading-relaxed text-[var(--text-secondary)] text-pretty sm:text-base">
               FitFo is built by a small team that trains every day. This policy
               explains — in plain English — what we collect, why, who touches
               it, and how to get rid of it whenever you want.
             </p>
-            <p className="mt-4 text-sm text-[var(--text-muted)]">
+            <p className="mt-3 text-[12px] text-[var(--text-muted)]">
               Effective date: April 22, 2026
             </p>
           </div>
@@ -56,7 +56,7 @@ export default function PrivacyPage() {
                 </li>
                 <li>
                   Questions? Email{" "}
-                  <a href="mailto:support@fitfo.app">support@fitfo.app</a>.
+                  <a href="mailto:nirv@fitfo.app">nirv@fitfo.app</a>.
                 </li>
               </ul>
 
@@ -66,7 +66,7 @@ export default function PrivacyPage() {
                 &ldquo;our&rdquo; refer to <strong>Vaayu Athletics LLC</strong>
                 , a US-based company that operates the FitFo mobile app and the
                 website at fitfo.app. You can reach us at{" "}
-                <a href="mailto:support@fitfo.app">support@fitfo.app</a>.
+                <a href="mailto:nirv@fitfo.app">nirv@fitfo.app</a>.
               </p>
 
               <H2>3. What we collect</H2>
@@ -255,7 +255,7 @@ export default function PrivacyPage() {
                 &ldquo;View on TikTok&rdquo; or &ldquo;View on Instagram&rdquo;
                 button. Creators who want their content excluded from the
                 service can email{" "}
-                <a href="mailto:support@fitfo.app">support@fitfo.app</a> with
+                <a href="mailto:nirv@fitfo.app">nirv@fitfo.app</a> with
                 the URL and we&apos;ll remove it.
               </p>
 
@@ -270,7 +270,7 @@ export default function PrivacyPage() {
               <H2>13. Contact</H2>
               <p>
                 Questions, requests, or concerns about your data? Email{" "}
-                <a href="mailto:support@fitfo.app">support@fitfo.app</a>. We
+                <a href="mailto:nirv@fitfo.app">nirv@fitfo.app</a>. We
                 read every message and respond within one business day.
               </p>
             </Prose>
@@ -286,10 +286,10 @@ function Prose({ children }: { children: React.ReactNode }) {
   return (
     <div
       className="
-        space-y-5 text-[16px] leading-[1.7] text-[var(--text-secondary)]
+        space-y-4 text-[14px] leading-[1.7] text-[var(--text-secondary)]
         [&_strong]:text-[var(--text-primary)]
         [&_a]:text-[var(--primary-bright)] [&_a]:underline [&_a]:underline-offset-2
-        [&_ul]:space-y-2 [&_ul]:pl-5 [&_ul]:list-disc [&_ul]:marker:text-[var(--primary)]
+        [&_ul]:space-y-1.5 [&_ul]:pl-5 [&_ul]:list-disc [&_ul]:marker:text-[var(--primary)]
         [&_li]:pl-1
         [&_em]:not-italic [&_em]:text-[var(--text-primary)]
       "
@@ -302,7 +302,7 @@ function Prose({ children }: { children: React.ReactNode }) {
 function H2({ children }: { children: React.ReactNode }) {
   return (
     <h2
-      className="mt-12 scroll-mt-24 text-2xl font-bold tracking-[-0.02em] text-[var(--text-primary)] sm:text-[28px]"
+      className="mt-10 scroll-mt-24 text-xl font-bold tracking-[-0.015em] text-[var(--text-primary)] sm:text-2xl"
       style={{ fontFamily: "var(--font-display)" }}
     >
       {children}
@@ -313,7 +313,7 @@ function H2({ children }: { children: React.ReactNode }) {
 function H3({ children }: { children: React.ReactNode }) {
   return (
     <h3
-      className="mt-8 text-xl font-bold tracking-[-0.01em] text-[var(--text-primary)]"
+      className="mt-6 text-base font-bold tracking-[-0.005em] text-[var(--text-primary)]"
       style={{ fontFamily: "var(--font-display)" }}
     >
       {children}

@@ -33,7 +33,6 @@ export function Footer() {
               title="Product"
               links={[
                 { label: "Home", href: "/" },
-                { label: "Press kit", href: "/marketing" },
               ]}
             />
             <FooterCol

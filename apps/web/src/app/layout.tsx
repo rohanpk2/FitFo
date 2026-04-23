@@ -29,13 +29,13 @@ const clashDisplay = localFont({
 export const metadata: Metadata = {
   metadataBase: new URL("https://fitfo.app"),
   title: {
-    default: "FitFo — Turn fitness videos into real workouts",
+    default: "FitFo",
     template: "%s · FitFo",
   },
   description:
     "FitFo turns fitness videos you find on TikTok and Instagram into structured, followable workouts. Paste a link, get a plan you can actually do.",
   openGraph: {
-    title: "FitFo — Turn fitness videos into real workouts",
+    title: "FitFo - Turn fitness videos into real workouts",
     description:
       "Paste any TikTok or Instagram fitness video. FitFo extracts the exercises, sets, and reps into a clean, trackable workout.",
     url: "https://fitfo.app",
@@ -45,14 +45,14 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "FitFo — Turn fitness videos into real workouts",
+    title: "FitFo, Turn fitness videos into real workouts",
     description:
       "Paste any TikTok or Instagram fitness video. FitFo extracts the exercises, sets, and reps into a clean, trackable workout.",
     images: ["/fitfo-logo.png"],
   },
-  icons: {
-    icon: "/fitfo-logo.png",
-  },
+  // Favicon + Apple touch icon are picked up automatically from the
+  // file-convention files at app/icon.png and app/apple-icon.png, so no
+  // manual `icons` entry is needed here.
 };
 
 export default function RootLayout({

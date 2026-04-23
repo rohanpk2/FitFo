@@ -40,26 +40,26 @@ export default function MarketingPage() {
           <div aria-hidden className="bg-grid absolute inset-0 -z-10" />
           <div className="mx-auto max-w-5xl px-5 pb-20 pt-20 sm:px-8 sm:pb-24 sm:pt-28">
             <p
-              className="text-[11px] font-black uppercase tracking-[0.3em] text-[var(--primary-bright)]"
+              className="text-[10px] font-black uppercase tracking-[0.3em] text-[var(--primary-bright)]"
               style={{ fontFamily: "var(--font-sans)" }}
             >
               Press & media
             </p>
             <h1
-              className="mt-4 text-5xl font-bold leading-[0.98] tracking-[-0.035em] sm:text-6xl text-balance"
+              className="mt-3 text-4xl font-bold leading-[1.02] tracking-[-0.03em] sm:text-5xl text-balance"
               style={{ fontFamily: "var(--font-display)" }}
             >
               Write about FitFo. <span className="text-[var(--primary)]">We&apos;ll make it easy.</span>
             </h1>
-            <p className="mt-6 max-w-2xl text-lg leading-relaxed text-[var(--text-secondary)] text-pretty">
-              Everything you need — boilerplate, screenshots, brand colors, and
+            <p className="mt-5 max-w-2xl text-[15px] leading-relaxed text-[var(--text-secondary)] text-pretty sm:text-base">
+              Everything you need, boilerplate, screenshots, brand colors, and
               a human to talk to. For interviews, feature requests, or creator
               partnerships, reach us at{" "}
               <a
-                href="mailto:press@fitfo.app"
+                href="mailto:nirv@fitfo.app"
                 className="text-[var(--primary-bright)] underline underline-offset-2"
               >
-                press@fitfo.app
+                nirv@fitfo.app
               </a>
               .
             </p>
@@ -71,25 +71,25 @@ export default function MarketingPage() {
           <div className="mx-auto grid max-w-5xl gap-12 px-5 py-20 sm:px-8 sm:py-24 md:grid-cols-[1fr_1.4fr]">
             <div>
               <p
-                className="text-[11px] font-black uppercase tracking-[0.3em] text-[var(--primary-bright)]"
+                className="text-[10px] font-black uppercase tracking-[0.3em] text-[var(--primary-bright)]"
                 style={{ fontFamily: "var(--font-sans)" }}
               >
                 About
               </p>
               <h2
-                className="mt-3 text-3xl font-bold tracking-[-0.02em] sm:text-4xl text-balance"
+                className="mt-3 text-2xl font-bold tracking-[-0.015em] sm:text-3xl text-balance"
                 style={{ fontFamily: "var(--font-display)" }}
               >
                 What FitFo does.
               </h2>
             </div>
-            <div className="space-y-5 text-[17px] leading-relaxed text-[var(--text-secondary)] text-pretty">
+            <div className="space-y-4 text-[14px] leading-relaxed text-[var(--text-secondary)] text-pretty">
               <p>
                 <strong className="text-[var(--text-primary)]">FitFo</strong> is
                 a fitness app that turns TikTok and Instagram workout videos
                 into structured, followable training plans. Users paste a
                 public link and get back a clean card with exercises, sets,
-                reps, rest times, and notes — ready to save, schedule, edit,
+                reps, rest times, and notes, ready to save, schedule, edit,
                 and log.
               </p>
               <p>
@@ -113,13 +113,13 @@ export default function MarketingPage() {
             <div className="flex items-end justify-between gap-6">
               <div>
                 <p
-                  className="text-[11px] font-black uppercase tracking-[0.3em] text-[var(--primary-bright)]"
+                  className="text-[10px] font-black uppercase tracking-[0.3em] text-[var(--primary-bright)]"
                   style={{ fontFamily: "var(--font-sans)" }}
                 >
                   Screenshots
                 </p>
                 <h2
-                  className="mt-3 text-3xl font-bold tracking-[-0.02em] sm:text-4xl"
+                  className="mt-3 text-2xl font-bold tracking-[-0.015em] sm:text-3xl"
                   style={{ fontFamily: "var(--font-display)" }}
                 >
                   Press-ready product shots.
@@ -141,83 +141,29 @@ export default function MarketingPage() {
             <p className="mt-10 text-sm text-[var(--text-muted)]">
               Need full-resolution assets or a logo zip? Email{" "}
               <a
-                href="mailto:press@fitfo.app"
+                href="mailto:nirv@fitfo.app"
                 className="text-[var(--primary-bright)] underline underline-offset-2"
               >
-                press@fitfo.app
+                nirv@fitfo.app
               </a>{" "}
               and we&apos;ll send them over.
             </p>
           </div>
         </section>
 
-        {/* Brand / colors */}
-        <section className="border-b border-[var(--border-soft)]">
-          <div className="mx-auto max-w-5xl px-5 py-20 sm:px-8 sm:py-24">
-            <p
-              className="text-[11px] font-black uppercase tracking-[0.3em] text-[var(--primary-bright)]"
-              style={{ fontFamily: "var(--font-sans)" }}
-            >
-              Brand
-            </p>
-            <h2
-              className="mt-3 text-3xl font-bold tracking-[-0.02em] sm:text-4xl"
-              style={{ fontFamily: "var(--font-display)" }}
-            >
-              Logo & palette.
-            </h2>
-
-            <div className="mt-10 grid gap-6 md:grid-cols-[1fr_1.4fr]">
-              <div className="rounded-3xl border border-[var(--border-soft)] bg-[var(--surface)] p-8 text-center">
-                <div className="flex h-36 items-center justify-center rounded-2xl bg-black">
-                  <Image
-                    src="/fitfo-logo.png"
-                    alt="FitFo logo"
-                    width={96}
-                    height={96}
-                    className="h-16 w-16"
-                  />
-                </div>
-                <p className="mt-4 text-xs font-medium uppercase tracking-[0.12em] text-[var(--text-muted)]">
-                  FitFo mark — on dark
-                </p>
-              </div>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                {SWATCHES.map((s) => (
-                  <div
-                    key={s.hex}
-                    className="flex flex-col justify-between rounded-2xl border border-[var(--border-soft)] p-4"
-                    style={{ background: s.bg, color: s.text, minHeight: 120 }}
-                  >
-                    <p className="text-xs font-medium uppercase tracking-[0.12em] opacity-80">
-                      {s.name}
-                    </p>
-                    <p className="font-bold tracking-[-0.01em]" style={{ fontFamily: "var(--font-display)" }}>
-                      {s.hex}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <p className="mt-8 text-sm text-[var(--text-secondary)]">
-              Typography: <strong className="text-[var(--text-primary)]">Clash Display</strong>{" "}
-              for headlines, <strong className="text-[var(--text-primary)]">Satoshi</strong> for body.
-            </p>
-          </div>
-        </section>
+        
 
         {/* Facts */}
         <section className="border-b border-[var(--border-soft)]">
           <div className="mx-auto max-w-5xl px-5 py-20 sm:px-8 sm:py-24">
             <p
-              className="text-[11px] font-black uppercase tracking-[0.3em] text-[var(--primary-bright)]"
+              className="text-[10px] font-black uppercase tracking-[0.3em] text-[var(--primary-bright)]"
               style={{ fontFamily: "var(--font-sans)" }}
             >
               Fact sheet
             </p>
             <h2
-              className="mt-3 text-3xl font-bold tracking-[-0.02em] sm:text-4xl"
+              className="mt-3 text-2xl font-bold tracking-[-0.015em] sm:text-3xl"
               style={{ fontFamily: "var(--font-display)" }}
             >
               The quick version.
@@ -237,10 +183,10 @@ export default function MarketingPage() {
                 term="Press contact"
                 value={
                   <a
-                    href="mailto:press@fitfo.app"
+                    href="mailto:nirv@fitfo.app"
                     className="text-[var(--primary-bright)] underline underline-offset-2"
                   >
-                    press@fitfo.app
+                    nirv@fitfo.app
                   </a>
                 }
               />
@@ -248,10 +194,10 @@ export default function MarketingPage() {
                 term="Support"
                 value={
                   <a
-                    href="mailto:support@fitfo.app"
+                    href="mailto:nirv@fitfo.app"
                     className="text-[var(--primary-bright)] underline underline-offset-2"
                   >
-                    support@fitfo.app
+                    nirv@fitfo.app
                   </a>
                 }
               />
@@ -263,13 +209,13 @@ export default function MarketingPage() {
         <section id="terms" className="border-b border-[var(--border-soft)]">
           <div className="mx-auto max-w-4xl px-5 py-20 sm:px-8 sm:py-24">
             <p
-              className="text-[11px] font-black uppercase tracking-[0.3em] text-[var(--primary-bright)]"
+              className="text-[10px] font-black uppercase tracking-[0.3em] text-[var(--primary-bright)]"
               style={{ fontFamily: "var(--font-sans)" }}
             >
-              Terms of use — summary
+              Terms of use, summary
             </p>
             <h2
-              className="mt-3 text-3xl font-bold tracking-[-0.02em] sm:text-4xl text-balance"
+              className="mt-3 text-2xl font-bold tracking-[-0.015em] sm:text-3xl text-balance"
               style={{ fontFamily: "var(--font-display)" }}
             >
               The short version.
@@ -289,10 +235,10 @@ export default function MarketingPage() {
                 back to the original post. Creator takedown requests should go
                 to{" "}
                 <a
-                  href="mailto:support@fitfo.app"
+                  href="mailto:nirv@fitfo.app"
                   className="text-[var(--primary-bright)] underline underline-offset-2"
                 >
-                  support@fitfo.app
+                  nirv@fitfo.app
                 </a>{" "}
                 with the URL.
               </p>
