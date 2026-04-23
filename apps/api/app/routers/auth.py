@@ -110,6 +110,21 @@ def _clean_onboarding_payload(body: SaveOnboardingRequest) -> Dict[str, Any]:
 def account_status(body: AccountStatusRequest) -> AccountStatusResponse:
     try:
         normalized_phone, existing = _normalize_and_lookup(body.phone)
+
+        # Apple App Review demo bypass — report the reviewer phone as an
+        # existing account even if the profile row hasn't been auto-provisioned
+        # yet. Without this, the mobile client's pre-flight account-status
+        # check short-circuits the login flow with "No account found" and the
+        # reviewer never reaches send-otp / verify-otp where the real bypass
+        # lives.
+        if _is_reviewer_request(normalized_phone):
+            return AccountStatusResponse(
+                ok=True,
+                exists=True,
+                normalized_phone=normalized_phone,
+                message="Reviewer demo account ready.",
+            )
+
         return AccountStatusResponse(
             ok=True,
             exists=existing is not None,
