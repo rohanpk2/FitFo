@@ -680,3 +680,45 @@ class TryAudioTranscriptionTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsNotNone(transcribing_update)
         audio_upload = next(c for c in self.upload_calls if c["path"] == "jobs/job-4/audio.mp3")
         self.assertIsNotNone(audio_upload)
+
+    async def test_returns_none_with_nonfatal_state_when_upload_fails(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as d:
+            video_path = Path(d) / "video.mp4"
+            audio_path = Path(d) / "audio.mp3"
+            video_path.write_bytes(b"video")
+
+            def fake_extract(vp, ap):
+                ap.write_bytes(b"audio")
+
+            with (
+                patch("app.services.ingestion_pipeline.has_audio_stream", return_value=True),
+                patch("app.services.ingestion_pipeline._extract_audio_ffmpeg", side_effect=fake_extract),
+                patch(
+                    "app.services.ingestion_pipeline.supabase_db.upload_bytes_to_storage",
+                    side_effect=RuntimeError("storage unavailable"),
+                ),
+                patch(
+                    "app.services.ingestion_pipeline.supabase_db.update_ingestion_job",
+                    side_effect=self._record_update,
+                ),
+                patch(
+                    "app.services.ingestion_pipeline.supabase_db.merge_provider_meta",
+                    side_effect=ingestion_pipeline.supabase_db.merge_provider_meta,
+                ),
+            ):
+                transcript, meta = await ingestion_pipeline._try_audio_transcription(
+                    "job-5",
+                    video_path,
+                    audio_path,
+                    {},
+                    log_prefix="tiktok:job-5",
+                    bucket="raw-media",
+                    video_storage_path="jobs/job-5/video.mp4",
+                    audio_storage_path="jobs/job-5/audio.mp3",
+                )
+        self.assertIsNone(transcript)
+        self.assertEqual(meta["audio_extraction"]["state"], "audio_extract_failed_nonfatal")
+        self.assertFalse(meta["audio_extraction"]["ok"])
+        self.assertIn("storage unavailable", meta["audio_extraction"]["error"])

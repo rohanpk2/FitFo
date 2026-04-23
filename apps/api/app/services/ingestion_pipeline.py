@@ -146,13 +146,28 @@ async def _try_audio_transcription(
         supabase_db.update_ingestion_job(job_id, provider_meta=updated)
         return None, updated
 
-    supabase_db.upload_bytes_to_storage(
-        bucket=bucket,
-        path=audio_storage_path,
-        content=_read_bytes(audio_path),
-        content_type="audio/mpeg",
-        upsert=True,
-    )
+    try:
+        supabase_db.upload_bytes_to_storage(
+            bucket=bucket,
+            path=audio_storage_path,
+            content=_read_bytes(audio_path),
+            content_type="audio/mpeg",
+            upsert=True,
+        )
+    except Exception as exc:
+        _log.warning("[%s] audio=audio_extract_failed_nonfatal (upload) error=%s", log_prefix, exc)
+        updated = supabase_db.merge_provider_meta(
+            provider_meta,
+            {
+                "audio_extraction": {
+                    "ok": False,
+                    "state": "audio_extract_failed_nonfatal",
+                    "error": str(exc),
+                }
+            },
+        )
+        supabase_db.update_ingestion_job(job_id, provider_meta=updated)
+        return None, updated
 
     updated = supabase_db.merge_provider_meta(
         provider_meta,
