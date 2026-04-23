@@ -1,0 +1,70 @@
+import Image from "next/image";
+import type { ComponentPropsWithoutRef } from "react";
+
+interface PhoneFrameProps extends ComponentPropsWithoutRef<"div"> {
+  src: string;
+  alt: string;
+  /**
+   * Width of the rendered frame in pixels. The phone aspect ratio (19.5:9ish
+   * iPhone shape) is derived from this so the screenshot always sits cleanly
+   * inside the bezel.
+   */
+  width?: number;
+  /** Adds a soft orange radial glow behind the phone. */
+  glow?: boolean;
+  priority?: boolean;
+}
+
+/**
+ * A minimal iPhone-style frame used to showcase mobile screenshots on the
+ * landing and marketing pages. The bezel is rendered in pure CSS so we don't
+ * have to ship any extra image assets, and the inner content sits on a
+ * rounded black surface to blend with screenshots that already have black
+ * backgrounds.
+ */
+export function PhoneFrame({
+  src,
+  alt,
+  width = 280,
+  glow = false,
+  priority = false,
+  className = "",
+  ...rest
+}: PhoneFrameProps) {
+  const height = Math.round(width * 2.17);
+
+  return (
+    <div
+      className={`relative mx-auto ${className}`}
+      style={{ width }}
+      {...rest}
+    >
+      {glow && (
+        <div
+          aria-hidden
+          className="bg-orange-glow pointer-events-none absolute -inset-16 -z-10"
+        />
+      )}
+      <div
+        className="relative rounded-[44px] border border-white/10 bg-black p-2.5 shadow-[0_30px_90px_-20px_rgba(0,0,0,0.6),0_12px_40px_-12px_rgba(255,90,20,0.25)]"
+        style={{ width, height }}
+      >
+        <div className="relative h-full w-full overflow-hidden rounded-[34px] bg-black">
+          <Image
+            src={src}
+            alt={alt}
+            fill
+            sizes={`${width}px`}
+            className="object-cover object-top"
+            priority={priority}
+          />
+        </div>
+        {/* Dynamic-island placeholder for a more iPhone-y silhouette. */}
+        <div
+          aria-hidden
+          className="absolute left-1/2 top-3 h-[18px] w-[88px] -translate-x-1/2 rounded-full bg-black"
+        />
+      </div>
+    </div>
+  );
+}

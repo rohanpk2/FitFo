@@ -1,150 +1,345 @@
-"use client";
+import Link from "next/link";
 
-import { useCallback, useState } from "react";
+import { Footer } from "@/components/site/Footer";
+import { Nav } from "@/components/site/Nav";
+import { PhoneFrame } from "@/components/site/PhoneFrame";
 
-import { StatusCard } from "@/components/StatusCard";
-import { TikTokUrlForm } from "@/components/TikTokUrlForm";
-import { VisualReviewView } from "@/components/VisualReviewView";
-import { WorkoutPlanView } from "@/components/WorkoutPlanView";
-import { useIngestionJob } from "@/hooks/useIngestionJob";
-import { createIngestionJob, getWorkoutByJob } from "@/lib/api";
-import type { WorkoutRow } from "@/types";
+const FEATURES = [
+  {
+    eyebrow: "Import",
+    title: "Paste a link, get a workout",
+    copy: "Drop in any TikTok or Instagram Reel. FitFo pulls the audio, reads the on-screen text, and turns it into a clean, structured session.",
+    image: "/assets/IMG_4970.PNG",
+  },
+  {
+    eyebrow: "Organize",
+    title: "A library that knows what it is",
+    copy: "Saved workouts, scheduled sessions, and logged history — each one tagged by muscle group and block so you can find them fast.",
+    image: "/assets/IMG_4966.PNG",
+  },
+  {
+    eyebrow: "Train",
+    title: "Edit, follow, log — no friction",
+    copy: "Tap any field to change reps, weights, or notes. Start a session, log every set, and the next one opens automatically.",
+    image: "/assets/IMG_4967.PNG",
+  },
+];
 
-export default function Home() {
-  const [jobId, setJobId] = useState<string | null>(null);
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  // workout can arrive from polling OR after visual-review confirmation
-  const [confirmedWorkout, setConfirmedWorkout] = useState<WorkoutRow | null>(null);
+const STEPS = [
+  {
+    n: "01",
+    title: "Paste a fitness video",
+    body: "TikTok, Instagram Reels — anything public. We read what the creator actually said and showed.",
+  },
+  {
+    n: "02",
+    title: "Get a structured plan",
+    body: "Exercises, sets, reps, rest, notes — all extracted into a card you can edit, save, or start immediately.",
+  },
+  {
+    n: "03",
+    title: "Train it, log it, repeat",
+    body: "Follow the workout in-app, log every set, and come back to the same plan any day of the week.",
+  },
+];
 
-  const { job, workout, visualAnalysis, error: pollError, isPolling } = useIngestionJob(jobId);
-
-  const handleSubmit = useCallback(async (url: string) => {
-    setSubmitError(null);
-    setJobId(null);
-    setConfirmedWorkout(null);
-    setIsSubmitting(true);
-    try {
-      const res = await createIngestionJob(url);
-      if (!res.ok || !res.job_id) {
-        setSubmitError(res.error || "Failed to start ingestion");
-        return;
-      }
-      setJobId(res.job_id);
-    } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : "Something went wrong");
-    } finally {
-      setIsSubmitting(false);
-    }
-  }, []);
-
-  const handleReset = useCallback(() => {
-    setJobId(null);
-    setSubmitError(null);
-    setIsSubmitting(false);
-    setConfirmedWorkout(null);
-  }, []);
-
-  // Called by VisualReviewView after the user confirms and the backend marks
-  // the job complete.  We re-fetch the workout row to display it.
-  const handleVisualConfirmed = useCallback(async () => {
-    if (!jobId) return;
-    try {
-      const w = await getWorkoutByJob(jobId);
-      setConfirmedWorkout(w);
-    } catch {
-      // show generic success path without plan detail
-      setConfirmedWorkout(null);
-    }
-    setJobId(null); // stop the hook so status card disappears
-  }, [jobId]);
-
-  const activeWorkout = confirmedWorkout ?? workout;
-
-  const showForm = !jobId && !isSubmitting && !activeWorkout;
-  const isInProgress =
-    job &&
-    job.status !== "complete" &&
-    job.status !== "failed" &&
-    job.status !== "review_pending";
-  const showStatus = isInProgress;
-  const showReview = job?.status === "review_pending" && visualAnalysis;
-  const showWorkout = activeWorkout?.plan;
-  const error = submitError || pollError;
-
+export default function LandingPage() {
   return (
-    <div className="flex flex-1 flex-col items-center justify-start px-4 py-16 sm:py-24">
-      <div className="w-full max-w-xl space-y-8">
-        {/* Logo / Title */}
-        <div className="text-center">
-          <h1 className="text-4xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
-            LiftSync
-          </h1>
-          <p className="mt-2 text-base text-zinc-500 dark:text-zinc-400">
-            Paste a TikTok workout link. Get a structured workout in seconds.
-          </p>
-        </div>
-
-        {/* URL Input */}
-        {showForm && (
-          <TikTokUrlForm onSubmit={handleSubmit} isLoading={isSubmitting} />
-        )}
-
-        {/* Error */}
-        {error && !showStatus && !showReview && (
-          <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
-            <p>{error}</p>
-            <button
-              onClick={handleReset}
-              className="mt-2 text-sm font-medium underline underline-offset-2"
-            >
-              Try again
-            </button>
-          </div>
-        )}
-
-        {/* Status Card (in-progress) */}
-        {showStatus && (
-          <StatusCard status={job.status} error={job.error} />
-        )}
-
-        {/* Failed with retry */}
-        {job?.status === "failed" && (
-          <div className="text-center">
-            <StatusCard status="failed" error={job.error || pollError} />
-            <button
-              onClick={handleReset}
-              className="mt-4 rounded-xl bg-zinc-900 px-6 py-3 text-base font-medium text-white transition hover:bg-zinc-700 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200"
-            >
-              Try Another Link
-            </button>
-          </div>
-        )}
-
-        {/* Visual review — no audio/text detected */}
-        {showReview && (
-          <VisualReviewView
-            jobId={job.id}
-            analysis={visualAnalysis}
-            onConfirmed={handleVisualConfirmed}
-          />
-        )}
-
-        {/* Workout Result */}
-        {showWorkout && (
-          <div className="space-y-6">
-            <WorkoutPlanView plan={activeWorkout.plan} />
-            <div className="flex justify-center">
-              <button
-                onClick={handleReset}
-                className="rounded-xl border border-zinc-200 px-5 py-2.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+    <>
+      <Nav />
+      <main className="relative">
+        {/* Hero */}
+        <section className="relative overflow-hidden">
+          <div aria-hidden className="bg-grid absolute inset-0 -z-10" />
+          <div className="mx-auto grid max-w-6xl gap-16 px-5 pb-24 pt-16 sm:px-8 sm:pt-24 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:gap-8 lg:pb-36 lg:pt-32">
+            <div>
+              <p
+                className="text-[11px] font-black uppercase tracking-[0.3em] text-[var(--primary-bright)]"
+                style={{ fontFamily: "var(--font-sans)" }}
               >
-                Convert Another
-              </button>
+                Figure it the f*ck out
+              </p>
+              <h1
+                className="mt-5 text-[clamp(3rem,8vw,5.75rem)] font-bold leading-[0.95] tracking-[-0.04em] text-[var(--text-primary)] text-balance"
+                style={{ fontFamily: "var(--font-display)" }}
+              >
+                Turn fitness videos into workouts{" "}
+                <span className="text-[var(--primary)]">you actually do.</span>
+              </h1>
+              <p className="mt-6 max-w-lg text-lg leading-relaxed text-[var(--text-secondary)] text-pretty sm:text-xl">
+                FitFo reads the TikToks and Reels you love, extracts the
+                exercises, sets and reps, and drops them into a clean workout
+                you can follow, edit, and track.
+              </p>
+
+              <div className="mt-9 flex flex-wrap items-center gap-3">
+                <a
+                  href="mailto:nirv@fitfo.app?subject=FitFo%20Early%20Access"
+                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-[var(--primary)] px-6 text-[15px] font-bold text-white shadow-[0_20px_45px_-15px_rgba(255,90,20,0.6)] transition hover:bg-[var(--primary-bright)]"
+                >
+                  Get early access
+                  <span aria-hidden>→</span>
+                </a>
+                <Link
+                  href="/marketing"
+                  className="inline-flex min-h-12 items-center justify-center rounded-full border border-[var(--border-soft)] bg-[var(--surface)] px-5 text-[15px] font-semibold text-[var(--text-primary)] transition hover:bg-[var(--surface-muted)]"
+                >
+                  See how it works
+                </Link>
+              </div>
+
+              <dl className="mt-10 grid max-w-sm grid-cols-3 gap-6">
+                <Stat value="~30s" label="To parse a video" />
+                <Stat value="100%" label="Private to you" />
+                <Stat value="0" label="Ads forever" />
+              </dl>
+            </div>
+
+            <div className="relative flex items-center justify-center lg:justify-end">
+              <div aria-hidden className="bg-orange-glow absolute -inset-20" />
+              <PhoneFrame
+                src="/assets/IMG_4970.PNG"
+                alt="FitFo app — paste a TikTok or Instagram link and get a structured workout"
+                width={320}
+                priority
+                className="rotate-[-3deg]"
+              />
             </div>
           </div>
-        )}
-      </div>
+        </section>
+
+        {/* How it works */}
+        <section className="border-t border-[var(--border-soft)] bg-[var(--bg)]">
+          <div className="mx-auto max-w-6xl px-5 py-20 sm:px-8 sm:py-28">
+            <Eyebrow>How it works</Eyebrow>
+            <h2
+              className="mt-4 max-w-2xl text-4xl font-bold leading-[1.02] tracking-[-0.03em] sm:text-5xl text-balance"
+              style={{ fontFamily: "var(--font-display)" }}
+            >
+              From <span className="text-[var(--primary)]">inspiration</span> to{" "}
+              <span className="text-[var(--primary)]">execution</span>, in three
+              steps.
+            </h2>
+
+            <div className="mt-14 grid gap-5 md:grid-cols-3">
+              {STEPS.map((step) => (
+                <div
+                  key={step.n}
+                  className="rounded-3xl border border-[var(--border-soft)] bg-[var(--surface)] p-7"
+                >
+                  <p
+                    className="text-[11px] font-bold uppercase tracking-[0.22em] text-[var(--primary-bright)]"
+                    style={{ fontFamily: "var(--font-sans)" }}
+                  >
+                    Step {step.n}
+                  </p>
+                  <h3
+                    className="mt-3 text-2xl font-bold tracking-[-0.02em]"
+                    style={{ fontFamily: "var(--font-display)" }}
+                  >
+                    {step.title}
+                  </h3>
+                  <p className="mt-3 text-[15px] leading-relaxed text-[var(--text-secondary)]">
+                    {step.body}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Feature split rows */}
+        <section className="border-t border-[var(--border-soft)]">
+          <div className="mx-auto max-w-6xl px-5 py-20 sm:px-8 sm:py-28">
+            <div className="mb-16 max-w-2xl">
+              <Eyebrow>What you get</Eyebrow>
+              <h2
+                className="mt-4 text-4xl font-bold leading-[1.02] tracking-[-0.03em] sm:text-5xl text-balance"
+                style={{ fontFamily: "var(--font-display)" }}
+              >
+                A training app built for{" "}
+                <span className="text-[var(--primary)]">content scrollers</span>
+                .
+              </h2>
+            </div>
+
+            <div className="flex flex-col gap-24">
+              {FEATURES.map((feature, i) => (
+                <div
+                  key={feature.title}
+                  className={`grid items-center gap-14 lg:grid-cols-2 lg:gap-20 ${
+                    i % 2 === 1 ? "lg:[&>*:first-child]:order-2" : ""
+                  }`}
+                >
+                  <div className="flex justify-center lg:justify-start">
+                    <PhoneFrame
+                      src={feature.image}
+                      alt={feature.title}
+                      width={280}
+                      glow
+                    />
+                  </div>
+                  <div>
+                    <p
+                      className="text-[11px] font-bold uppercase tracking-[0.22em] text-[var(--primary-bright)]"
+                      style={{ fontFamily: "var(--font-sans)" }}
+                    >
+                      {feature.eyebrow}
+                    </p>
+                    <h3
+                      className="mt-4 text-3xl font-bold leading-[1.05] tracking-[-0.03em] sm:text-4xl text-balance"
+                      style={{ fontFamily: "var(--font-display)" }}
+                    >
+                      {feature.title}
+                    </h3>
+                    <p className="mt-5 max-w-lg text-lg leading-relaxed text-[var(--text-secondary)] text-pretty">
+                      {feature.copy}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Schedule + Archive row */}
+        <section className="border-t border-[var(--border-soft)] bg-[var(--surface)]/40">
+          <div className="mx-auto max-w-6xl px-5 py-20 sm:px-8 sm:py-28">
+            <div className="grid gap-12 md:grid-cols-2">
+              <div className="rounded-3xl border border-[var(--border-soft)] bg-[var(--surface)] p-8 sm:p-10">
+                <Eyebrow>Calendar</Eyebrow>
+                <h3
+                  className="mt-4 text-3xl font-bold leading-[1.05] tracking-[-0.02em] sm:text-4xl text-balance"
+                  style={{ fontFamily: "var(--font-display)" }}
+                >
+                  Schedule the week. <br />
+                  <span className="text-[var(--primary)]">Show up to it.</span>
+                </h3>
+                <p className="mt-4 text-[15px] leading-relaxed text-[var(--text-secondary)]">
+                  Drop any saved workout onto a day. Get a clean calendar view
+                  of what&apos;s coming so you stop negotiating with yourself
+                  every morning.
+                </p>
+                <div className="mt-10 flex justify-center">
+                  <PhoneFrame
+                    src="/assets/IMG_4971.PNG"
+                    alt="Scheduled workouts calendar"
+                    width={240}
+                  />
+                </div>
+              </div>
+
+              <div className="rounded-3xl border border-[var(--border-soft)] bg-[var(--surface)] p-8 sm:p-10">
+                <Eyebrow>Logs</Eyebrow>
+                <h3
+                  className="mt-4 text-3xl font-bold leading-[1.05] tracking-[-0.02em] sm:text-4xl text-balance"
+                  style={{ fontFamily: "var(--font-display)" }}
+                >
+                  Every rep, <br />
+                  <span className="text-[var(--primary)]">on the record.</span>
+                </h3>
+                <p className="mt-4 text-[15px] leading-relaxed text-[var(--text-secondary)]">
+                  Completed sessions turn into a clean archive. See how many
+                  sets you&apos;ve logged this month and schedule your best
+                  workouts again with a tap.
+                </p>
+                <div className="mt-10 flex justify-center">
+                  <PhoneFrame
+                    src="/assets/IMG_4968.PNG"
+                    alt="Training archive screen"
+                    width={240}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Final CTA */}
+        <section className="relative overflow-hidden border-t border-[var(--border-soft)]">
+          <div aria-hidden className="bg-orange-glow absolute inset-0 -z-10" />
+          <div className="mx-auto max-w-3xl px-5 py-24 text-center sm:px-8 sm:py-32">
+            <Eyebrow center>Ready</Eyebrow>
+            <h2
+              className="mt-4 text-5xl font-bold leading-[0.98] tracking-[-0.035em] sm:text-6xl text-balance"
+              style={{ fontFamily: "var(--font-display)" }}
+            >
+              Train with the content{" "}
+              <span className="text-[var(--primary)]">you already love.</span>
+            </h2>
+            <p className="mx-auto mt-6 max-w-xl text-lg text-[var(--text-secondary)] text-pretty">
+              FitFo is launching on iOS. Drop your email and we&apos;ll send the
+              TestFlight link the moment review clears.
+            </p>
+
+            <form
+              action="mailto:nirv@fitfo.app"
+              method="post"
+              encType="text/plain"
+              className="mx-auto mt-8 flex w-full max-w-md flex-col gap-3 sm:flex-row"
+            >
+              <label htmlFor="email" className="sr-only">
+                Email address
+              </label>
+              <input
+                id="email"
+                type="email"
+                name="email"
+                required
+                placeholder="you@something.com"
+                className="flex-1 rounded-full border border-[var(--border-soft)] bg-[var(--surface)] px-5 py-3.5 text-[15px] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--primary)] focus:outline-none"
+              />
+              <button
+                type="submit"
+                className="inline-flex min-h-12 items-center justify-center rounded-full bg-[var(--primary)] px-6 text-[15px] font-bold text-white shadow-[0_20px_45px_-15px_rgba(255,90,20,0.6)] transition hover:bg-[var(--primary-bright)]"
+              >
+                Notify me
+              </button>
+            </form>
+
+            <p className="mt-5 text-xs text-[var(--text-muted)]">
+              We&apos;ll only use your email to send you the TestFlight link.
+              No spam, ever.
+            </p>
+          </div>
+        </section>
+      </main>
+      <Footer />
+    </>
+  );
+}
+
+function Stat({ value, label }: { value: string; label: string }) {
+  return (
+    <div>
+      <dt
+        className="text-2xl font-bold tracking-[-0.02em] text-[var(--text-primary)] sm:text-3xl"
+        style={{ fontFamily: "var(--font-display)" }}
+      >
+        {value}
+      </dt>
+      <dd className="mt-1 text-xs font-medium uppercase tracking-[0.12em] text-[var(--text-muted)]">
+        {label}
+      </dd>
     </div>
+  );
+}
+
+function Eyebrow({
+  children,
+  center = false,
+}: {
+  children: React.ReactNode;
+  center?: boolean;
+}) {
+  return (
+    <p
+      className={`text-[11px] font-black uppercase tracking-[0.3em] text-[var(--primary-bright)] ${
+        center ? "text-center" : ""
+      }`}
+      style={{ fontFamily: "var(--font-sans)" }}
+    >
+      {children}
+    </p>
   );
 }
