@@ -9,9 +9,9 @@ interface RevealProps {
   children: ReactNode;
   /** Delay in ms before this element animates. Useful for staggering siblings. */
   delay?: number;
-  /** Which entrance shape to use — plain translate (`up`) or translate + scale (`scale`). */
+  /** Which entrance shape to use , plain translate (`up`) or translate + scale (`scale`). */
   variant?: RevealVariant;
-  /** Element tag to render — defaults to `div`. */
+  /** Element tag to render , defaults to `div`. */
   as?: ElementType;
   className?: string;
   style?: CSSProperties;
@@ -23,7 +23,7 @@ interface RevealProps {
  * scrolling back up doesn't re-animate. Matches the shared easing + duration
  * defined in globals.css so every reveal on the site feels cohesive.
  *
- * Marked "use client" — the rest of the page stays a server component, but
+ * Marked "use client" , the rest of the page stays a server component, but
  * this small island hydrates for the observer wiring.
  */
 export function Reveal({
@@ -41,7 +41,7 @@ export function Reveal({
     const node = ref.current;
     if (!node) return;
 
-    // Respect reduced motion — flip to the final state immediately so users
+    // Respect reduced motion , flip to the final state immediately so users
     // still see the content.
     if (
       typeof window !== "undefined" &&

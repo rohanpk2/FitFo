@@ -19,7 +19,7 @@
 
   /*
    * Shared easing + durations so every animation on the site feels like it
-   * comes from the same family — a soft cubic out inspired by Apple / Stripe
+   * comes from the same family , a soft cubic out inspired by Apple / Stripe
    * marketing pages.
    */
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
@@ -27,7 +27,7 @@
 
 /*
  * Tailwind v4 theme tokens. `--font-sans` and `--font-display` are injected
- * by next/font/local in layout.tsx — we just reference them here so
+ * by next/font/local in layout.tsx , we just reference them here so
  * Tailwind's `font-sans` / `font-display` utilities pick the right face.
  */
 @theme inline {
@@ -99,7 +99,7 @@ body {
 /* ─── Motion system ──────────────────────────────────────────────────────── */
 
 /*
- * Hero entrance — these elements ship invisible and fade/slide in on page
+ * Hero entrance , these elements ship invisible and fade/slide in on page
  * load. Callers set an explicit `animation-delay` to stagger siblings.
  */
 @keyframes fitfo-enter-up {
@@ -136,7 +136,7 @@ body {
 }
 
 /*
- * Scroll-reveal — default state is hidden + offset, `.in-view` is the target
+ * Scroll-reveal , default state is hidden + offset, `.in-view` is the target
  * state that the <Reveal> client component applies when the element enters
  * the viewport.
  */
@@ -163,7 +163,7 @@ body {
 }
 
 /*
- * Ambient motion — infinite loops that run quietly in the background.
+ * Ambient motion , infinite loops that run quietly in the background.
  */
 @keyframes fitfo-float {
   0%,
@@ -233,7 +233,7 @@ body {
 }
 
 /*
- * CTA button hover — slight lift + stronger shadow. Works on anything with
+ * CTA button hover , slight lift + stronger shadow. Works on anything with
  * the `cta-lift` class on top of Tailwind's transition utilities.
  */
 .cta-lift {
@@ -248,7 +248,7 @@ body {
 }
 
 /*
- * Respect users who've opted out of motion — kill all animation/transition
+ * Respect users who've opted out of motion , kill all animation/transition
  * durations but keep final states intact by applying the `.in-view` target
  * styles unconditionally.
  */

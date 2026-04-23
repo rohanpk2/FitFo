@@ -47,7 +47,7 @@ const FAQS: { q: string; a: React.ReactNode }[] = [
         <ul className="mt-3 list-disc space-y-1.5 pl-5">
           <li>Make sure the source post is public (TikTok or Instagram Reels).</li>
           <li>
-            Longer videos with clear voice-over or visible text work best — think
+            Longer videos with clear voice-over or visible text work best. Think
             creator explanations rather than 10-second montages.
           </li>
           <li>
@@ -115,11 +115,11 @@ const FAQS: { q: string; a: React.ReactNode }[] = [
       <>
         <p>
           Yes. FitFo does not host or redistribute any third-party video
-          content. When you paste a link, we extract factual exercise data
-          (names, sets, reps) and always link back to the original post via the
-          &ldquo;View on TikTok&rdquo; / &ldquo;View on Instagram&rdquo; button
-          on every imported workout. If you&apos;re a creator and want your
-          content removed, email{" "}
+          content. When you share a video into FitFo, we extract factual
+          exercise data (names, sets, reps) and always link back to the
+          original post via the &ldquo;View on TikTok&rdquo; or &ldquo;View on
+          Instagram&rdquo; button on every imported workout. If you&apos;re a
+          creator and want your content removed, email{" "}
           <a
             href="mailto:nirv@fitfo.app"
             className="text-[var(--primary-bright)] underline underline-offset-2"
@@ -136,9 +136,9 @@ const FAQS: { q: string; a: React.ReactNode }[] = [
     a: (
       <>
         <p>
-          Yes — FitFo is free to download on the App Store. If we add premium
+          Yes, FitFo is free to download on the App Store. If we add premium
           features later (e.g. higher video volume, advanced analytics) we will
-          give everyone plenty of notice and the core &ldquo;paste a link, get
+          give everyone plenty of notice and the core &ldquo;share a video, get
           a workout&rdquo; loop will always remain available.
         </p>
       </>
@@ -151,7 +151,7 @@ const FAQS: { q: string; a: React.ReactNode }[] = [
         <p>
           No. FitFo turns the content of videos into structured data. Workouts
           parsed from videos are labeled <strong>AI-Parsed</strong> and may
-          contain errors — always verify sets, reps, and weights before
+          contain errors, so always verify sets, reps, and weights before
           training and talk to a doctor or qualified coach if you have any
           concerns about a particular exercise or load.
         </p>
@@ -178,7 +178,7 @@ export default function SupportPage() {
               className="mt-3 text-4xl font-bold leading-[1.02] tracking-[-0.03em] sm:text-5xl text-balance"
               style={{ fontFamily: "var(--font-display)" }}
             >
-              We&apos;re on call — <span className="text-[var(--primary)]">mostly</span>.
+              We&apos;re on call, <span className="text-[var(--primary)]">mostly</span>.
             </h1>
             <p className="mt-5 max-w-2xl text-[15px] leading-relaxed text-[var(--text-secondary)] text-pretty sm:text-base">
               Something broken? A workout parsed wrong? Want your creator

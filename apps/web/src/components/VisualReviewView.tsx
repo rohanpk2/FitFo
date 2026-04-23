@@ -102,13 +102,13 @@ function confidenceBadge(confidence: number): {
   }
   if (confidence >= 0.40) {
     return {
-      label: `${pct}% — low`,
+      label: `${pct}% , low`,
       className:
         "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
     };
   }
   return {
-    label: `${pct}% — very low`,
+    label: `${pct}% , very low`,
     className:
       "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
   };
@@ -272,7 +272,7 @@ export function VisualReviewView({
           Review Detected Exercises
         </h2>
         <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-          No audio or text was found — exercises were detected visually.
+          No audio or text was found , exercises were detected visually.
           Relabel or remove anything that looks wrong, then confirm.
         </p>
       </div>
@@ -287,7 +287,7 @@ export function VisualReviewView({
         </span>
         {unknownCount > 0 && (
           <span className="rounded-lg bg-amber-100 px-3 py-1.5 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-            {unknownCount} unknown — relabel or remove
+            {unknownCount} unknown , relabel or remove
           </span>
         )}
       </div>
@@ -330,7 +330,7 @@ export function VisualReviewView({
       </div>
 
       <p className="text-xs text-zinc-400 dark:text-zinc-500">
-        Sets and reps will be empty — fill them in after saving.
+        Sets and reps will be empty , fill them in after saving.
       </p>
     </div>
   );

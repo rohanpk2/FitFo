@@ -87,10 +87,11 @@ export default function MarketingPage() {
               <p>
                 <strong className="text-[var(--text-primary)]">FitFo</strong> is
                 a fitness app that turns TikTok and Instagram workout videos
-                into structured, followable training plans. Users paste a
-                public link and get back a clean card with exercises, sets,
-                reps, rest times, and notes, ready to save, schedule, edit,
-                and log.
+                into structured, followable training plans. Users share a
+                public video straight from TikTok or Reels into FitFo, just
+                like sending it to a friend, and get back a clean card with
+                exercises, sets, reps, rest times, and notes, ready to save,
+                schedule, edit, and log.
               </p>
               <p>
                 The product sits at the intersection of three behaviors most
@@ -181,7 +182,7 @@ export default function MarketingPage() {
 
             <dl className="mt-10 divide-y divide-[var(--border-soft)] rounded-3xl border border-[var(--border-soft)] bg-[var(--surface)]">
               <Fact term="Company" value="Vaayu Athletics LLC" />
-              <Fact term="Product" value="FitFo — iOS fitness app" />
+              <Fact term="Product" value="FitFo, iOS fitness app" />
               <Fact term="Launched" value="2026" />
               <Fact term="Platforms" value="iOS (iPhone)" />
               <Fact term="Price" value="Free to download" />

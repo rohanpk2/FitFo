@@ -10,14 +10,14 @@ const APP_STORE_URL = "https://apps.apple.com/app/id6762418380";
 const FEATURES = [
   {
     eyebrow: "Import",
-    title: "Paste a link, get a workout",
-    copy: "Drop in any TikTok or Instagram Reel. FitFo pulls the audio, reads the on-screen text, and turns it into a clean, structured session.",
+    title: "Share a video, get a workout",
+    copy: "Hit share on any TikTok or Reel and send it straight to FitFo, the same way you'd send it to a friend. Our AI pulls the audio, reads the on-screen text, and turns it into a clean, structured session.",
     image: "/assets/IMG_4970.PNG",
   },
   {
     eyebrow: "Organize",
     title: "A library that knows what it is",
-    copy: "Saved workouts, scheduled sessions, and logged history — each one tagged by muscle group and block so you can find them fast.",
+    copy: "Saved workouts, scheduled sessions, and logged history, each one tagged by muscle group and block so you can find them fast.",
     image: "/assets/IMG_4966.PNG",
   },
   {
@@ -31,13 +31,13 @@ const FEATURES = [
 const STEPS = [
   {
     n: "01",
-    title: "Paste a fitness video",
-    body: "TikTok, Instagram Reels — anything public. We read what the creator actually said and showed.",
+    title: "Share a fitness video",
+    body: "Hit the share button on any public TikTok or Reel and pick FitFo. No copy-pasting, no leaving the app you were scrolling.",
   },
   {
     n: "02",
-    title: "Get a structured plan",
-    body: "Exercises, sets, reps, rest, notes — all extracted into a card you can edit, save, or start immediately.",
+    title: "Our AI does the work",
+    body: "Exercises, sets, reps, rest, notes, all extracted into a card you can edit, save, or start immediately.",
   },
   {
     n: "03",
@@ -85,9 +85,10 @@ export default function LandingPage() {
                 className="hero-anim mt-5 max-w-md text-[15px] leading-relaxed text-[var(--text-secondary)] text-pretty sm:text-base"
                 style={{ animationDelay: "300ms" }}
               >
-                FitFo reads the TikToks and Reels you love, extracts the
-                exercises, sets and reps, and drops them into a clean workout
-                you can follow, edit, and track.
+                See a workout on TikTok or Reels? Share it straight to FitFo,
+                the same way you&apos;d send it to a friend. Our AI parses the
+                video, pulls the exercises, sets, and reps, and builds a clean
+                workout you can follow, edit, and track.
               </p>
 
               <div
@@ -139,7 +140,7 @@ export default function LandingPage() {
               >
                 <PhoneFrame
                   src="/assets/IMG_4970.PNG"
-                  alt="FitFo app — paste a TikTok or Instagram link and get a structured workout"
+                  alt="FitFo app, share a TikTok or Instagram video and get a structured workout"
                   width={280}
                   priority
                   float
@@ -317,7 +318,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Final CTA — live on iOS */}
+        {/* Final CTA, live on iOS */}
         <section className="relative overflow-hidden border-t border-[var(--border-soft)]">
           <div
             aria-hidden
@@ -349,9 +350,9 @@ export default function LandingPage() {
                 </span>
               </h2>
               <p className="mx-auto mt-5 max-w-xl text-[15px] text-[var(--text-secondary)] text-pretty sm:text-base">
-                FitFo is available now on the App Store. Paste your first
-                TikTok or Instagram Reel and be lifting off a real plan in
-                under a minute.
+                FitFo is available now on the App Store. Share your first
+                TikTok or Reel straight to the app and be lifting off a real
+                plan in under a minute.
               </p>
             </Reveal>
 

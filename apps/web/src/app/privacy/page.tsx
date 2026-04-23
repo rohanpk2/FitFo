@@ -31,8 +31,8 @@ export default function PrivacyPage() {
             </h1>
             <p className="mt-5 text-[15px] leading-relaxed text-[var(--text-secondary)] text-pretty sm:text-base">
               FitFo is built by a small team that trains every day. This policy
-              explains — in plain English — what we collect, why, who touches
-              it, and how to get rid of it whenever you want.
+              explains, in plain English, what we collect, why, who touches it,
+              and how to get rid of it whenever you want.
             </p>
             <p className="mt-3 text-[12px] text-[var(--text-muted)]">
               Effective date: April 22, 2026
@@ -94,8 +94,8 @@ export default function PrivacyPage() {
                 </li>
                 <li>
                   <strong>Source URLs.</strong> TikTok and Instagram Reel URLs
-                  you paste for import, plus the extracted metadata and
-                  transcript we generate from them.
+                  you share into the app for import, plus the extracted
+                  metadata and transcript we generate from them.
                 </li>
                 <li>
                   <strong>Device identifiers.</strong> A user ID we assign to
@@ -147,29 +147,29 @@ export default function PrivacyPage() {
               </p>
               <ul>
                 <li>
-                  <strong>Supabase</strong> — database and file storage for
+                  <strong>Supabase</strong>, database and file storage for
                   profiles, workouts, and session logs (hosted on AWS in the
                   United States).
                 </li>
                 <li>
-                  <strong>Twilio Verify</strong> — sending SMS one-time
+                  <strong>Twilio Verify</strong>, sending SMS one-time
                   verification codes to your phone number.
                 </li>
                 <li>
-                  <strong>Apple</strong> — Sign in with Apple authentication
+                  <strong>Apple</strong>, Sign in with Apple authentication
                   and refresh-token revocation when you delete your account.
                 </li>
                 <li>
-                  <strong>Apify</strong> — fetching public metadata from
+                  <strong>Apify</strong>, fetching public metadata from
                   TikTok and Instagram URLs you submit.
                 </li>
                 <li>
-                  <strong>Groq</strong> and <strong>OpenAI</strong> — running
+                  <strong>Groq</strong> and <strong>OpenAI</strong>, running
                   transcription and language-model processing on the audio and
                   text extracted from videos you submit.
                 </li>
                 <li>
-                  <strong>DigitalOcean</strong> — hosting our API servers.
+                  <strong>DigitalOcean</strong>, hosting our API servers.
                 </li>
               </ul>
               <p>
@@ -194,21 +194,21 @@ export default function PrivacyPage() {
               </p>
               <ul>
                 <li>
-                  <strong>Access</strong> or export your data — email us and
+                  <strong>Access</strong> or export your data. Email us and
                   we&apos;ll send you a copy within 30 days.
                 </li>
                 <li>
-                  <strong>Correct</strong> inaccurate data — most fields are
+                  <strong>Correct</strong> inaccurate data. Most fields are
                   editable directly inside the app.
                 </li>
                 <li>
-                  <strong>Delete</strong> your account and all associated data
-                  — use <em>Profile → Delete Account</em> inside the app, or
-                  email us.
+                  <strong>Delete</strong> your account and all associated
+                  data. Use <em>Profile → Delete Account</em> inside the app,
+                  or email us.
                 </li>
                 <li>
-                  <strong>Object</strong> to processing or withdraw consent —
-                  simply stop using the app and request deletion.
+                  <strong>Object</strong> to processing or withdraw consent.
+                  Simply stop using the app and request deletion.
                 </li>
               </ul>
               <p>
@@ -248,13 +248,13 @@ export default function PrivacyPage() {
               <H2>11. Third-party content (TikTok / Instagram videos)</H2>
               <p>
                 FitFo does not host or redistribute third-party video content.
-                When you paste a TikTok or Instagram URL, we fetch public
-                metadata, transcribe audio, and run OCR on frames to extract
-                factual exercise information (names, sets, reps, rest). We
-                always link back to the original post inside the app via the
-                &ldquo;View on TikTok&rdquo; or &ldquo;View on Instagram&rdquo;
-                button. Creators who want their content excluded from the
-                service can email{" "}
+                When you share a TikTok or Instagram video into FitFo, we
+                fetch public metadata, transcribe audio, and run OCR on
+                frames to extract factual exercise information (names, sets,
+                reps, rest). We always link back to the original post inside
+                the app via the &ldquo;View on TikTok&rdquo; or &ldquo;View on
+                Instagram&rdquo; button. Creators who want their content
+                excluded from the service can email{" "}
                 <a href="mailto:nirv@fitfo.app">nirv@fitfo.app</a> with
                 the URL and we&apos;ll remove it.
               </p>
