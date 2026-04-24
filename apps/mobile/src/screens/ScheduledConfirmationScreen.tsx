@@ -164,7 +164,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     title: {
       color: theme.colors.textPrimary,
       fontSize: 32,
-      fontFamily: "Satoshi-Bold",
+      fontFamily: "ClashDisplay-Semibold",
       fontWeight: "800",
       letterSpacing: -1,
       textAlign: "center",

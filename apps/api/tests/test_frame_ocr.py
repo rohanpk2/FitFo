@@ -29,7 +29,7 @@ class FrameOCRTests(unittest.IsolatedAsyncioTestCase):
                 if cmd[0] == "ffprobe":
                     return SimpleNamespace(returncode=0, stdout="12.0", stderr="")
 
-                positions.append(cmd[2])
+                positions.append(cmd[3])
                 out_path = Path(cmd[-1])
                 out_path.write_bytes(f"frame-{len(positions)}".encode("utf-8"))
                 return SimpleNamespace(returncode=0, stdout="", stderr="")

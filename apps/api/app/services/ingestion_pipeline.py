@@ -468,9 +468,9 @@ async def _run_tiktok_pipeline(job_id: str, source_url: str) -> None:
 
 async def _run_instagram_pipeline(job_id: str, source_url: str) -> None:
     """
-    Instagram branch: Apify resolves only the CDN video URL (no transcript,
-    no server-side download). Download, audio extraction, Whisper transcription,
-    and lazy OCR all run locally — same pattern as the TikTok pipeline.
+    Instagram branch: Apify resolves the CDN video URL. Download, audio extraction,
+    Whisper transcription, and OCR all run locally. Audio failure is non-fatal;
+    OCR runs whenever transcript is absent or weak.
     """
     supabase_db.update_ingestion_job(job_id, status="fetching")
 
@@ -523,52 +523,29 @@ async def _run_instagram_pipeline(job_id: str, source_url: str) -> None:
             upsert=True,
         )
 
-        try:
-            t4 = time.monotonic()
-            _extract_audio_ffmpeg(video_path, audio_path)
-            _log.info("[instagram:%s] audio_extraction=%.1fs", job_id, time.monotonic() - t4)
-            supabase_db.upload_bytes_to_storage(
-                bucket=bucket,
-                path=audio_storage_path,
-                content=_read_bytes(audio_path),
-                content_type="audio/mpeg",
-                upsert=True,
-            )
-            provider_meta = supabase_db.merge_provider_meta(
-                provider_meta,
-                {
-                    "audio_extraction": {"ok": True},
-                    "transcription_audio_source": "audio",
-                    "storage": {
-                        "bucket": bucket,
-                        "video_path": video_storage_path,
-                        "audio_path": audio_storage_path,
-                    },
-                },
-            )
-            supabase_db.update_ingestion_job(
-                job_id, status="transcribing", provider_meta=provider_meta
-            )
-        except Exception as exc:
-            provider_meta = supabase_db.merge_provider_meta(
-                provider_meta,
-                {"audio_extraction": {"ok": False, "error": str(exc)}},
-            )
-            supabase_db.update_ingestion_job(
-                job_id, status="failed", error=str(exc), provider_meta=provider_meta
-            )
-            return
+        t4 = time.monotonic()
+        transcript, provider_meta = await _try_audio_transcription(
+            job_id,
+            video_path,
+            audio_path,
+            provider_meta,
+            log_prefix=f"instagram:{job_id}",
+            bucket=bucket,
+            video_storage_path=video_storage_path,
+            audio_storage_path=audio_storage_path,
+        )
+        _log.info("[instagram:%s] audio=%.1fs", job_id, time.monotonic() - t4)
 
-        t6 = time.monotonic()
-        transcript_text = await _run_transcription(job_id, audio_path)
-        _log.info("[instagram:%s] whisper=%.1fs", job_id, time.monotonic() - t6)
-
-        if _transcript_is_weak(transcript_text):
+        if transcript is None or _transcript_is_weak(transcript):
             t8 = time.monotonic()
             provider_meta = (
                 await _maybe_extract_on_screen_text(job_id, video_path, provider_meta)
             ) or provider_meta
-            _log.info("[instagram:%s] ocr=%.1fs", job_id, time.monotonic() - t8)
+            _log.info(
+                "[instagram:%s] ocr=ocr_used elapsed=%.1fs",
+                job_id,
+                time.monotonic() - t8,
+            )
         else:
             _log.info("[instagram:%s] ocr=skipped(whisper_ok)", job_id)
 

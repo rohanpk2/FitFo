@@ -230,7 +230,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     eyebrow: {
       color: theme.colors.primary,
       fontSize: 13,
-      fontFamily: "Satoshi-Black",
+      fontFamily: "ClashDisplay-Bold",
       fontWeight: "900",
       letterSpacing: 3,
       textTransform: "uppercase",
@@ -239,7 +239,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       color: theme.colors.textPrimary,
       fontSize: 48,
       lineHeight: 48,
-      fontFamily: "Satoshi-Black",
+      fontFamily: "ClashDisplay-Bold",
       fontWeight: "900",
       letterSpacing: -2.2,
     },
@@ -249,7 +249,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     wordmark: {
       color: theme.colors.textMuted,
       fontSize: 20,
-      fontFamily: "Satoshi-Black",
+      fontFamily: "ClashDisplay-Bold",
       fontWeight: "900",
       letterSpacing: 2,
       textTransform: "uppercase",

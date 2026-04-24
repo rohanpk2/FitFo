@@ -221,16 +221,22 @@ class IngestionPipelineTests(unittest.IsolatedAsyncioTestCase):
         ocr_mock.assert_awaited_once()
         run_parsing.assert_awaited_once()
 
-    async def test_instagram_pipeline_marks_failed_when_audio_extraction_fails(self) -> None:
+    async def test_instagram_pipeline_continues_when_audio_extraction_fails(self) -> None:
         async def fake_download(url: str, dest: Path) -> None:
             dest.write_bytes(b"video")
 
+        run_parsing = AsyncMock()
+        ocr_mock = AsyncMock(return_value=None)
+
         with (
             patch("app.services.ingestion_pipeline._download_to_file", side_effect=fake_download),
+            patch("app.services.ingestion_pipeline.has_audio_stream", return_value=True),
             patch(
                 "app.services.ingestion_pipeline._extract_audio_ffmpeg",
                 side_effect=ingestion_pipeline.IngestionPipelineError("audio extraction failed"),
             ),
+            patch("app.services.ingestion_pipeline._run_parsing", run_parsing),
+            patch("app.services.ingestion_pipeline._maybe_extract_on_screen_text", ocr_mock),
             patch(
                 "app.services.ingestion_pipeline.apify_reel.fetch_reel",
                 AsyncMock(return_value={"videoUrl": "https://cdn.example.com/video.mp4"}),
@@ -263,9 +269,18 @@ class IngestionPipelineTests(unittest.IsolatedAsyncioTestCase):
                 "https://www.instagram.com/reel/abc123/",
             )
 
-        failed_call = next(call for call in self.update_calls if call.get("status") == "failed")
-        self.assertIn("audio extraction failed", failed_call["error"])
-        self.assertFalse(failed_call["provider_meta"]["audio_extraction"]["ok"])
+        failed_calls = [c for c in self.update_calls if c.get("status") == "failed"]
+        self.assertEqual(failed_calls, [])
+        audio_update = next(
+            c
+            for c in self.update_calls
+            if isinstance(c.get("provider_meta"), dict)
+            and c["provider_meta"].get("audio_extraction", {}).get("state")
+            == "audio_extract_failed_nonfatal"
+        )
+        self.assertFalse(audio_update["provider_meta"]["audio_extraction"]["ok"])
+        ocr_mock.assert_awaited_once()
+        run_parsing.assert_awaited_once()
 
     async def test_instagram_pipeline_uses_whisper_and_skips_ocr_when_strong(self) -> None:
         """After the refactor: Whisper is primary. Strong transcript → OCR is skipped."""
@@ -574,6 +589,62 @@ class IngestionPipelineTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(failed_calls, [])
         audio_update = next(
             c for c in self.update_calls
+            if isinstance(c.get("provider_meta"), dict)
+            and c["provider_meta"].get("audio_extraction", {}).get("state") == "audio_missing"
+        )
+        self.assertIsNotNone(audio_update)
+        ocr_mock.assert_awaited_once()
+        run_parsing.assert_awaited_once()
+
+    async def test_instagram_pipeline_continues_when_no_audio_stream(self) -> None:
+        async def fake_download(url: str, dest: Path) -> None:
+            dest.write_bytes(b"video")
+
+        run_parsing = AsyncMock()
+        ocr_mock = AsyncMock(return_value=None)
+
+        with (
+            patch("app.services.ingestion_pipeline._download_to_file", side_effect=fake_download),
+            patch("app.services.ingestion_pipeline.has_audio_stream", return_value=False),
+            patch("app.services.ingestion_pipeline._run_parsing", run_parsing),
+            patch("app.services.ingestion_pipeline._maybe_extract_on_screen_text", ocr_mock),
+            patch(
+                "app.services.ingestion_pipeline.apify_reel.fetch_reel",
+                AsyncMock(return_value={"videoUrl": "https://cdn.example.com/video.mp4"}),
+            ),
+            patch(
+                "app.services.ingestion_pipeline.apify_reel.pick_video_url",
+                return_value="https://cdn.example.com/video.mp4",
+            ),
+            patch("app.services.ingestion_pipeline.apify_reel.pick_owner_username", return_value="coach"),
+            patch("app.services.ingestion_pipeline.apify_reel.pick_caption", return_value="Workout"),
+            patch(
+                "app.services.ingestion_pipeline.supabase_db.get_ingestion_job",
+                return_value={"provider_meta": {}, "user_id": "user-123"},
+            ),
+            patch(
+                "app.services.ingestion_pipeline.supabase_db.update_ingestion_job",
+                side_effect=self._record_update,
+            ),
+            patch(
+                "app.services.ingestion_pipeline.supabase_db.upload_bytes_to_storage",
+                side_effect=self._record_upload,
+            ),
+            patch(
+                "app.services.ingestion_pipeline.supabase_db.merge_provider_meta",
+                side_effect=ingestion_pipeline.supabase_db.merge_provider_meta,
+            ),
+        ):
+            await ingestion_pipeline.run_ingestion_job(
+                "job-ig-silent",
+                "https://www.instagram.com/reel/abc123/",
+            )
+
+        failed_calls = [c for c in self.update_calls if c.get("status") == "failed"]
+        self.assertEqual(failed_calls, [])
+        audio_update = next(
+            c
+            for c in self.update_calls
             if isinstance(c.get("provider_meta"), dict)
             and c["provider_meta"].get("audio_extraction", {}).get("state") == "audio_missing"
         )
