@@ -6,7 +6,7 @@
 
 **Architecture:** Add `has_audio_stream()` (ffprobe probe) and `_try_audio_transcription()` (never-raises audio helper) to `ingestion_pipeline.py`. Both pipelines replace their hard-failing audio try/except blocks with a single call to the shared helper. Tests that previously asserted the old hard-fail behavior are replaced with tests asserting the new non-fatal behavior.
 
-**Tech Stack:** Python 3.12, pytest, unittest.mock, ffprobe (subprocess), existing Groq Whisper integration.
+**Tech Stack:** Python 3.12, pytest, unittest.mock, ffprobe (subprocess), OpenAI transcription integration.
 
 ---
 

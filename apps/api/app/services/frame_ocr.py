@@ -1,5 +1,5 @@
 """
-Frame-level OCR for workout videos. Samples a handful of evenly-spaced frames
+Frame-level OCR for workout videos. Samples frames about once per second
 from a downloaded MP4 using ffmpeg, then asks a vision-capable LLM to read any
 on-screen text. The returned string is fed into the workout parser alongside
 the audio transcript and caption, so videos with only on-screen text (no
@@ -8,13 +8,15 @@ narration) can still produce a structured workout.
 Kept intentionally optional:
 - If OCR is disabled or no provider is configured, extraction returns an empty
   result and the pipeline continues with transcript/caption.
-- If ffmpeg/ffprobe/provider requests fail, extraction returns structured
+- If ffmpeg/ffprobe/OpenAI requests fail, extraction returns structured
   metadata describing the soft failure instead of tanking the import.
 """
 
 from __future__ import annotations
 
 import base64
+import logging
+import math
 import os
 import subprocess
 from dataclasses import dataclass
@@ -28,15 +30,17 @@ class FrameOCRError(RuntimeError):
     pass
 
 
-ProviderName = Literal["groq", "openai"]
+ProviderName = Literal["openai"]
 
-GROQ_CHAT_URL = "https://api.groq.com/openai/v1/chat/completions"
 OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions"
-DEFAULT_OPENAI_VISION_MODEL = "gpt-4o-mini"
-DEFAULT_FRAME_COUNT = 12
+DEFAULT_OPENAI_VISION_MODEL = "gpt-4.1-mini"
+DEFAULT_FRAME_COUNT = 80
+DEFAULT_FRAME_INTERVAL_SECONDS = 1.0
+VISION_FRAME_BATCH_SIZE = 8
 SCENE_CHANGE_THRESHOLD = 0.35
 MAX_SCENE_FRAMES = 20
-DEFAULT_PROVIDER_PRIORITY = ("groq", "openai")
+
+_log = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -75,52 +79,27 @@ def _clean_text(value: object) -> str:
     return cleaned
 
 
-def _groq_api_key() -> str:
-    return (os.environ.get("GROQ_API_KEY") or "").strip()
-
-
 def _openai_api_key() -> str:
     return (os.environ.get("OPENAI_API_KEY") or "").strip()
 
 
-def _groq_model() -> str:
-    return (
-        os.environ.get("FRAME_OCR_GROQ_MODEL")
-        or os.environ.get("GROQ_VISION_MODEL")
-        or ""
-    ).strip()
-
-
 def _openai_model() -> str:
-    return (
-        os.environ.get("FRAME_OCR_OPENAI_MODEL") or DEFAULT_OPENAI_VISION_MODEL
-    ).strip()
+    return (os.environ.get("OPENAI_VISION_MODEL") or DEFAULT_OPENAI_VISION_MODEL).strip()
 
 
 def configured_provider_priority() -> list[ProviderName]:
-    raw = (os.environ.get("FRAME_OCR_PROVIDER_PRIORITY") or "").strip()
-    if not raw:
-        return list(DEFAULT_PROVIDER_PRIORITY)
-
-    parsed: list[ProviderName] = []
-    for item in raw.split(","):
-        normalized = item.strip().lower()
-        if normalized in ("groq", "openai") and normalized not in parsed:
-            parsed.append(normalized)
-    return parsed or list(DEFAULT_PROVIDER_PRIORITY)
+    return ["openai"]
 
 
 def is_provider_configured(provider: ProviderName) -> bool:
-    if provider == "groq":
-        return bool(_groq_api_key() and _groq_model())
     return bool(_openai_api_key())
 
 
 def is_enabled() -> bool:
-    """OCR is opt-in via env. Feature flag must be enabled and at least one provider configured."""
+    """OCR is opt-in via env. Feature flag must be enabled and OpenAI configured."""
     if (os.environ.get("ENABLE_FRAME_OCR") or "1").strip() == "0":
         return False
-    return any(is_provider_configured(provider) for provider in configured_provider_priority())
+    return bool(_openai_api_key())
 
 
 def _video_duration_seconds(video_path: Path) -> float:
@@ -149,8 +128,9 @@ def _video_duration_seconds(video_path: Path) -> float:
 
 def sample_frames(video_path: Path, count: int = DEFAULT_FRAME_COUNT) -> list[bytes]:
     """
-    Extract `count` evenly-spaced JPEG frames from the given video and return
-    their raw bytes. Silently returns [] if ffmpeg fails for any reason.
+    Extract JPEG frames about once per second and return their raw bytes.
+    `count` is a safety cap, not a spacing target. Silently returns [] if
+    ffmpeg fails for any reason.
     """
     if count <= 0 or not video_path.exists():
         return []
@@ -163,8 +143,12 @@ def sample_frames(video_path: Path, count: int = DEFAULT_FRAME_COUNT) -> list[by
     output_dir = video_path.parent / "frames"
     output_dir.mkdir(exist_ok=True)
 
-    for i in range(count):
-        position = duration * (i + 1) / (count + 1)
+    interval = DEFAULT_FRAME_INTERVAL_SECONDS
+    frame_count = min(count, max(1, math.ceil(duration / interval)))
+    start = min(0.5, duration / 2)
+
+    for i in range(frame_count):
+        position = min(duration, start + (i * interval))
         out_path = output_dir / f"frame_{i:02d}.jpg"
         cmd = [
             "ffmpeg",
@@ -281,9 +265,23 @@ def _extract_message_text(raw: object) -> str:
     return ""
 
 
+def _dedupe_ocr_text(text: str) -> str:
+    lines: list[str] = []
+    seen: set[str] = set()
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not line or line.upper() == "NONE":
+            continue
+        normalized = " ".join(line.lower().split())
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        lines.append(line)
+    return "\n".join(lines)
+
+
 async def _request_vision_ocr(
     *,
-    api_url: str,
     api_key: str,
     model: str,
     frames: list[bytes],
@@ -305,7 +303,7 @@ async def _request_vision_ocr(
     timeout = httpx.Timeout(60.0, connect=15.0)
     try:
         async with httpx.AsyncClient(timeout=timeout) as client:
-            resp = await client.post(api_url, headers=headers, json=payload)
+            resp = await client.post(OPENAI_CHAT_URL, headers=headers, json=payload)
     except httpx.RequestError as exc:
         raise FrameOCRError(str(exc)) from exc
 
@@ -330,37 +328,32 @@ async def _extract_with_provider(
     provider: ProviderName,
     frames: list[bytes],
 ) -> tuple[str, str]:
-    if provider == "groq":
-        model = _groq_model()
-        if not model:
-            raise FrameOCRError("Groq OCR model is not configured")
-        key = _groq_api_key()
-        if not key:
-            raise FrameOCRError("GROQ_API_KEY is not set")
-        text = await _request_vision_ocr(
-            api_url=GROQ_CHAT_URL,
-            api_key=key,
-            model=model,
-            frames=frames,
-        )
-        return text, model
-
     key = _openai_api_key()
     if not key:
         raise FrameOCRError("OPENAI_API_KEY is not set")
     model = _openai_model()
-    text = await _request_vision_ocr(
-        api_url=OPENAI_CHAT_URL,
-        api_key=key,
-        model=model,
-        frames=frames,
+    text_parts: list[str] = []
+    _log.info(
+        "ai_provider=OpenAI task=ocr model=%s sampled_frame_count=%s",
+        model,
+        len(frames),
     )
+    for start in range(0, len(frames), VISION_FRAME_BATCH_SIZE):
+        batch = frames[start : start + VISION_FRAME_BATCH_SIZE]
+        text = await _request_vision_ocr(
+            api_key=key,
+            model=model,
+            frames=batch,
+        )
+        if text:
+            text_parts.append(text)
+    text = _dedupe_ocr_text("\n".join(text_parts))
     return text, model
 
 
 async def extract_on_screen_text(frames: list[bytes]) -> OCRExtractionResult:
     """
-    Run OCR over the sampled frames using the configured provider order.
+    Run OpenAI OCR over the sampled frames.
     Returns structured metadata describing which provider, if any, succeeded.
     """
     frame_count = len(frames)
@@ -370,35 +363,24 @@ async def extract_on_screen_text(frames: list[bytes]) -> OCRExtractionResult:
     if (os.environ.get("ENABLE_FRAME_OCR") or "1").strip() == "0":
         return _failure("disabled", frame_count)
 
-    configured = [p for p in configured_provider_priority() if is_provider_configured(p)]
-    if not configured:
+    if not _openai_api_key():
         return _failure("no_provider_configured", frame_count)
 
-    errors: list[str] = []
-    for index, provider in enumerate(configured):
-        try:
-            text, model = await _extract_with_provider(provider, frames)
-        except FrameOCRError as exc:
-            errors.append(f"{provider}: {exc}")
-            continue
-
+    try:
+        text, model = await _extract_with_provider("openai", frames)
         return OCRExtractionResult(
             text=text,
             ok=bool(text),
-            provider=provider,
+            provider="openai",
             model=model,
             frame_count=frame_count,
             char_count=len(text),
-            fallback_used=index > 0,
-            error="; ".join(errors) if errors else None,
+            fallback_used=False,
+            error=None,
             reason=None if text else "no_text_detected",
         )
-
-    return _failure(
-        "provider_error",
-        frame_count,
-        "; ".join(errors) if errors else "No OCR providers succeeded",
-    )
+    except FrameOCRError as exc:
+        return _failure("provider_error", frame_count, f"openai: {exc}")
 
 
 async def extract_on_screen_text_from_video(
@@ -410,10 +392,8 @@ async def extract_on_screen_text_from_video(
     if (os.environ.get("ENABLE_FRAME_OCR") or "1").strip() == "0":
         return _failure("disabled")
 
-    if not any(is_provider_configured(p) for p in configured_provider_priority()):
+    if not _openai_api_key():
         return _failure("no_provider_configured")
 
-    frames = sample_frames_by_scene_change(video_path)
-    if len(frames) < 2:
-        frames = sample_frames(video_path, count=count)
+    frames = sample_frames(video_path, count=count)
     return await extract_on_screen_text(frames)

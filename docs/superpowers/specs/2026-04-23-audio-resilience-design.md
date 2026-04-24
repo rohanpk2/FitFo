@@ -92,7 +92,7 @@ All log lines are provider-prefixed:
 |------|----------|
 | ffprobe not on PATH | `has_audio_stream` returns `True` (fail-open); if ffmpeg also missing, logs `audio_extract_failed_nonfatal` |
 | Audio stream present but silent music | Whisper returns weak/empty transcript; OCR still runs for Instagram; parser works from caption/OCR |
-| Groq transcription API failure | `_try_audio_transcription` catches and returns `(None, meta)`; import continues with caption/OCR. **New behavior:** today a Groq failure bubbles up and fails the job. |
+| OpenAI transcription API failure | `_try_audio_transcription` catches and returns `(None, meta)`; import continues with caption/OCR. |
 | All sources empty | Existing `_run_parsing` gate handles this: visual fallback if enabled, else `status=failed` |
 
 ---

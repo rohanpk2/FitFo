@@ -183,7 +183,7 @@ class IngestionPipelineTests(unittest.IsolatedAsyncioTestCase):
             patch("app.services.ingestion_pipeline._extract_audio_ffmpeg", side_effect=fake_extract_audio),
             patch(
                 "app.services.ingestion_pipeline._run_transcription",
-                AsyncMock(side_effect=ingestion_pipeline.IngestionPipelineError("whisper boom")),
+                AsyncMock(side_effect=ingestion_pipeline.IngestionPipelineError("transcription boom")),
             ),
             patch("app.services.ingestion_pipeline._run_parsing", run_parsing),
             patch("app.services.ingestion_pipeline._maybe_extract_on_screen_text", ocr_mock),
@@ -282,8 +282,8 @@ class IngestionPipelineTests(unittest.IsolatedAsyncioTestCase):
         ocr_mock.assert_awaited_once()
         run_parsing.assert_awaited_once()
 
-    async def test_instagram_pipeline_uses_whisper_and_skips_ocr_when_strong(self) -> None:
-        """After the refactor: Whisper is primary. Strong transcript → OCR is skipped."""
+    async def test_instagram_pipeline_runs_ocr_even_when_transcript_is_strong(self) -> None:
+        """OpenAI OCR runs after download even when the transcript is strong."""
 
         async def fake_download(url: str, dest: Path) -> None:
             dest.write_bytes(b"video")
@@ -335,7 +335,7 @@ class IngestionPipelineTests(unittest.IsolatedAsyncioTestCase):
                 "https://www.instagram.com/reel/abc123/",
             )
 
-        ocr_mock.assert_not_awaited()
+        ocr_mock.assert_awaited_once()
         run_parsing.assert_awaited_once()
 
         # provider_meta must not contain has_apify_transcript (removed field)
@@ -352,8 +352,8 @@ class IngestionPipelineTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("jobs/job-ig-strong/video.mp4", upload_paths)
         self.assertIn("jobs/job-ig-strong/audio.mp3", upload_paths)
 
-    async def test_instagram_pipeline_runs_ocr_when_whisper_weak(self) -> None:
-        """Whisper returns too little text → OCR runs as fallback."""
+    async def test_instagram_pipeline_runs_ocr_when_transcript_is_weak(self) -> None:
+        """Weak transcription still continues through OCR and parsing."""
 
         async def fake_download(url: str, dest: Path) -> None:
             dest.write_bytes(b"video")
@@ -445,7 +445,7 @@ class IngestionPipelineTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("no downloadable video URL", failed_call["error"])
 
     async def test_instagram_pipeline_records_soft_ocr_failure_and_still_completes(self) -> None:
-        """OCR fails softly when Whisper is weak; pipeline still completes using caption."""
+        """OCR fails softly; pipeline still completes using caption."""
 
         async def fake_download(url: str, dest: Path) -> None:
             dest.write_bytes(b"video")
@@ -471,7 +471,7 @@ class IngestionPipelineTests(unittest.IsolatedAsyncioTestCase):
                         frame_count=4,
                         char_count=0,
                         fallback_used=False,
-                        error="groq timeout",
+                        error="openai timeout",
                         reason="provider_error",
                     )
                 ),
@@ -507,7 +507,7 @@ class IngestionPipelineTests(unittest.IsolatedAsyncioTestCase):
                             "caption": "Leg burner",
                             "on_screen_text_extraction": {
                                 "ok": False,
-                                "error": "groq timeout",
+                                "error": "openai timeout",
                                 "reason": "provider_error",
                                 "frame_count": 4,
                                 "char_count": 0,
@@ -547,7 +547,7 @@ class IngestionPipelineTests(unittest.IsolatedAsyncioTestCase):
         extraction_meta = extraction_update["provider_meta"]["on_screen_text_extraction"]
         self.assertFalse(extraction_meta["ok"])
         self.assertEqual(extraction_meta["reason"], "provider_error")
-        self.assertIn("groq timeout", extraction_meta["error"])
+        self.assertIn("openai timeout", extraction_meta["error"])
         self.assertEqual(self.update_calls[-1]["status"], "complete")
 
     async def test_tiktok_pipeline_continues_when_no_audio_stream(self) -> None:
@@ -666,7 +666,7 @@ class IngestionPipelineTests(unittest.IsolatedAsyncioTestCase):
                             "text": "3 sets of 10 pushups",
                             "segments": [],
                             "language": "en",
-                            "model": "whisper-large-v3-turbo",
+                            "model": "gpt-4o-mini-transcribe",
                         }
                     ),
                 ),
@@ -769,7 +769,7 @@ class TryAudioTranscriptionTests(unittest.IsolatedAsyncioTestCase):
                 patch("app.services.ingestion_pipeline._extract_audio_ffmpeg", side_effect=fake_extract),
                 patch(
                     "app.services.ingestion_pipeline._run_transcription",
-                    AsyncMock(side_effect=ingestion_pipeline.IngestionPipelineError("whisper failed")),
+                    AsyncMock(side_effect=ingestion_pipeline.IngestionPipelineError("transcription failed")),
                 ),
                 patch(
                     "app.services.ingestion_pipeline.supabase_db.upload_bytes_to_storage",

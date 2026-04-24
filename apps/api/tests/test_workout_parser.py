@@ -39,7 +39,7 @@ class _FakeAsyncClient:
 class WorkoutParserTests(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
         self.original_env = os.environ.copy()
-        os.environ["GROQ_API_KEY"] = "groq-key"
+        os.environ["OPENAI_API_KEY"] = "openai-key"
 
     def tearDown(self) -> None:
         os.environ.clear()
@@ -51,13 +51,14 @@ class WorkoutParserTests(unittest.IsolatedAsyncioTestCase):
             on_screen_text="Goblet squat 3x10",
             caption="Quiet leg day",
         )
-        self.assertIn("[TRANSCRIPT]\n(empty)", message)
-        self.assertIn("[ON_SCREEN_TEXT]\nGoblet squat 3x10", message)
-        self.assertIn("[CAPTION]\nQuiet leg day", message)
+        payload = json.loads(message)
+        self.assertEqual(payload["evidence"]["transcript"], "")
+        self.assertEqual(payload["evidence"]["on_screen_text"], "Goblet squat 3x10")
+        self.assertEqual(payload["evidence"]["caption"], "Quiet leg day")
 
     def test_system_prompt_instructs_transcript_precedence(self) -> None:
         self.assertIn("Prefer the transcript when it covers a value", workout_parser.SYSTEM_PROMPT)
-        self.assertIn("use on-screen text and caption to fill gaps", workout_parser.SYSTEM_PROMPT)
+        self.assertIn("exact exercise name appears", workout_parser.SYSTEM_PROMPT)
 
     async def test_parse_transcript_to_workout_supports_ocr_only_inputs(self) -> None:
         capture: dict = {}
@@ -107,6 +108,59 @@ class WorkoutParserTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(plan["title"], "Leg burner")
         self.assertEqual(plan["blocks"][0]["exercises"][0]["name"], "Goblet squat")
-        user_message = capture["json"]["messages"][1]["content"]
-        self.assertIn("[TRANSCRIPT]\n(empty)", user_message)
-        self.assertIn("[ON_SCREEN_TEXT]\nGoblet squat 3x10", user_message)
+        user_message = json.loads(capture["json"]["messages"][1]["content"])
+        self.assertEqual(user_message["evidence"]["transcript"], "")
+        self.assertEqual(user_message["evidence"]["on_screen_text"], "Goblet squat 3x10")
+        self.assertEqual(capture["url"], workout_parser.OPENAI_CHAT_URL)
+
+    async def test_parse_filters_exercises_not_supported_by_evidence(self) -> None:
+        response = _FakeResponse(
+            {
+                "choices": [
+                    {
+                        "message": {
+                            "content": json.dumps(
+                                {
+                                    "title": "Leg day",
+                                    "workout_type": "strength",
+                                    "muscle_groups": ["legs"],
+                                    "equipment": [],
+                                    "blocks": [
+                                        {
+                                            "name": None,
+                                            "exercises": [
+                                                {
+                                                    "name": "Burpees",
+                                                    "sets": 3,
+                                                    "reps": 10,
+                                                    "duration_sec": None,
+                                                    "rest_sec": None,
+                                                    "notes": None,
+                                                }
+                                            ],
+                                        }
+                                    ],
+                                    "notes": None,
+                                }
+                            )
+                        }
+                    }
+                ]
+            }
+        )
+
+        with patch(
+            "app.services.workout_parser.httpx.AsyncClient",
+            return_value=_FakeAsyncClient(response),
+        ):
+            plan = await workout_parser.parse_transcript_to_workout(
+                "",
+                on_screen_text="Goblet squat 3x10",
+                caption="Leg day",
+            )
+
+        self.assertEqual(plan["blocks"], [])
+        self.assertEqual(
+            plan["reason"],
+            "No exercise names detected in caption, transcript, or on-screen text.",
+        )
