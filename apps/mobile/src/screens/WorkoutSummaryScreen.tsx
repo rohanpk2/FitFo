@@ -342,7 +342,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     title: {
       color: theme.colors.surface,
       fontSize: 34,
-      fontFamily: "Satoshi-Bold",
+      fontFamily: "ClashDisplay-Semibold",
       fontWeight: "800",
       letterSpacing: -1.2,
     },
@@ -425,7 +425,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     sectionTitle: {
       color: theme.colors.textPrimary,
       fontSize: 26,
-      fontFamily: "Satoshi-Bold",
+      fontFamily: "ClashDisplay-Semibold",
       fontWeight: "800",
       letterSpacing: -0.6,
     },

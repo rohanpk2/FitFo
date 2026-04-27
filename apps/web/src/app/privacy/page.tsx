@@ -164,9 +164,9 @@ export default function PrivacyPage() {
                   TikTok and Instagram URLs you submit.
                 </li>
                 <li>
-                  <strong>Groq</strong> and <strong>OpenAI</strong>, running
-                  transcription and language-model processing on the audio and
-                  text extracted from videos you submit.
+                  <strong>OpenAI</strong>, running transcription, OCR, and
+                  language-model processing on the video, audio, and text
+                  extracted from videos you submit.
                 </li>
                 <li>
                   <strong>DigitalOcean</strong>, hosting our API servers.

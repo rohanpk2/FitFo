@@ -211,7 +211,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     eyebrow: {
       color: theme.colors.primary,
       fontSize: 12,
-      fontFamily: "Satoshi-Black",
+      fontFamily: "ClashDisplay-Bold",
       fontWeight: "900",
       letterSpacing: 3,
       textTransform: "uppercase",
@@ -220,7 +220,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       color: theme.colors.textPrimary,
       fontSize: 42,
       lineHeight: 44,
-      fontFamily: "Satoshi-Black",
+      fontFamily: "ClashDisplay-Bold",
       fontWeight: "900",
       letterSpacing: -2.0,
     },

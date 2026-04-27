@@ -84,11 +84,11 @@ function patchComponent(component: unknown): void {
     return;
   }
   target.render = function patchedRender(...args: unknown[]) {
-    const origin = originalRender.apply(this, args) as ReactElement | null;
+    const origin = originalRender.apply(this, args) as ReactElement<{ style?: unknown }> | null;
     if (!origin || typeof origin !== "object" || !("props" in origin)) {
       return origin;
     }
-    const originalStyle = (origin.props as { style?: unknown }).style;
+    const originalStyle = origin.props.style;
     const family = resolveFontFamily(originalStyle);
     if (!family) {
       // Style already declares its own fontFamily — leave it alone.

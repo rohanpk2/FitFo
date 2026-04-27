@@ -15,7 +15,6 @@ from app.services import (
     supabase_db,
     tikwm,
     url_detection,
-    visual_analyzer,
     whisper,
     workout_parser,
 )
@@ -79,6 +78,152 @@ def _extract_audio_ffmpeg(video_path: Path, audio_path: Path) -> None:
     _run_ffmpeg(cmd, output_path=audio_path, error_prefix="ffmpeg audio extraction failed")
 
 
+def has_audio_stream(video_path: Path) -> bool:
+    """Return True if the video has at least one audio stream.
+
+    Fails open: returns True when ffprobe is unavailable, times out, or exits
+    non-zero so extraction is still attempted rather than silently skipped.
+    Only returns False when ffprobe succeeds with zero returncode and empty output.
+    """
+    cmd = [
+        "ffprobe",
+        "-v", "error",
+        "-select_streams", "a:0",
+        "-show_entries", "stream=codec_type",
+        "-of", "default=noprint_wrappers=1:nokey=1",
+        str(video_path),
+    ]
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, check=False, timeout=30)
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return True
+    if proc.returncode != 0:
+        return True
+    return bool((proc.stdout or "").strip())
+
+
+async def _try_audio_transcription(
+    job_id: str,
+    video_path: Path,
+    audio_path: Path,
+    provider_meta: dict,
+    *,
+    log_prefix: str,
+    bucket: str,
+    video_storage_path: str,
+    audio_storage_path: str,
+) -> tuple[str | None, dict]:
+    """
+    Attempt audio detection, extraction, upload, and transcription.
+    Does not raise on audio-related failures (missing stream, ffmpeg error, upload
+    error, transcription error) — those are caught and recorded in provider_meta.
+    Infrastructure failures (Supabase down, etc.) propagate normally, consistent
+    with the rest of the pipeline.
+    Returns (transcript_text | None, updated_provider_meta).
+    transcript_text is None on any non-success path, including when audio was
+    successfully uploaded but transcription failed — in that case
+    audio_extraction.state is still "audio_present" / ok=True.
+    Records audio_extraction.state as one of:
+      audio_present | audio_missing | audio_extract_failed_nonfatal
+    """
+    if not has_audio_stream(video_path):
+        _log.info("[%s] audio=audio_missing", log_prefix)
+        updated = supabase_db.merge_provider_meta(
+            provider_meta,
+            {"audio_extraction": {"ok": False, "state": "audio_missing"}},
+        )
+        supabase_db.update_ingestion_job(job_id, provider_meta=updated)
+        return None, updated
+
+    try:
+        _extract_audio_ffmpeg(video_path, audio_path)
+    except Exception as exc:
+        _log.warning("[%s] audio=audio_extract_failed_nonfatal error=%s", log_prefix, exc)
+        updated = supabase_db.merge_provider_meta(
+            provider_meta,
+            {
+                "audio_extraction": {
+                    "ok": False,
+                    "state": "audio_extract_failed_nonfatal",
+                    "error": str(exc),
+                }
+            },
+        )
+        supabase_db.update_ingestion_job(job_id, provider_meta=updated)
+        return None, updated
+
+    try:
+        supabase_db.upload_bytes_to_storage(
+            bucket=bucket,
+            path=audio_storage_path,
+            content=_read_bytes(audio_path),
+            content_type="audio/mpeg",
+            upsert=True,
+        )
+    except Exception as exc:
+        _log.warning("[%s] audio=audio_extract_failed_nonfatal (upload) error=%s", log_prefix, exc)
+        updated = supabase_db.merge_provider_meta(
+            provider_meta,
+            {
+                "audio_extraction": {
+                    "ok": False,
+                    "state": "audio_extract_failed_nonfatal",
+                    "error": str(exc),
+                }
+            },
+        )
+        supabase_db.update_ingestion_job(job_id, provider_meta=updated)
+        return None, updated
+
+    updated = supabase_db.merge_provider_meta(
+        provider_meta,
+        {
+            "audio_extraction": {"ok": True, "state": "audio_present"},
+            "transcription_audio_source": "audio",
+            "storage": {
+                "bucket": bucket,
+                "video_path": video_storage_path,
+                "audio_path": audio_storage_path,
+            },
+        },
+    )
+    supabase_db.update_ingestion_job(job_id, status="transcribing", provider_meta=updated)
+
+    try:
+        transcript_text = await _run_transcription(job_id, audio_path)
+    except Exception as exc:
+        _log.warning("[%s] transcription_failed provider=openai error=%s", log_prefix, exc)
+        failed = supabase_db.merge_provider_meta(
+            updated,
+            {
+                "transcription": {
+                    "ok": False,
+                    "provider": "openai",
+                    "model": os.environ.get("OPENAI_TRANSCRIBE_MODEL") or whisper.DEFAULT_MODEL,
+                    "error": str(exc),
+                }
+            },
+        )
+        supabase_db.update_ingestion_job(job_id, provider_meta=failed)
+        return None, failed
+
+    completed = supabase_db.merge_provider_meta(
+        updated,
+        {
+            "transcription": {
+                "ok": True,
+                "provider": "openai",
+                "model": os.environ.get("OPENAI_TRANSCRIBE_MODEL") or whisper.DEFAULT_MODEL,
+                "char_count": len(transcript_text or ""),
+            }
+        },
+    )
+    supabase_db.update_ingestion_job(job_id, provider_meta=completed)
+
+    _log.info("[%s] audio=audio_present transcript_length=%s", log_prefix, len(transcript_text or ""))
+    return transcript_text, completed
+
+
 def _read_bytes(p: Path) -> bytes:
     return p.read_bytes()
 
@@ -87,12 +232,12 @@ _WHISPER_WEAK_CHARS = 30
 
 
 def _transcript_is_weak(text: str | None) -> bool:
-    """Return True when Whisper text is too short to be useful."""
+    """Return True when transcript text is too short to be useful."""
     return len((text or "").strip()) < _WHISPER_WEAK_CHARS
 
 
 async def _run_transcription(job_id: str, audio_path: Path) -> str:
-    """Send the prepared transcription audio to Whisper and save the transcript."""
+    """Send the prepared transcription audio to OpenAI and save the transcript."""
     if not audio_path.exists() or audio_path.stat().st_size == 0:
         raise IngestionPipelineError("Audio file missing or empty for transcription")
 
@@ -102,6 +247,13 @@ async def _run_transcription(job_id: str, audio_path: Path) -> str:
     segments = result.get("segments")
     language = result.get("language")
     model = result.get("model") or whisper.DEFAULT_MODEL
+
+    _log.info(
+        "[job:%s] ai_provider=OpenAI task=transcription model=%s transcript_length=%s",
+        job_id,
+        model,
+        len(text or ""),
+    )
 
     supabase_db.create_transcript(
         job_id,
@@ -152,12 +304,30 @@ def _extract_on_screen_text_from_provider_meta(provider_meta: dict | None) -> st
     return ""
 
 
+def _count_plan_exercises(plan: dict) -> int:
+    count = 0
+    for block in plan.get("blocks") or []:
+        if not isinstance(block, dict):
+            continue
+        exercises = block.get("exercises") or []
+        if isinstance(exercises, list):
+            count += len([item for item in exercises if isinstance(item, dict)])
+    return count
+
+
+def _configured_parse_model() -> str:
+    return (os.environ.get("OPENAI_PARSE_MODEL") or workout_parser.DEFAULT_MODEL).strip()
+
+
+def _configured_parser_model_label() -> str:
+    return f"openai:{_configured_parse_model()}"
+
+
 async def _run_parsing(job_id: str, *, video_path: Path | None = None) -> None:
     """
-    Pull transcript + caption + OCR text and send to LLM.
-    When all text sources are empty and a video file is available,
-    falls back to the visual-only analysis pipeline which sets the job
-    status to review_pending instead of complete.
+    Pull transcript + caption + OCR text and send the combined evidence object
+    to the parser. Empty evidence is still parsed so the stored workout can
+    explicitly record that no exact exercise names were detected.
     """
     try:
         transcript_row = supabase_db.get_transcript_by_job(job_id)
@@ -173,18 +343,13 @@ async def _run_parsing(job_id: str, *, video_path: Path | None = None) -> None:
     caption = _extract_caption_from_provider_meta(provider_meta)
     on_screen_text = _extract_on_screen_text_from_provider_meta(provider_meta)
 
-    has_any_source = bool(
-        (transcript_text or "").strip() or caption or on_screen_text
+    _log.info(
+        "[job:%s] evidence_lengths caption=%s transcript=%s ocr=%s",
+        job_id,
+        len(caption),
+        len(transcript_text or ""),
+        len(on_screen_text),
     )
-
-    if not has_any_source:
-        # Attempt visual-only fallback when the video file is still on disk.
-        if video_path is not None and video_path.exists() and visual_analyzer.is_enabled():
-            await _run_visual_analysis(job_id, video_path, provider_meta)
-            return
-        raise IngestionPipelineError(
-            "No transcript, caption, or on-screen text found; nothing to parse"
-        )
 
     plan = await workout_parser.parse_transcript_to_workout(
         transcript_text or "",
@@ -201,35 +366,21 @@ async def _run_parsing(job_id: str, *, video_path: Path | None = None) -> None:
         user_id=user_id,
         title=title,
         plan=plan,
-        parser_model=workout_parser.DEFAULT_MODEL,
+        parser_model=_configured_parser_model_label(),
     )
+
+    exercise_count = _count_plan_exercises(plan)
+    parser_reason = plan.get("reason") if isinstance(plan.get("reason"), str) else None
+    _log.info(
+        "[job:%s] ai_provider=OpenAI task=parsing model=%s final_parsed_exercise_count=%s",
+        job_id,
+        _configured_parse_model(),
+        exercise_count,
+    )
+    if exercise_count == 0 and parser_reason:
+        _log.info("[job:%s] parser_empty_reason=%s", job_id, parser_reason)
 
     supabase_db.update_ingestion_job(job_id, status="complete")
-
-
-async def _run_visual_analysis(
-    job_id: str,
-    video_path: Path,
-    provider_meta: dict | None,
-) -> None:
-    """
-    Visual-only fallback.  Segments the video, classifies exercise blocks,
-    and stores the result in provider_meta.  Sets job status to
-    'review_pending' so the frontend can show the review UI.
-    """
-    supabase_db.update_ingestion_job(job_id, status="analyzing")
-
-    result = await visual_analyzer.analyze_video(video_path)
-
-    merged = supabase_db.merge_provider_meta(
-        provider_meta,
-        {"visual_analysis": result.to_dict()},
-    )
-    supabase_db.update_ingestion_job(
-        job_id,
-        status="review_pending",
-        provider_meta=merged,
-    )
 
 
 async def _maybe_extract_on_screen_text(
@@ -278,13 +429,67 @@ async def _maybe_extract_on_screen_text(
     if result.text:
         merged_payload["on_screen_text"] = result.text
 
+    _log.info(
+        "[job:%s] ai_provider=%s task=ocr model=%s sampled_frame_count=%s ocr_text_length=%s",
+        job_id,
+        "OpenAI" if result.provider == "openai" else "none",
+        result.model,
+        result.frame_count,
+        result.char_count,
+    )
+
     updated = supabase_db.merge_provider_meta(provider_meta, merged_payload)
     supabase_db.update_ingestion_job(job_id, provider_meta=updated)
     return updated
 
 
+async def _process_downloaded_video(
+    job_id: str,
+    *,
+    video_path: Path,
+    audio_path: Path,
+    provider_meta: dict,
+    log_prefix: str,
+) -> None:
+    """
+    Shared post-download extraction path for TikTok and Instagram.
+    Uploads the video, attempts audio transcription, always runs frame OCR,
+    then parses caption + transcript + OCR as a single evidence object.
+    """
+    bucket = _bucket()
+    video_storage_path = f"jobs/{job_id}/video.mp4"
+    audio_storage_path = f"jobs/{job_id}/audio.mp3"
+
+    supabase_db.upload_bytes_to_storage(
+        bucket=bucket,
+        path=video_storage_path,
+        content=_read_bytes(video_path),
+        content_type="video/mp4",
+        upsert=True,
+    )
+
+    _transcript, provider_meta = await _try_audio_transcription(
+        job_id,
+        video_path,
+        audio_path,
+        provider_meta,
+        log_prefix=log_prefix,
+        bucket=bucket,
+        video_storage_path=video_storage_path,
+        audio_storage_path=audio_storage_path,
+    )
+
+    t_ocr = time.monotonic()
+    provider_meta = (
+        await _maybe_extract_on_screen_text(job_id, video_path, provider_meta)
+    ) or provider_meta
+    _log.info("[%s] ocr_elapsed=%.1fs", log_prefix, time.monotonic() - t_ocr)
+
+    await _run_parsing(job_id, video_path=video_path)
+
+
 async def _run_tiktok_pipeline(job_id: str, source_url: str) -> None:
-    """TikTok branch: resolve via TikWM, extract audio, transcribe with Whisper."""
+    """TikTok branch: resolve via TikWM, attempt audio transcription, always run OCR."""
     supabase_db.update_ingestion_job(job_id, status="fetching")
 
     tikwm_json = await tikwm.resolve_tiktok_url(source_url)
@@ -315,68 +520,20 @@ async def _run_tiktok_pipeline(job_id: str, source_url: str) -> None:
         )
         supabase_db.update_ingestion_job(job_id, provider_meta=provider_meta)
 
-        bucket = _bucket()
-        video_storage_path = f"jobs/{job_id}/video.mp4"
-        audio_storage_path = f"jobs/{job_id}/audio.mp3"
-
-        supabase_db.upload_bytes_to_storage(
-            bucket=bucket,
-            path=video_storage_path,
-            content=_read_bytes(video_path),
-            content_type="video/mp4",
-            upsert=True,
+        await _process_downloaded_video(
+            job_id,
+            video_path=video_path,
+            audio_path=audio_path,
+            provider_meta=provider_meta,
+            log_prefix=f"tiktok:{job_id}",
         )
-        try:
-            _extract_audio_ffmpeg(video_path, audio_path)
-            supabase_db.upload_bytes_to_storage(
-                bucket=bucket,
-                path=audio_storage_path,
-                content=_read_bytes(audio_path),
-                content_type="audio/mpeg",
-                upsert=True,
-            )
-            provider_meta = supabase_db.merge_provider_meta(
-                provider_meta,
-                {"audio_extraction": {"ok": True}},
-            )
-        except Exception as exc:
-            provider_meta = supabase_db.merge_provider_meta(
-                provider_meta,
-                {"audio_extraction": {"ok": False, "error": str(exc)}},
-            )
-            supabase_db.update_ingestion_job(
-                job_id, status="failed", error=str(exc), provider_meta=provider_meta
-            )
-            return
-
-        provider_meta = supabase_db.merge_provider_meta(
-            provider_meta,
-            {
-                "transcription_audio_source": "audio",
-                "storage": {
-                    "bucket": bucket,
-                    "video_path": video_storage_path,
-                    "audio_path": audio_storage_path,
-                },
-            },
-        )
-        supabase_db.update_ingestion_job(
-            job_id, status="transcribing", provider_meta=provider_meta
-        )
-
-        provider_meta = (
-            await _maybe_extract_on_screen_text(job_id, video_path, provider_meta)
-        ) or provider_meta
-
-        await _run_transcription(job_id, audio_path)
-        await _run_parsing(job_id, video_path=video_path)
 
 
 async def _run_instagram_pipeline(job_id: str, source_url: str) -> None:
     """
-    Instagram branch: Apify resolves only the CDN video URL (no transcript,
-    no server-side download). Download, audio extraction, Whisper transcription,
-    and lazy OCR all run locally — same pattern as the TikTok pipeline.
+    Instagram branch: Apify resolves the CDN video URL. Download, audio extraction,
+    OpenAI transcription, and OCR all run locally. Audio failure is non-fatal;
+    OCR always runs after download.
     """
     supabase_db.update_ingestion_job(job_id, status="fetching")
 
@@ -417,70 +574,15 @@ async def _run_instagram_pipeline(job_id: str, source_url: str) -> None:
         )
         supabase_db.update_ingestion_job(job_id, provider_meta=provider_meta)
 
-        bucket = _bucket()
-        video_storage_path = f"jobs/{job_id}/video.mp4"
-        audio_storage_path = f"jobs/{job_id}/audio.mp3"
-
-        supabase_db.upload_bytes_to_storage(
-            bucket=bucket,
-            path=video_storage_path,
-            content=_read_bytes(video_path),
-            content_type="video/mp4",
-            upsert=True,
+        t4 = time.monotonic()
+        await _process_downloaded_video(
+            job_id,
+            video_path=video_path,
+            audio_path=audio_path,
+            provider_meta=provider_meta,
+            log_prefix=f"instagram:{job_id}",
         )
-
-        try:
-            t4 = time.monotonic()
-            _extract_audio_ffmpeg(video_path, audio_path)
-            _log.info("[instagram:%s] audio_extraction=%.1fs", job_id, time.monotonic() - t4)
-            supabase_db.upload_bytes_to_storage(
-                bucket=bucket,
-                path=audio_storage_path,
-                content=_read_bytes(audio_path),
-                content_type="audio/mpeg",
-                upsert=True,
-            )
-            provider_meta = supabase_db.merge_provider_meta(
-                provider_meta,
-                {
-                    "audio_extraction": {"ok": True},
-                    "transcription_audio_source": "audio",
-                    "storage": {
-                        "bucket": bucket,
-                        "video_path": video_storage_path,
-                        "audio_path": audio_storage_path,
-                    },
-                },
-            )
-            supabase_db.update_ingestion_job(
-                job_id, status="transcribing", provider_meta=provider_meta
-            )
-        except Exception as exc:
-            provider_meta = supabase_db.merge_provider_meta(
-                provider_meta,
-                {"audio_extraction": {"ok": False, "error": str(exc)}},
-            )
-            supabase_db.update_ingestion_job(
-                job_id, status="failed", error=str(exc), provider_meta=provider_meta
-            )
-            return
-
-        t6 = time.monotonic()
-        transcript_text = await _run_transcription(job_id, audio_path)
-        _log.info("[instagram:%s] whisper=%.1fs", job_id, time.monotonic() - t6)
-
-        if _transcript_is_weak(transcript_text):
-            t8 = time.monotonic()
-            provider_meta = (
-                await _maybe_extract_on_screen_text(job_id, video_path, provider_meta)
-            ) or provider_meta
-            _log.info("[instagram:%s] ocr=%.1fs", job_id, time.monotonic() - t8)
-        else:
-            _log.info("[instagram:%s] ocr=skipped(whisper_ok)", job_id)
-
-        t10 = time.monotonic()
-        await _run_parsing(job_id, video_path=video_path)
-        _log.info("[instagram:%s] parsing=%.1fs", job_id, time.monotonic() - t10)
+        _log.info("[instagram:%s] extraction=%.1fs", job_id, time.monotonic() - t4)
 
 
 async def run_ingestion_job(job_id: str, source_url: str) -> None:

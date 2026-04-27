@@ -8,5 +8,8 @@
     "mobile:android": "pnpm --dir apps/mobile android",
     "mobile:ios": "pnpm --dir apps/mobile ios",
     "mobile:web": "pnpm --dir apps/mobile web"
+  },
+  "devDependencies": {
+    "@react-native-community/cli": "^20.1.3"
   }
 }

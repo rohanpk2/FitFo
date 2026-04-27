@@ -1,24 +1,27 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
+import re
 from typing import Any
 
 import httpx
 
-GROQ_CHAT_URL = "https://api.groq.com/openai/v1/chat/completions"
-DEFAULT_MODEL = "llama-3.3-70b-versatile"
+OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions"
+DEFAULT_MODEL = "gpt-4.1-mini"
+
+_log = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = """\
 You are a strict workout extractor for short-form fitness videos. You receive \
 up to three labeled input sources describing the same video and return \
 **valid JSON only** — no markdown, no explanation.
 
-The inputs are labeled as:
-- [TRANSCRIPT]: what the creator said out loud (may be empty for silent videos)
-- [ON_SCREEN_TEXT]: text that appeared on-screen in the video, joined from \
-sampled frames (may be empty)
-- [CAPTION]: the caption / description posted alongside the video (may be empty)
+The user message is a JSON evidence object with:
+- transcript: what the creator said out loud (may be empty for silent videos)
+- on_screen_text: text that appeared on-screen in sampled frames (may be empty)
+- caption: the caption / description posted alongside the video (may be empty)
 
 Return a single JSON object with this exact shape:
 
@@ -42,7 +45,8 @@ Return a single JSON object with this exact shape:
       ]
     }
   ],
-  "notes": "<overall notes only if stated in the sources, else null>"
+  "notes": "<overall notes only if stated in the sources, else null>",
+  "reason": "<why blocks is empty, else null>"
 }
 
 Extraction rules (strict):
@@ -50,7 +54,11 @@ Extraction rules (strict):
 sources. Treat the three sources as complementary: on-screen text often lists \
 exercises/sets/reps when the creator is silent.
 - Prefer the transcript when it covers a value; use on-screen text and caption \
-to fill gaps (e.g. sets/reps).
+to fill gaps (e.g. sets/reps), but only when the filled value is explicitly \
+present in the evidence.
+- An exercise is eligible only when its exact exercise name appears in the \
+caption, transcript, or on-screen text. Do not add exercises based on body \
+parts, workout themes, creator intent, common routines, or visual guesswork.
 - NEVER invent exercises. Use the literal names as written / spoken.
 - NEVER invent sets, reps, duration, or rest. If a value is not stated in any \
 source, use null.
@@ -74,8 +82,10 @@ press / hip thrusts / calf raises / glute bridges -> "legs". If the workout \
 is purely cardio, mobility, flexibility, or core-only (planks, crunches, \
 abs) with no clear match to the five groups, return []. Do not invent \
 groups that are not in the allowed list.
+- If none of the sources contain exact exercise names, return blocks: [] and \
+reason: "No exercise names detected in caption, transcript, or on-screen text."
 - If none of the sources contain workout content, return: \
-{"title":null,"workout_type":"other","muscle_groups":[],"equipment":[],"blocks":[],"notes":null}
+{"title":null,"workout_type":"other","muscle_groups":[],"equipment":[],"blocks":[],"notes":null,"reason":"No exercise names detected in caption, transcript, or on-screen text."}
 - Return ONLY the JSON object. No extra text before or after.\
 """
 
@@ -84,11 +94,34 @@ class WorkoutParserError(RuntimeError):
     pass
 
 
-def _groq_api_key() -> str:
-    key = (os.environ.get("GROQ_API_KEY") or "").strip()
+def _normalize_for_support_check(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", " ", value.lower()).strip()
+
+
+def _exercise_name_supported(name: object, evidence_text: str) -> bool:
+    if not isinstance(name, str) or not name.strip():
+        return False
+    normalized_name = _normalize_for_support_check(name)
+    normalized_evidence = _normalize_for_support_check(evidence_text)
+    if not normalized_name or not normalized_evidence:
+        return False
+    padded_evidence = f" {normalized_evidence} "
+    if f" {normalized_name} " in padded_evidence:
+        return True
+    return normalized_name.replace(" ", "") in normalized_evidence.replace(" ", "")
+
+
+def _openai_api_key() -> str:
+    key = (os.environ.get("OPENAI_API_KEY") or "").strip()
     if not key:
-        raise WorkoutParserError("GROQ_API_KEY is not set")
+        raise WorkoutParserError("OPENAI_API_KEY is not set")
     return key
+
+
+def _parse_model(model: str) -> str:
+    if model == DEFAULT_MODEL:
+        return (os.environ.get("OPENAI_PARSE_MODEL") or DEFAULT_MODEL).strip()
+    return (model or DEFAULT_MODEL).strip()
 
 
 def _build_user_message(
@@ -98,20 +131,17 @@ def _build_user_message(
     caption: str = "",
 ) -> str:
     """
-    Build the labeled, multi-source user message for the parser. Empty sections
-    are still labeled so the model knows what was (and wasn't) available.
+    Build the evidence object for the parser. Empty sections are still present
+    so the model knows what was and was not available.
     """
-    parts = [
-        "[TRANSCRIPT]",
-        transcript_text.strip() or "(empty)",
-        "",
-        "[ON_SCREEN_TEXT]",
-        on_screen_text.strip() or "(empty)",
-        "",
-        "[CAPTION]",
-        caption.strip() or "(empty)",
-    ]
-    return "\n".join(parts)
+    evidence = {
+        "evidence": {
+            "transcript": transcript_text.strip(),
+            "on_screen_text": on_screen_text.strip(),
+            "caption": caption.strip(),
+        }
+    }
+    return json.dumps(evidence, ensure_ascii=False)
 
 
 async def parse_transcript_to_workout(
@@ -127,7 +157,8 @@ async def parse_transcript_to_workout(
     as long as at least one contains workout content.
     Raises WorkoutParserError on API or validation failure.
     """
-    key = _groq_api_key()
+    key = _openai_api_key()
+    resolved_model = _parse_model(model)
     headers = {
         "Authorization": f"Bearer {key}",
         "Content-Type": "application/json",
@@ -137,8 +168,11 @@ async def parse_transcript_to_workout(
         on_screen_text=on_screen_text,
         caption=caption,
     )
+    evidence_text = "\n".join(
+        [transcript_text or "", on_screen_text or "", caption or ""]
+    )
     payload = {
-        "model": model,
+        "model": resolved_model,
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": user_message},
@@ -150,16 +184,17 @@ async def parse_transcript_to_workout(
     timeout = httpx.Timeout(60.0, connect=15.0)
 
     async with httpx.AsyncClient(timeout=timeout) as client:
-        resp = await client.post(GROQ_CHAT_URL, headers=headers, json=payload)
+        _log.info("ai_provider=OpenAI task=parsing model=%s", resolved_model)
+        resp = await client.post(OPENAI_CHAT_URL, headers=headers, json=payload)
 
     if resp.status_code != 200:
         body = resp.text[:500] if resp.text else "(empty)"
-        raise WorkoutParserError(f"Groq chat HTTP {resp.status_code}: {body}")
+        raise WorkoutParserError(f"OpenAI chat HTTP {resp.status_code}: {body}")
 
     resp_json = resp.json()
     choices = resp_json.get("choices") or []
     if not choices:
-        raise WorkoutParserError("Groq returned no choices")
+        raise WorkoutParserError("OpenAI returned no choices")
 
     raw_content = (choices[0].get("message") or {}).get("content", "").strip()
 
@@ -183,6 +218,25 @@ async def parse_transcript_to_workout(
     # Minimal validation: blocks key must exist
     if "blocks" not in plan:
         raise WorkoutParserError(f"Missing 'blocks' key in parsed workout: {list(plan.keys())}")
+    if not isinstance(plan.get("blocks"), list):
+        raise WorkoutParserError("'blocks' must be a list in parsed workout")
+    supported_blocks: list[dict[str, Any]] = []
+    for block in plan["blocks"]:
+        if not isinstance(block, dict) or not isinstance(block.get("exercises"), list):
+            continue
+        supported_exercises = [
+            exercise
+            for exercise in block["exercises"]
+            if isinstance(exercise, dict)
+            and _exercise_name_supported(exercise.get("name"), evidence_text)
+        ]
+        if supported_exercises:
+            supported_block = dict(block)
+            supported_block["exercises"] = supported_exercises
+            supported_blocks.append(supported_block)
+    plan["blocks"] = supported_blocks
+    if not plan["blocks"] and not plan.get("reason"):
+        plan["reason"] = "No exercise names detected in caption, transcript, or on-screen text."
 
     return plan
 

@@ -38,9 +38,8 @@ import httpx
 # Constants & taxonomy
 # ---------------------------------------------------------------------------
 
-GROQ_CHAT_URL = "https://api.groq.com/openai/v1/chat/completions"
 OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions"
-DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
+DEFAULT_OPENAI_MODEL = "gpt-4.1-mini"
 
 MAX_WINDOWS = 12
 WINDOW_SIZE_SEC = 3.5
@@ -203,40 +202,20 @@ class VisualAnalysisResult:
 
 
 # ---------------------------------------------------------------------------
-# Provider helpers (mirror frame_ocr.py pattern)
+# Provider helpers
 # ---------------------------------------------------------------------------
-
-
-def _groq_api_key() -> str:
-    return (os.environ.get("GROQ_API_KEY") or "").strip()
 
 
 def _openai_api_key() -> str:
     return (os.environ.get("OPENAI_API_KEY") or "").strip()
 
 
-def _groq_model() -> str:
-    return (
-        os.environ.get("VISUAL_ANALYZER_GROQ_MODEL")
-        or os.environ.get("FRAME_OCR_GROQ_MODEL")
-        or os.environ.get("GROQ_VISION_MODEL")
-        or ""
-    ).strip()
-
-
 def _openai_model() -> str:
-    return (
-        os.environ.get("VISUAL_ANALYZER_OPENAI_MODEL") or DEFAULT_OPENAI_MODEL
-    ).strip()
+    return (os.environ.get("OPENAI_VISION_MODEL") or DEFAULT_OPENAI_MODEL).strip()
 
 
 def _pick_provider() -> tuple[str, str, str] | None:
-    """Return (provider, api_url, api_key, model) for the first available provider."""
-    groq_key = _groq_api_key()
-    groq_model = _groq_model()
-    if groq_key and groq_model:
-        return "groq", groq_key, groq_model
-
+    """Return (provider, api_key, model) when OpenAI vision is configured."""
     openai_key = _openai_api_key()
     if openai_key:
         return "openai", openai_key, _openai_model()
@@ -612,7 +591,7 @@ async def analyze_video(video_path: Path) -> VisualAnalysisResult:
         )
 
     provider_name, api_key, model = provider_info
-    api_url = GROQ_CHAT_URL if provider_name == "groq" else OPENAI_CHAT_URL
+    api_url = OPENAI_CHAT_URL
 
     duration = _video_duration_seconds(video_path)
     if duration <= 0:

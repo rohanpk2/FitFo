@@ -6,7 +6,7 @@
 
 **Architecture:** Two files change: `apify_reel.py` (disable expensive flags, reduce timeout) and `ingestion_pipeline.py` (add `_transcript_is_weak()` helper, make `_run_transcription()` return the text, rewrite `_run_instagram_pipeline()` to use local Whisper with lazy OCR and per-phase timing logs).
 
-**Tech Stack:** Python 3.12, `unittest.IsolatedAsyncioTestCase`, `unittest.mock.patch` / `AsyncMock`, httpx, ffmpeg, Groq Whisper API
+**Tech Stack:** Python 3.12, `unittest.IsolatedAsyncioTestCase`, `unittest.mock.patch` / `AsyncMock`, httpx, ffmpeg, OpenAI transcription API
 
 ---
 
@@ -122,7 +122,7 @@ async def test_run_transcription_returns_transcript_text(self) -> None:
                         "text": "3 sets of 10 pushups",
                         "segments": [],
                         "language": "en",
-                        "model": "whisper-large-v3-turbo",
+                        "model": "gpt-4o-mini-transcribe",
                     }
                 ),
             ),
@@ -529,7 +529,7 @@ async def test_instagram_pipeline_records_soft_ocr_failure_and_still_completes(s
                     frame_count=4,
                     char_count=0,
                     fallback_used=False,
-                    error="groq timeout",
+                    error="openai timeout",
                     reason="provider_error",
                 )
             ),
@@ -565,7 +565,7 @@ async def test_instagram_pipeline_records_soft_ocr_failure_and_still_completes(s
                         "caption": "Leg burner",
                         "on_screen_text_extraction": {
                             "ok": False,
-                            "error": "groq timeout",
+                            "error": "openai timeout",
                             "reason": "provider_error",
                             "frame_count": 4,
                             "char_count": 0,
@@ -605,7 +605,7 @@ async def test_instagram_pipeline_records_soft_ocr_failure_and_still_completes(s
     extraction_meta = extraction_update["provider_meta"]["on_screen_text_extraction"]
     self.assertFalse(extraction_meta["ok"])
     self.assertEqual(extraction_meta["reason"], "provider_error")
-    self.assertIn("groq timeout", extraction_meta["error"])
+    self.assertIn("openai timeout", extraction_meta["error"])
     self.assertEqual(self.update_calls[-1]["status"], "complete")
 ```
 
