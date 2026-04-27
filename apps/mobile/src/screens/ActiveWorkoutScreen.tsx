@@ -34,6 +34,11 @@ interface SelectedSetState {
   setId: string;
 }
 
+type TargetMetric = "reps" | "time";
+
+const DEFAULT_TARGET_REPS = 10;
+const DEFAULT_TARGET_DURATION_SEC = 30;
+
 function formatClock(totalSeconds: number) {
   const safeSeconds = Math.max(0, totalSeconds);
   const hours = Math.floor(safeSeconds / 3600);
