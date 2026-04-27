@@ -155,10 +155,12 @@ function createExerciseDraft(options: {
   averageRestSeconds: number | null;
   name: string;
   setCount: number;
+  targetDurationSec?: number | null;
   targetReps: number | null;
 }): ActiveExercisePreview {
   const sets = Array.from({ length: options.setCount }, (_, index) =>
     createSetDraft(index + 1, {
+      targetDurationSec: options.targetDurationSec ?? null,
       targetReps: options.targetReps,
     }),
   );
@@ -428,6 +430,7 @@ interface ExerciseCardProps {
   onRepsChange: (exerciseId: string, setId: string, value: string) => void;
   onRemoveExercise: (exerciseId: string) => void;
   onRemoveSet: (exerciseId: string, setId: string) => void;
+  onSelectTargetMetric: (exerciseId: string, metric: TargetMetric) => void;
   onTargetRepsChange: (exerciseId: string, setId: string, value: number | null) => void;
   onTargetDurationChange: (
     exerciseId: string,
@@ -454,6 +457,7 @@ function ExerciseCard({
   onRepsChange,
   onRemoveExercise,
   onRemoveSet,
+  onSelectTargetMetric,
   onTargetRepsChange,
   onTargetDurationChange,
   onToggle,
@@ -468,6 +472,11 @@ function ExerciseCard({
     editingSetId != null && exercise.sets.some((set) => set.id === editingSetId)
       ? editingSetId
       : defaultOpenSetId;
+  const targetMetric: TargetMetric = exercise.sets.some(
+    (set) => set.targetDurationSec != null,
+  )
+    ? "time"
+    : "reps";
 
   const [nameDraft, setNameDraft] = useState(
     titleCase(exercise.name) || exercise.name,
@@ -589,6 +598,44 @@ function ExerciseCard({
               style={styles.notesInput}
               value={notesDraft}
             />
+          </View>
+
+          <View style={styles.metricToggleCard}>
+            <Text style={styles.metricToggleLabel}>Track this exercise by</Text>
+            <View style={styles.metricToggleRow}>
+              <Pressable
+                onPress={() => onSelectTargetMetric(exercise.id, "reps")}
+                style={[
+                  styles.metricToggleButton,
+                  targetMetric === "reps" ? styles.metricToggleButtonActive : null,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.metricToggleText,
+                    targetMetric === "reps" ? styles.metricToggleTextActive : null,
+                  ]}
+                >
+                  Sets / Reps
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => onSelectTargetMetric(exercise.id, "time")}
+                style={[
+                  styles.metricToggleButton,
+                  targetMetric === "time" ? styles.metricToggleButtonActive : null,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.metricToggleText,
+                    targetMetric === "time" ? styles.metricToggleTextActive : null,
+                  ]}
+                >
+                  Time / Seconds
+                </Text>
+              </Pressable>
+            </View>
           </View>
 
           <View style={styles.restRow}>
@@ -978,7 +1025,14 @@ export function ActiveWorkoutScreen({
           : syncExercise({
               ...exercise,
               sets: exercise.sets.map((set) =>
-                set.id === setId ? { ...set, targetReps: value } : set,
+                set.id === setId
+                  ? {
+                      ...set,
+                      targetReps: value,
+                      targetDurationSec:
+                        value == null ? set.targetDurationSec : null,
+                    }
+                  : set,
               ),
             }),
       ),
@@ -997,10 +1051,51 @@ export function ActiveWorkoutScreen({
           : syncExercise({
               ...exercise,
               sets: exercise.sets.map((set) =>
-                set.id === setId ? { ...set, targetDurationSec: value } : set,
+                set.id === setId
+                  ? {
+                      ...set,
+                      targetDurationSec: value,
+                      targetReps: value == null ? set.targetReps : null,
+                      loggedWeight: value == null ? set.loggedWeight : "",
+                    }
+                  : set,
               ),
             }),
       ),
+    );
+  };
+
+  const handleSelectTargetMetric = (
+    exerciseId: string,
+    metric: TargetMetric,
+  ) => {
+    setExercises((current) =>
+      current.map((exercise) => {
+        if (exercise.id !== exerciseId) {
+          return exercise;
+        }
+
+        return syncExercise({
+          ...exercise,
+          sets: exercise.sets.map((set) => {
+            if (metric === "time") {
+              return {
+                ...set,
+                targetDurationSec:
+                  set.targetDurationSec ?? DEFAULT_TARGET_DURATION_SEC,
+                targetReps: null,
+                loggedWeight: "",
+              };
+            }
+
+            return {
+              ...set,
+              targetDurationSec: null,
+              targetReps: set.targetReps ?? DEFAULT_TARGET_REPS,
+            };
+          }),
+        });
+      }),
     );
   };
 
@@ -1091,7 +1186,7 @@ export function ActiveWorkoutScreen({
       averageRestSeconds: session.averageRestSeconds,
       name: "",
       setCount: 3,
-      targetReps: null,
+      targetReps: DEFAULT_TARGET_REPS,
     });
 
     setExercises((current) => {
@@ -1188,6 +1283,7 @@ export function ActiveWorkoutScreen({
                 onRepsChange={handleRepsChange}
                 onRemoveExercise={handleRemoveExercise}
                 onRemoveSet={handleRemoveSet}
+                onSelectTargetMetric={handleSelectTargetMetric}
                 onTargetRepsChange={handleChangeTargetReps}
                 onTargetDurationChange={handleChangeTargetDuration}
                 onToggle={toggleExercise}
@@ -1653,6 +1749,48 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
       paddingHorizontal: 0,
       margin: 0,
       minHeight: 20,
+    },
+    metricToggleCard: {
+      borderRadius: 16,
+      backgroundColor: theme.colors.surfaceMuted,
+      padding: 12,
+      gap: 8,
+    },
+    metricToggleLabel: {
+      color: theme.colors.textMuted,
+      fontSize: 10,
+      fontFamily: "Satoshi-Bold",
+      fontWeight: "800",
+      letterSpacing: 1,
+      textTransform: "uppercase",
+    },
+    metricToggleRow: {
+      flexDirection: "row",
+      gap: 8,
+    },
+    metricToggleButton: {
+      flex: 1,
+      minHeight: 38,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: theme.colors.borderSoft,
+      backgroundColor: theme.colors.surface,
+      alignItems: "center",
+      justifyContent: "center",
+      paddingHorizontal: 10,
+    },
+    metricToggleButtonActive: {
+      borderColor: theme.colors.primary,
+      backgroundColor: theme.colors.primary,
+    },
+    metricToggleText: {
+      color: theme.colors.textSecondary,
+      fontSize: 12,
+      fontFamily: "Satoshi-Bold",
+      fontWeight: "800",
+    },
+    metricToggleTextActive: {
+      color: theme.colors.surface,
     },
     restRow: {
       flexDirection: "row",

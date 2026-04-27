@@ -51,6 +51,11 @@ interface SavedWorkoutDetailScreenProps {
   themeMode?: ThemeMode;
 }
 
+type TargetMetric = "reps" | "time";
+
+const DEFAULT_TARGET_REPS = 10;
+const DEFAULT_TARGET_DURATION_SEC = 30;
+
 function getSourcePlatform(
   sourceUrl: string | null | undefined,
 ): "tiktok" | "instagram" | "other" | null {
@@ -161,7 +166,7 @@ function createExerciseDraft(): WorkoutExercise {
   return {
     name: "New Exercise",
     sets: 3,
-    reps: null,
+    reps: DEFAULT_TARGET_REPS,
     duration_sec: null,
     rest_sec: null,
     notes: null,
@@ -601,7 +606,36 @@ export function SavedWorkoutDetailScreen({
                       if (exercise[field] === parsed) {
                         return;
                       }
-                      saveExercise({ ...exercise, [field]: parsed });
+                      saveExercise({
+                        ...exercise,
+                        [field]: parsed,
+                        ...(field === "reps" && parsed != null
+                          ? { duration_sec: null }
+                          : {}),
+                        ...(field === "duration_sec" && parsed != null
+                          ? { reps: null }
+                          : {}),
+                      });
+                    };
+
+                    const handleSelectMetric = (metric: TargetMetric) => {
+                      if (metric === "time") {
+                        saveExercise({
+                          ...exercise,
+                          sets: exercise.sets ?? 3,
+                          reps: null,
+                          duration_sec:
+                            exercise.duration_sec ?? DEFAULT_TARGET_DURATION_SEC,
+                        });
+                        return;
+                      }
+
+                      saveExercise({
+                        ...exercise,
+                        sets: exercise.sets ?? 3,
+                        reps: exercise.reps ?? DEFAULT_TARGET_REPS,
+                        duration_sec: null,
+                      });
                     };
 
                     const handleRemoveExercise = () => {
@@ -662,6 +696,7 @@ export function SavedWorkoutDetailScreen({
                               exercise={exercise}
                               canEdit={canEdit}
                               themeMode={themeMode}
+                              onSelectMetric={handleSelectMetric}
                               onSaveField={handleSaveIntField}
                               styles={styles}
                             />
@@ -762,12 +797,14 @@ function ExerciseTargetRow({
   exercise,
   canEdit,
   themeMode,
+  onSelectMetric,
   onSaveField,
   styles,
 }: {
   exercise: WorkoutExercise;
   canEdit: boolean;
   themeMode: ThemeMode;
+  onSelectMetric: (metric: TargetMetric) => void;
   onSaveField: (
     field: "sets" | "reps" | "duration_sec" | "rest_sec",
   ) => (raw: string) => void;
@@ -795,38 +832,80 @@ function ExerciseTargetRow({
     return <Text style={styles.exerciseSubtitle}>{parts.join(" • ")}</Text>;
   }
 
+  const targetMetric: TargetMetric =
+    exercise.duration_sec != null && exercise.reps == null ? "time" : "reps";
+
   return (
-    <View style={styles.targetRow}>
-      <TargetField
-        label="Sets"
-        value={exercise.sets}
-        onSave={onSaveField("sets")}
-        themeMode={themeMode}
-        styles={styles}
-      />
-      <TargetField
-        label="Reps"
-        value={exercise.reps}
-        onSave={onSaveField("reps")}
-        themeMode={themeMode}
-        styles={styles}
-      />
-      <TargetField
-        label="Duration"
-        value={exercise.duration_sec}
-        unit="s"
-        onSave={onSaveField("duration_sec")}
-        themeMode={themeMode}
-        styles={styles}
-      />
-      <TargetField
-        label="Rest"
-        value={exercise.rest_sec}
-        unit="s"
-        onSave={onSaveField("rest_sec")}
-        themeMode={themeMode}
-        styles={styles}
-      />
+    <View style={styles.targetEditor}>
+      <View style={styles.metricToggleRow}>
+        <Pressable
+          onPress={() => onSelectMetric("reps")}
+          style={[
+            styles.metricToggleButton,
+            targetMetric === "reps" ? styles.metricToggleButtonActive : null,
+          ]}
+        >
+          <Text
+            style={[
+              styles.metricToggleText,
+              targetMetric === "reps" ? styles.metricToggleTextActive : null,
+            ]}
+          >
+            Sets / Reps
+          </Text>
+        </Pressable>
+        <Pressable
+          onPress={() => onSelectMetric("time")}
+          style={[
+            styles.metricToggleButton,
+            targetMetric === "time" ? styles.metricToggleButtonActive : null,
+          ]}
+        >
+          <Text
+            style={[
+              styles.metricToggleText,
+              targetMetric === "time" ? styles.metricToggleTextActive : null,
+            ]}
+          >
+            Time / Seconds
+          </Text>
+        </Pressable>
+      </View>
+      <View style={styles.targetRow}>
+        <TargetField
+          label="Sets"
+          value={exercise.sets}
+          onSave={onSaveField("sets")}
+          themeMode={themeMode}
+          styles={styles}
+        />
+        {targetMetric === "time" ? (
+          <TargetField
+            label="Seconds"
+            value={exercise.duration_sec}
+            unit="s"
+            onSave={onSaveField("duration_sec")}
+            themeMode={themeMode}
+            styles={styles}
+          />
+        ) : (
+          <TargetField
+            label="Reps"
+            value={exercise.reps}
+            onSave={onSaveField("reps")}
+            themeMode={themeMode}
+            styles={styles}
+          />
+        )}
+        <TargetField
+          label="Rest"
+          value={exercise.rest_sec}
+          unit="s"
+          onSave={onSaveField("rest_sec")}
+          themeMode={themeMode}
+          styles={styles}
+        />
+      </View>
     </View>
   );
 }
@@ -1323,6 +1402,37 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       flexWrap: "wrap",
       gap: 14,
       marginTop: 2,
+    },
+    targetEditor: {
+      gap: 10,
+    },
+    metricToggleRow: {
+      flexDirection: "row",
+      gap: 8,
+    },
+    metricToggleButton: {
+      flex: 1,
+      minHeight: 34,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: theme.colors.borderSoft,
+      backgroundColor: theme.colors.surfaceMuted,
+      alignItems: "center",
+      justifyContent: "center",
+      paddingHorizontal: 10,
+    },
+    metricToggleButtonActive: {
+      borderColor: theme.colors.primary,
+      backgroundColor: theme.colors.primary,
+    },
+    metricToggleText: {
+      color: theme.colors.textSecondary,
+      fontSize: 11,
+      fontFamily: "Satoshi-Bold",
+      fontWeight: "800",
+    },
+    metricToggleTextActive: {
+      color: theme.colors.surface,
     },
     targetField: {
       minWidth: 64,
