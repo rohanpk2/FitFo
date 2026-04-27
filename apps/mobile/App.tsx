@@ -254,7 +254,7 @@ export default function App() {
     }
   }, []);
 
-  // Clears state that feeds AddWorkoutModal's visible content after a short
+  // Clears state that feeds AddWorkoutModal's preview content after a short
   // delay so the modal can fade out cleanly without its body visibly snapping
   // back to the URL-import form mid-animation. Matches the iOS Modal fade-out
   // duration (~300ms) with a small buffer.
@@ -262,8 +262,6 @@ export default function App() {
     cancelPendingAddWorkoutCleanup();
     pendingAddWorkoutCleanupRef.current = setTimeout(() => {
       pendingAddWorkoutCleanupRef.current = null;
-      setSharedIngestUrl(null);
-      setIsShareDrivenIngest(false);
       resetImportFlow();
     }, 320);
   }, [cancelPendingAddWorkoutCleanup, resetImportFlow]);
@@ -547,6 +545,11 @@ export default function App() {
         setScheduledWorkoutsError(null);
         setSubmitError(null);
         setActiveTab("saved");
+        // Clear the share replay trigger before closing the modal. Otherwise
+        // the shared-URL effect can see "URL present + modal closed" and reopen
+        // the import form on top of the scheduled confirmation screen.
+        setSharedIngestUrl(null);
+        setIsShareDrivenIngest(false);
         setIsAddWorkoutVisible(false);
         setScheduledConfirmation({
           title: latestImportedRoutine.title,
@@ -554,11 +557,8 @@ export default function App() {
           origin: isShareDrivenIngest ? "share" : "manual",
         });
         // Defer clearing the state that feeds AddWorkoutModal's rendered
-        // content (routine, job, share URL) until after the modal has
-        // finished its fade-out animation. Clearing them in the same commit
-        // as setIsAddWorkoutVisible(false) causes the modal's body to snap
-        // from the "Schedule for X" view back to the empty URL-import form
-        // mid-animation, which looks like the modal popping a second time.
+        // preview content (routine/job) until after the modal has finished its
+        // fade-out animation.
         scheduleAddWorkoutCleanup();
       } catch (error) {
         setSubmitError(
@@ -609,11 +609,13 @@ export default function App() {
       setSavedWorkoutsError(null);
       setSubmitError(null);
       setActiveTab("saved");
+      setSharedIngestUrl(null);
+      setIsShareDrivenIngest(false);
       setIsAddWorkoutVisible(false);
       // Same rationale as handleScheduleImportedWorkout: defer clearing the
-      // modal's input props (routine/job/share URL) until the fade-out is
-      // done, otherwise the preview visibly snaps back to the URL form while
-      // the modal is still animating closed.
+      // modal's preview props (routine/job) until the fade-out is done,
+      // otherwise the preview visibly snaps back to the URL form while the
+      // modal is still animating closed.
       scheduleAddWorkoutCleanup();
     } catch (error) {
       setSubmitError(

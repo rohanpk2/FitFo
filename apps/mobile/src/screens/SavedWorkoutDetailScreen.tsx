@@ -146,6 +146,66 @@ function replaceBlock(
   return { ...plan, blocks };
 }
 
+function createDefaultWorkoutPlan(title: string): WorkoutPlan {
+  return {
+    title,
+    workout_type: "custom",
+    muscle_groups: [],
+    equipment: [],
+    blocks: [{ name: null, exercises: [] }],
+    notes: null,
+  };
+}
+
+function createExerciseDraft(): WorkoutExercise {
+  return {
+    name: "New Exercise",
+    sets: 3,
+    reps: null,
+    duration_sec: null,
+    rest_sec: null,
+    notes: null,
+  };
+}
+
+function ensurePlanHasBlock(plan: WorkoutPlan): WorkoutPlan {
+  if (plan.blocks.length > 0) {
+    return plan;
+  }
+
+  return {
+    ...plan,
+    blocks: [{ name: null, exercises: [] }],
+  };
+}
+
+function appendExerciseToPlan(plan: WorkoutPlan): WorkoutPlan {
+  const nextPlan = ensurePlanHasBlock(plan);
+  const blockIndex = Math.max(0, nextPlan.blocks.length - 1);
+  const block = nextPlan.blocks[blockIndex];
+
+  return replaceBlock(nextPlan, blockIndex, {
+    ...block,
+    exercises: [...(block.exercises || []), createExerciseDraft()],
+  });
+}
+
+function removeExerciseFromPlan(
+  plan: WorkoutPlan,
+  blockIndex: number,
+  exerciseIndex: number,
+): WorkoutPlan {
+  const block = plan.blocks[blockIndex];
+  if (!block) {
+    return plan;
+  }
+
+  return replaceBlock(plan, blockIndex, {
+    ...block,
+    exercises: (block.exercises || []).filter((_, index) => index !== exerciseIndex),
+  });
+}
+
 /**
  * Parse a user-typed integer field. Empty input clears the value; non-numeric
  * or negative input is rejected by returning `undefined` so we preserve the
@@ -235,6 +295,15 @@ export function SavedWorkoutDetailScreen({
     },
     [onUpdate, plan],
   );
+
+  const handleAddExercise = () => {
+    if (!canEdit) {
+      return;
+    }
+
+    const basePlan = plan ?? createDefaultWorkoutPlan(routine.title);
+    onUpdate?.({ workoutPlan: appendExerciseToPlan(basePlan) });
+  };
 
   const handleReportWorkout = () => {
     const subject = encodeURIComponent(
@@ -535,6 +604,29 @@ export function SavedWorkoutDetailScreen({
                       saveExercise({ ...exercise, [field]: parsed });
                     };
 
+                    const handleRemoveExercise = () => {
+                      Alert.alert(
+                        "Remove exercise?",
+                        `Remove ${titleCase(exercise.name) || exercise.name} from this saved workout?`,
+                        [
+                          { text: "Cancel", style: "cancel" },
+                          {
+                            text: "Remove",
+                            style: "destructive",
+                            onPress: () => {
+                              onUpdate?.({
+                                workoutPlan: removeExerciseFromPlan(
+                                  plan,
+                                  blockIndex,
+                                  exerciseIndex,
+                                ),
+                              });
+                            },
+                          },
+                        ],
+                      );
+                    };
+
                     return (
                       <View
                         key={`${exercise.name}-${exerciseIndex}`}
@@ -574,6 +666,20 @@ export function SavedWorkoutDetailScreen({
                               styles={styles}
                             />
                           </View>
+                          {canEdit ? (
+                            <Pressable
+                              onPress={handleRemoveExercise}
+                              style={styles.exerciseRemoveButton}
+                              accessibilityRole="button"
+                              accessibilityLabel={`Remove ${exercise.name}`}
+                            >
+                              <Ionicons
+                                color={theme.colors.error}
+                                name="close"
+                                size={18}
+                              />
+                            </Pressable>
+                          ) : null}
                         </View>
                         {canEdit || exercise.notes ? (
                           <View style={styles.exerciseNoteCard}>
@@ -614,10 +720,16 @@ export function SavedWorkoutDetailScreen({
             <Text style={styles.emptyTitle}>No exercises parsed</Text>
             <Text style={styles.emptyBody}>
               The parser wasn&apos;t able to extract specific exercises for this
-              workout. You can still start a session and log them manually.
+              workout. {canEdit ? "Add them here before you start." : "You can still start a session and log them manually."}
             </Text>
           </View>
         )}
+        {canEdit ? (
+          <Pressable onPress={handleAddExercise} style={styles.addExerciseButton}>
+            <Ionicons color={theme.colors.surface} name="add" size={18} />
+            <Text style={styles.addExerciseButtonText}>Add Exercise</Text>
+          </Pressable>
+        ) : null}
       </View>
 
       {isAiGenerated ? (
@@ -1111,6 +1223,22 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       justifyContent: "center",
       backgroundColor: theme.colors.surfaceMuted,
     },
+    exerciseRemoveButton: {
+      width: 34,
+      height: 34,
+      borderRadius: 999,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor:
+        theme.mode === "dark"
+          ? "rgba(255, 101, 88, 0.12)"
+          : theme.colors.errorSoft,
+      borderWidth: 1,
+      borderColor:
+        theme.mode === "dark"
+          ? "rgba(255, 101, 88, 0.24)"
+          : "rgba(255, 101, 88, 0.18)",
+    },
     exerciseCopy: {
       flex: 1,
       gap: 6,
@@ -1171,6 +1299,24 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       fontSize: 13,
       lineHeight: 19,
       textAlign: "center",
+    },
+    addExerciseButton: {
+      marginTop: 2,
+      minHeight: 54,
+      borderRadius: 18,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+      backgroundColor: theme.colors.primary,
+      ...theme.shadows.primary,
+    },
+    addExerciseButtonText: {
+      color: theme.colors.surface,
+      fontSize: 15,
+      fontFamily: "Satoshi-Bold",
+      fontWeight: "800",
+      letterSpacing: 0.2,
     },
     targetRow: {
       flexDirection: "row",

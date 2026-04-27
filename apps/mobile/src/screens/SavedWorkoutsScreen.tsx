@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   LayoutAnimation,
+  type LayoutChangeEvent,
   Linking,
   Platform,
   Pressable,
@@ -314,6 +315,8 @@ export function SavedWorkoutsScreen({
   const theme = getTheme(themeMode);
   const styles = createStyles(theme);
   const hasSavedWorkouts = importedWorkouts.length > 0;
+  const scrollViewRef = useRef<ScrollView | null>(null);
+  const [scheduledSectionY, setScheduledSectionY] = useState(0);
 
   const todayIso = useMemo(() => {
     const today = new Date();
@@ -422,8 +425,20 @@ export function SavedWorkoutsScreen({
     });
   };
 
+  const handleScheduledSectionLayout = (event: LayoutChangeEvent) => {
+    setScheduledSectionY(event.nativeEvent.layout.y);
+  };
+
+  const scrollToScheduledWorkouts = () => {
+    scrollViewRef.current?.scrollTo({
+      y: Math.max(scheduledSectionY - 12, 0),
+      animated: true,
+    });
+  };
+
   return (
     <ScrollView
+      ref={scrollViewRef}
       style={styles.container}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
@@ -457,7 +472,29 @@ export function SavedWorkoutsScreen({
           <View style={styles.sectionDividerLine} />
         </View>
         <Text style={styles.sectionEyebrow}>Library</Text>
-        <Text style={styles.sectionTitle}>Saved Workouts</Text>
+        <View style={styles.sectionTitleRow}>
+          <Text style={styles.sectionTitle}>Saved Workouts</Text>
+          {scheduledWorkouts.length > 0 ? (
+            <Pressable
+              onPress={scrollToScheduledWorkouts}
+              style={({ pressed }) => [
+                styles.scheduledShortcut,
+                pressed ? styles.scheduledShortcutPressed : null,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Scroll to scheduled workouts"
+            >
+              <Text style={styles.scheduledShortcutText}>
+                Scroll to scheduled workouts
+              </Text>
+              <Ionicons
+                color={theme.colors.primary}
+                name="arrow-down"
+                size={13}
+              />
+            </Pressable>
+          ) : null}
+        </View>
         <Text style={styles.sectionBody}>
           Imported programs and drafts you want to keep around.
         </Text>
@@ -559,7 +596,7 @@ export function SavedWorkoutsScreen({
         )}
       </View>
 
-      <View style={styles.section}>
+      <View style={styles.section} onLayout={handleScheduledSectionLayout}>
         <View style={styles.sectionDivider}>
           <View style={styles.sectionDividerAccent} />
           <View style={styles.sectionDividerLine} />
@@ -872,6 +909,40 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       letterSpacing: -0.8,
+    },
+    sectionTitleRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 12,
+    },
+    scheduledShortcut: {
+      flexShrink: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 5,
+      borderRadius: 999,
+      backgroundColor:
+        theme.mode === "dark"
+          ? "rgba(255, 90, 20, 0.12)"
+          : "rgba(79, 117, 231, 0.14)",
+      borderWidth: 1,
+      borderColor: theme.mode === "dark"
+        ? "rgba(255, 90, 20, 0.24)"
+        : "rgba(79, 117, 231, 0.2)",
+      paddingHorizontal: 10,
+      paddingVertical: 7,
+    },
+    scheduledShortcutPressed: {
+      opacity: 0.8,
+      transform: [{ scale: 0.98 }],
+    },
+    scheduledShortcutText: {
+      color: theme.colors.primary,
+      fontSize: 11,
+      fontFamily: "Satoshi-Bold",
+      fontWeight: "800",
     },
     sectionBody: {
       color: theme.colors.textSecondary,

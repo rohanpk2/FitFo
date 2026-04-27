@@ -1,6 +1,7 @@
 import {
   ActivityIndicator,
   Alert,
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -31,6 +32,28 @@ export function ProfileScreen({
   profile,
   themeMode = "light",
 }: ProfileScreenProps) {
+  const handleSuggestFeatures = () => {
+    const subject = encodeURIComponent("FitFo feature suggestion");
+    const body = encodeURIComponent(
+      [
+        "Tell us what would make FitFo better for you.",
+        "",
+        "Feature idea:",
+        "",
+        "Why it would help:",
+        "",
+      ].join("\n"),
+    );
+    const mailto = `mailto:suggestions@fitfo.app?subject=${subject}&body=${body}`;
+
+    Linking.openURL(mailto).catch(() => {
+      Alert.alert(
+        "Email unavailable",
+        "Send your feature ideas to suggestions@fitfo.app and we'll use them to improve FitFo.",
+      );
+    });
+  };
+
   // Two-step confirmation: App Store reviewers look for this, and it protects
   // users from accidentally wiping their account. First Alert explains the
   // consequences; second Alert is the "really really?" confirm.
@@ -126,7 +149,19 @@ export function ProfileScreen({
             </Text>
           </View>
           <Ionicons color={theme.colors.textMuted} name="chevron-forward" size={18} />
-        </Pressable>        
+        </Pressable>
+        <Pressable onPress={handleSuggestFeatures} style={styles.infoCard}>
+          <View style={styles.infoIcon}>
+            <Ionicons color={theme.colors.primary} name="mail-outline" size={18} />
+          </View>
+          <View style={styles.infoCopy}>
+            <Text style={styles.infoTitle}>Suggest features</Text>
+            <Text style={styles.infoBody}>
+              Tell us what would make FitFo feel more useful for your training.
+            </Text>
+          </View>
+          <Ionicons color={theme.colors.textMuted} name="chevron-forward" size={18} />
+        </Pressable>
       </View>
 
       <Pressable onPress={onLogout} style={styles.logoutButton}>
