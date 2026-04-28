@@ -63,7 +63,7 @@ export function SignUpScreen({
       <View style={styles.shell}>
         <View style={styles.hero}>
           <Image 
-            source={require('../../assets/vector-no-bg.png')} 
+            source={require('../../assets/logo_no_bg.png')} 
             style={styles.logo}
             resizeMode="contain"
           />
