@@ -1,5 +1,37 @@
 {
-  "ios": {
-    "bundleIdentifier": "com.arjunpkulkarni.fitfo"
+  "expo": {
+    "name": "Fitfo",
+    "slug": "fitfo",
+    "version": "0.1.1",
+    "orientation": "portrait",
+    "icon": "./apps/mobile/assets/icon.png",
+    "scheme": "fitfo",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": false,
+    "splash": {
+      "image": "./apps/mobile/assets/logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#000000"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.arjunpkulkarni.fitfo",
+      "buildNumber": "15",
+      "icon": "./apps/mobile/assets/icon.png",
+      "usesAppleSignIn": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./apps/mobile/assets/adaptive-icon.png",
+        "backgroundColor": "#F4F1EC"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false,
+      "package": "com.fitfo.mobile",
+      "versionCode": 1
+    },
+    "web": {
+      "favicon": "./apps/mobile/assets/icon.png"
+    }
   }
 }
