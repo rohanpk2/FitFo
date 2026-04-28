@@ -489,9 +489,7 @@ export function SavedWorkoutsScreen({
                 name="calendar-clear-outline"
                 size={13}
               />
-              <Text style={styles.scheduledShortcutText}>
-                View schedule
-              </Text>
+              
               <Ionicons
                 color={theme.colors.primaryBright}
                 name="chevron-down"
