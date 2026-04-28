@@ -2,7 +2,7 @@
   "expo": {
     "name": "FitFo",
     "slug": "fitfo-mobile",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "orientation": "portrait",
     "icon": "./assets/logo.png",
     "scheme": "fitfo",
@@ -16,7 +16,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.fitfo.mobile",
-      "buildNumber": "13",
+      "buildNumber": "14",
       "icon": "./assets/logo.png",
       "usesAppleSignIn": true
     },
