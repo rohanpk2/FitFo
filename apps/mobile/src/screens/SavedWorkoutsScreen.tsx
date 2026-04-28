@@ -484,13 +484,18 @@ export function SavedWorkoutsScreen({
               accessibilityRole="button"
               accessibilityLabel="Scroll to scheduled workouts"
             >
+              <Ionicons
+                color={theme.colors.primaryBright}
+                name="calendar-clear-outline"
+                size={13}
+              />
               <Text style={styles.scheduledShortcutText}>
-                Scroll to scheduled workouts
+                View schedule
               </Text>
               <Ionicons
-                color={theme.colors.primary}
-                name="arrow-down"
-                size={13}
+                color={theme.colors.primaryBright}
+                name="chevron-down"
+                size={12}
               />
             </Pressable>
           ) : null}
@@ -788,7 +793,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     brandText: {
       color: theme.colors.primary,
       fontSize: 22,
-      fontFamily: "ClashDisplay-Semibold",
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       letterSpacing: -0.5,
     },
@@ -838,7 +843,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       color: theme.colors.textPrimary,
       fontSize: 40,
       lineHeight: 44,
-      fontFamily: "ClashDisplay-Semibold",
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       letterSpacing: -1.6,
     },
@@ -906,7 +911,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       color: theme.colors.textPrimary,
       fontSize: 26,
       lineHeight: 30,
-      fontFamily: "ClashDisplay-Semibold",
+      fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       letterSpacing: -0.8,
     },
@@ -917,30 +922,28 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       gap: 12,
     },
     scheduledShortcut: {
-      flexShrink: 1,
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "center",
-      gap: 5,
+      gap: 6,
       borderRadius: 999,
-      backgroundColor:
-        theme.mode === "dark"
-          ? "rgba(255, 90, 20, 0.12)"
-          : "rgba(79, 117, 231, 0.14)",
+      backgroundColor: theme.colors.surface,
       borderWidth: 1,
-      borderColor: theme.mode === "dark"
-        ? "rgba(255, 90, 20, 0.24)"
-        : "rgba(79, 117, 231, 0.2)",
-      paddingHorizontal: 10,
-      paddingVertical: 7,
+      borderColor:
+        theme.mode === "dark"
+          ? "rgba(255, 90, 20, 0.26)"
+          : "rgba(41, 86, 215, 0.16)",
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      ...theme.shadows.softCard,
     },
     scheduledShortcutPressed: {
-      opacity: 0.8,
-      transform: [{ scale: 0.98 }],
+      opacity: 0.86,
+      transform: [{ scale: 0.97 }],
     },
     scheduledShortcutText: {
-      color: theme.colors.primary,
-      fontSize: 11,
+      color: theme.colors.primaryBright,
+      fontSize: 12,
       fontFamily: "Satoshi-Bold",
       fontWeight: "800",
     },

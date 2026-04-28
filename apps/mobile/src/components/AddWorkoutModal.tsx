@@ -205,275 +205,303 @@ export function AddWorkoutModal({
             <Ionicons color={theme.colors.textMuted} name="close" size={20} />
           </Pressable>
 
-          <View style={styles.headerIcon}>
-            <MaterialIcons color={theme.colors.primary} name="fitness-center" size={24} />
-          </View>
-          <Text style={styles.title}>Import Workout</Text>
-          <Text style={styles.subtitle}>
-            Paste a TikTok or Instagram reel link to turn it into a workout you can
-            start now or save for later.
-          </Text>
-
-          <View style={styles.formBlock}>
-            <Text style={styles.label}>Video Link</Text>
-            <View style={styles.inputShell}>
-              <Ionicons color={theme.colors.textMuted} name="link-outline" size={18} />
-              <TextInput
-                autoCapitalize="none"
-                autoCorrect={false}
-                editable={!isSubmitting && !isPolling && !hasImportedWorkout}
-                keyboardType="url"
-                onChangeText={setUrl}
-                placeholder="tiktok.com/... or instagram.com/reel/..."
-                placeholderTextColor={theme.colors.textMuted}
-                style={styles.input}
-                value={url}
-              />
+          <ScrollView
+            bounces={false}
+            contentContainerStyle={styles.cardContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            style={styles.cardScroll}
+          >
+            <View style={styles.headerIcon}>
+              <MaterialIcons color={theme.colors.primary} name="fitness-center" size={24} />
             </View>
+            <Text style={styles.title}>Import Workout</Text>
+            <Text style={styles.subtitle}>
+              Paste a TikTok or Instagram reel link to turn it into a workout you can
+              start now or save for later.
+            </Text>
 
-            {!hasImportedWorkout ? (
-              <Text style={styles.helperText}>
-                We&apos;ll extract the workout structure and let you decide what to do next.
-              </Text>
-            ) : null}
-
-            <Pressable
-              disabled={!trimmedUrl || isSubmitting || isPolling || hasImportedWorkout}
-              onPress={() => onSubmit(trimmedUrl)}
-              style={({ pressed }) => [
-                styles.primaryButton,
-                (!trimmedUrl || isSubmitting || isPolling || hasImportedWorkout) &&
-                  styles.primaryButtonDisabled,
-                pressed ? styles.primaryButtonPressed : null,
-              ]}
-            >
-              {isSubmitting || isPolling ? (
-                <View style={styles.buttonRow}>
-                  <ActivityIndicator color={theme.colors.surface} size="small" />
-                  <Text style={styles.primaryButtonText}>
-                    {isSubmitting ? "Starting..." : "Extracting..."}
-                  </Text>
-                </View>
-              ) : (
-                <View style={styles.buttonRow}>
-                  <Ionicons color={theme.colors.surface} name="flash" size={16} />
-                  <Text style={styles.primaryButtonText}>Import Workout</Text>
-                </View>
-              )}
-            </Pressable>
-          </View>
-
-          {isPolling ? (
-            <View style={styles.statusCard}>
-              <View style={styles.statusHeader}>
-                <Text style={[styles.statusLabel, { color: info.color }]}>{info.label}</Text>
-                <Text style={styles.statusPercent}>{info.progressPercent}%</Text>
-              </View>
-              <View style={styles.progressTrack}>
-                <View
-                  style={[styles.progressFill, { width: `${info.progressPercent}%` }]}
+            <View style={styles.formBlock}>
+              <Text style={styles.label}>Video Link</Text>
+              <View style={styles.inputShell}>
+                <Ionicons color={theme.colors.textMuted} name="link-outline" size={18} />
+                <TextInput
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  editable={!isSubmitting && !isPolling && !hasImportedWorkout}
+                  keyboardType="url"
+                  onChangeText={setUrl}
+                  placeholder="tiktok.com/... or instagram.com/reel/..."
+                  placeholderTextColor={theme.colors.textMuted}
+                  style={styles.input}
+                  value={url}
                 />
               </View>
-              <Text style={styles.statusText}>{info.description}</Text>
-            </View>
-          ) : null}
 
-          {error ? (
-            <View style={styles.errorCard}>
-              <Text style={styles.errorTitle}>Import failed</Text>
-              <Text style={styles.errorText}>{error}</Text>
-            </View>
-          ) : null}
+              {!hasImportedWorkout ? (
+                <>
+                  <Text style={styles.helperText}>
+                    We&apos;ll extract the workout structure and let you decide what to do next.
+                  </Text>
 
-          {hasImportedWorkout ? (
-            <View style={styles.previewCard}>
-              <View style={styles.previewHeader}>
-                <Text style={styles.previewEyebrow}>AI-Parsed</Text>
-              </View>
-              <Text style={styles.previewTitle}>{routine?.title}</Text>
-              <Text style={styles.previewDescription}>{routine?.description}</Text>
-              <Text style={styles.previewAiNote}>
-                Auto-extracted from the video. Verify before training.
-              </Text>
-              {creatorHandle ? (
-                <View style={styles.previewTags}>
-                  <View style={styles.previewChip}>
-                    <Ionicons
-                      color={theme.colors.primary}
-                      name="person-circle-outline"
-                      size={14}
-                    />
-                    <Text style={styles.previewChipText}>{creatorHandle}</Text>
-                  </View>
-                </View>
-              ) : null}
-
-              <View style={styles.previewActionColumn}>
-                {!isPickingDate ? (
-                  <>
-                    <Pressable
-                      disabled={isScheduling || isSaving}
-                      onPress={onStartImported}
-                      style={[
-                        styles.secondaryAction,
-                        isScheduling || isSaving ? styles.actionDisabled : null,
-                      ]}
-                    >
-                      <Text style={styles.secondaryActionText}>Start Workout</Text>
-                    </Pressable>
-
-                    <Pressable
-                      disabled={isScheduling || isSaving}
-                      onPress={handleBeginScheduling}
-                      style={[
-                        styles.tertiaryAction,
-                        isScheduling || isSaving ? styles.actionDisabled : null,
-                      ]}
-                    >
+                  <Pressable
+                    disabled={!trimmedUrl || isSubmitting || isPolling}
+                    onPress={() => onSubmit(trimmedUrl)}
+                    style={({ pressed }) => [
+                      styles.primaryButton,
+                      (!trimmedUrl || isSubmitting || isPolling) &&
+                        styles.primaryButtonDisabled,
+                      pressed ? styles.primaryButtonPressed : null,
+                    ]}
+                  >
+                    {isSubmitting || isPolling ? (
                       <View style={styles.buttonRow}>
-                        <Ionicons
-                          color={theme.colors.primary}
-                          name="calendar-outline"
-                          size={16}
-                        />
-                        <Text style={styles.tertiaryActionText}>Schedule Workout</Text>
+                        <ActivityIndicator color={theme.colors.surface} size="small" />
+                        <Text style={styles.primaryButtonText}>
+                          {isSubmitting ? "Starting..." : "Extracting..."}
+                        </Text>
                       </View>
-                    </Pressable>
+                    ) : (
+                      <View style={styles.buttonRow}>
+                        <Ionicons color={theme.colors.surface} name="flash" size={16} />
+                        <Text style={styles.primaryButtonText}>Import Workout</Text>
+                      </View>
+                    )}
+                  </Pressable>
+                </>
+              ) : null}
+            </View>
 
-                    <Pressable
-                      disabled={isScheduling || isSaving}
-                      onPress={onSaveImported}
-                      style={[
-                        styles.tertiaryAction,
-                        isScheduling || isSaving ? styles.actionDisabled : null,
-                      ]}
-                    >
-                      {isSaving ? (
-                        <View style={styles.buttonRow}>
-                          <ActivityIndicator
-                            color={theme.colors.primary}
-                            size="small"
-                          />
-                          <Text style={styles.tertiaryActionText}>Saving...</Text>
-                        </View>
-                      ) : (
+            {isPolling ? (
+              <View style={styles.statusCard}>
+                <View style={styles.statusHeader}>
+                  <Text style={[styles.statusLabel, { color: info.color }]}>{info.label}</Text>
+                  <Text style={styles.statusPercent}>{info.progressPercent}%</Text>
+                </View>
+                <View style={styles.progressTrack}>
+                  <View
+                    style={[styles.progressFill, { width: `${info.progressPercent}%` }]}
+                  />
+                </View>
+                <Text style={styles.statusText}>{info.description}</Text>
+              </View>
+            ) : null}
+
+            {error ? (
+              <View style={styles.errorCard}>
+                <Text style={styles.errorTitle}>Import failed</Text>
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            ) : null}
+
+            {hasImportedWorkout ? (
+              <View style={styles.previewCard}>
+                <View style={styles.previewHeader}>
+                  <Text style={styles.previewEyebrow}>AI-Parsed</Text>
+                </View>
+                <Text
+                  ellipsizeMode="tail"
+                  numberOfLines={2}
+                  style={styles.previewTitle}
+                >
+                  {routine?.title}
+                </Text>
+                <Text
+                  ellipsizeMode="tail"
+                  numberOfLines={2}
+                  style={styles.previewDescription}
+                >
+                  {routine?.description}
+                </Text>
+                <Text ellipsizeMode="tail" numberOfLines={2} style={styles.previewAiNote}>
+                  Auto-extracted from the video. Verify before training.
+                </Text>
+                {creatorHandle ? (
+                  <View style={styles.previewTags}>
+                    <View style={styles.previewChip}>
+                      <Ionicons
+                        color={theme.colors.primary}
+                        name="person-circle-outline"
+                        size={14}
+                      />
+                      <Text
+                        ellipsizeMode="tail"
+                        numberOfLines={1}
+                        style={styles.previewChipText}
+                      >
+                        {creatorHandle}
+                      </Text>
+                    </View>
+                  </View>
+                ) : null}
+
+                <View style={styles.previewActionColumn}>
+                  {!isPickingDate ? (
+                    <>
+                      <Pressable
+                        disabled={isScheduling || isSaving}
+                        onPress={onStartImported}
+                        style={[
+                          styles.secondaryAction,
+                          isScheduling || isSaving ? styles.actionDisabled : null,
+                        ]}
+                      >
+                        <Text style={styles.secondaryActionText}>Start Workout</Text>
+                      </Pressable>
+
+                      <Pressable
+                        disabled={isScheduling || isSaving}
+                        onPress={handleBeginScheduling}
+                        style={[
+                          styles.tertiaryAction,
+                          isScheduling || isSaving ? styles.actionDisabled : null,
+                        ]}
+                      >
                         <View style={styles.buttonRow}>
                           <Ionicons
                             color={theme.colors.primary}
-                            name="bookmark-outline"
+                            name="calendar-outline"
                             size={16}
                           />
-                          <Text style={styles.tertiaryActionText}>Save for Later</Text>
+                          <Text style={styles.tertiaryActionText}>Schedule Workout</Text>
                         </View>
-                      )}
-                    </Pressable>
-                  </>
-                ) : (
-                  <View style={styles.schedulerBlock}>
-                    <View style={styles.schedulerHeader}>
-                      <Text style={styles.schedulerEyebrow}>Pick a day</Text>
-                      <Text style={styles.schedulerSelectedText}>
-                        {readableSelectedDate}
-                      </Text>
-                    </View>
+                      </Pressable>
 
-                    <ScrollView
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                      contentContainerStyle={styles.dayStripContent}
-                    >
-                      {upcomingDates.map((date) => {
-                        const iso = toIsoDate(date);
-                        const isSelected = activeSelectedDate === iso;
-                        return (
-                          <Pressable
-                            key={iso}
-                            onPress={() => setSelectedDate(iso)}
-                            style={[
-                              styles.dayPill,
-                              isSelected ? styles.dayPillSelected : null,
-                            ]}
-                          >
-                            <Text
-                              style={[
-                                styles.dayPillLabel,
-                                isSelected ? styles.dayPillLabelSelected : null,
-                              ]}
-                            >
-                              {DAY_LABELS[date.getDay()].toUpperCase()}
-                            </Text>
-                            <Text
-                              style={[
-                                styles.dayPillNumber,
-                                isSelected ? styles.dayPillNumberSelected : null,
-                              ]}
-                            >
-                              {date.getDate()}
-                            </Text>
-                            <Text
-                              style={[
-                                styles.dayPillMonth,
-                                isSelected ? styles.dayPillMonthSelected : null,
-                              ]}
-                            >
-                              {MONTH_LABELS[date.getMonth()]}
-                            </Text>
-                          </Pressable>
-                        );
-                      })}
-                    </ScrollView>
-
-                    <Pressable
-                      disabled={!activeSelectedDate || isScheduling}
-                      onPress={handleConfirmSchedule}
-                      style={[
-                        styles.secondaryAction,
-                        (!activeSelectedDate || isScheduling)
-                          ? styles.actionDisabled
-                          : null,
-                      ]}
-                    >
-                      {isScheduling ? (
-                        <View style={styles.buttonRow}>
-                          <ActivityIndicator
-                            color={theme.colors.surface}
-                            size="small"
-                          />
-                          <Text style={styles.secondaryActionText}>Scheduling...</Text>
-                        </View>
-                      ) : (
-                        <Text style={styles.secondaryActionText}>
-                          Schedule for {readableSelectedDate}
+                      <Pressable
+                        disabled={isScheduling || isSaving}
+                        onPress={onSaveImported}
+                        style={[
+                          styles.tertiaryAction,
+                          isScheduling || isSaving ? styles.actionDisabled : null,
+                        ]}
+                      >
+                        {isSaving ? (
+                          <View style={styles.buttonRow}>
+                            <ActivityIndicator
+                              color={theme.colors.primary}
+                              size="small"
+                            />
+                            <Text style={styles.tertiaryActionText}>Saving...</Text>
+                          </View>
+                        ) : (
+                          <View style={styles.buttonRow}>
+                            <Ionicons
+                              color={theme.colors.primary}
+                              name="bookmark-outline"
+                              size={16}
+                            />
+                            <Text style={styles.tertiaryActionText}>Save for Later</Text>
+                          </View>
+                        )}
+                      </Pressable>
+                    </>
+                  ) : (
+                    <View style={styles.schedulerBlock}>
+                      <View style={styles.schedulerHeader}>
+                        <Text style={styles.schedulerEyebrow}>Pick a day</Text>
+                        <Text style={styles.schedulerSelectedText}>
+                          {readableSelectedDate}
                         </Text>
-                      )}
-                    </Pressable>
+                      </View>
 
-                    <Pressable
-                      disabled={isScheduling}
-                      onPress={handleCancelScheduling}
-                      style={styles.schedulerCancel}
-                    >
-                      <Text style={styles.schedulerCancelText}>Back</Text>
-                    </Pressable>
-                  </View>
-                )}
+                      <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={styles.dayStripContent}
+                      >
+                        {upcomingDates.map((date) => {
+                          const iso = toIsoDate(date);
+                          const isSelected = activeSelectedDate === iso;
+                          return (
+                            <Pressable
+                              key={iso}
+                              onPress={() => setSelectedDate(iso)}
+                              style={[
+                                styles.dayPill,
+                                isSelected ? styles.dayPillSelected : null,
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.dayPillLabel,
+                                  isSelected ? styles.dayPillLabelSelected : null,
+                                ]}
+                              >
+                                {DAY_LABELS[date.getDay()].toUpperCase()}
+                              </Text>
+                              <Text
+                                style={[
+                                  styles.dayPillNumber,
+                                  isSelected ? styles.dayPillNumberSelected : null,
+                                ]}
+                              >
+                                {date.getDate()}
+                              </Text>
+                              <Text
+                                style={[
+                                  styles.dayPillMonth,
+                                  isSelected ? styles.dayPillMonthSelected : null,
+                                ]}
+                              >
+                                {MONTH_LABELS[date.getMonth()]}
+                              </Text>
+                            </Pressable>
+                          );
+                        })}
+                      </ScrollView>
+
+                      <Pressable
+                        disabled={!activeSelectedDate || isScheduling}
+                        onPress={handleConfirmSchedule}
+                        style={[
+                          styles.secondaryAction,
+                          (!activeSelectedDate || isScheduling)
+                            ? styles.actionDisabled
+                            : null,
+                        ]}
+                      >
+                        {isScheduling ? (
+                          <View style={styles.buttonRow}>
+                            <ActivityIndicator
+                              color={theme.colors.surface}
+                              size="small"
+                            />
+                            <Text style={styles.secondaryActionText}>Scheduling...</Text>
+                          </View>
+                        ) : (
+                          <Text style={styles.secondaryActionText}>
+                            Schedule for {readableSelectedDate}
+                          </Text>
+                        )}
+                      </Pressable>
+
+                      <Pressable
+                        disabled={isScheduling}
+                        onPress={handleCancelScheduling}
+                        style={styles.schedulerCancel}
+                      >
+                        <Text style={styles.schedulerCancelText}>Back</Text>
+                      </Pressable>
+                    </View>
+                  )}
+                </View>
               </View>
-            </View>
-          ) : null}
+            ) : null}
 
-          {!hasImportedWorkout ? (
-            <>
-              <View style={styles.orRow}>
-                <View style={styles.orLine} />
-                <Text style={styles.orText}>or</Text>
-                <View style={styles.orLine} />
-              </View>
+            {!hasImportedWorkout ? (
+              <>
+                <View style={styles.orRow}>
+                  <View style={styles.orLine} />
+                  <Text style={styles.orText}>or</Text>
+                  <View style={styles.orLine} />
+                </View>
 
-              <Pressable onPress={onCreateManual}>
-                <Text style={styles.linkButton}>Create a workout manually</Text>
-              </Pressable>
-            </>
-          ) : null}
+                <Pressable onPress={onCreateManual}>
+                  <Text style={styles.linkButton}>Create a workout manually</Text>
+                </Pressable>
+              </>
+            ) : null}
+          </ScrollView>
         </View>
       </View>
     </Modal>
@@ -492,12 +520,19 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     card: {
       width: "100%",
       maxWidth: 360,
+      maxHeight: "92%",
       borderRadius: 30,
       backgroundColor: theme.colors.surface,
-      padding: 24,
       borderWidth: 1,
       borderColor: theme.mode === "dark" ? theme.colors.borderSoft : "transparent",
       ...theme.shadows.card,
+    },
+    cardScroll: {
+      width: "100%",
+    },
+    cardContent: {
+      padding: 24,
+      paddingBottom: 26,
     },
     closeButton: {
       position: "absolute",
@@ -655,8 +690,8 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       marginTop: 18,
       borderRadius: 24,
       backgroundColor: theme.colors.surfaceMuted,
-      padding: 18,
-      gap: 10,
+      padding: 16,
+      gap: 8,
     },
     previewHeader: {
       flexDirection: "row",
@@ -674,7 +709,8 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     },
     previewTitle: {
       color: theme.colors.textPrimary,
-      fontSize: 28,
+      fontSize: 24,
+      lineHeight: 29,
       fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       letterSpacing: -1,
@@ -682,7 +718,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     previewDescription: {
       color: theme.colors.textSecondary,
       fontSize: 15,
-      lineHeight: 22,
+      lineHeight: 21,
     },
     previewAiNote: {
       color: theme.colors.textMuted,
@@ -696,6 +732,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       gap: 8,
     },
     previewChip: {
+      maxWidth: "100%",
       borderRadius: 999,
       backgroundColor: theme.colors.surface,
       paddingHorizontal: 12,
@@ -705,17 +742,18 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       gap: 6,
     },
     previewChipText: {
+      flexShrink: 1,
       color: theme.colors.primary,
       fontSize: 13,
       fontFamily: "Satoshi-Bold",
       fontWeight: "800",
     },
     previewActionColumn: {
-      gap: 10,
-      marginTop: 6,
+      gap: 8,
+      marginTop: 4,
     },
     secondaryAction: {
-      minHeight: 52,
+      minHeight: 50,
       borderRadius: 18,
       backgroundColor: theme.colors.primary,
       alignItems: "center",
@@ -728,7 +766,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       fontWeight: "800",
     },
     tertiaryAction: {
-      minHeight: 48,
+      minHeight: 46,
       borderRadius: 18,
       borderWidth: 1,
       borderColor: theme.colors.primary,
