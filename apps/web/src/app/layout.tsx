@@ -50,7 +50,7 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://fitfo.app"),
   applicationName: "Fitfo",
   title: {
-    default: "Fitfo | AI Workout App for TikTok and Reels",
+    default: "Fitfo",
     template: "%s · Fitfo",
   },
   description: DESCRIPTION,
