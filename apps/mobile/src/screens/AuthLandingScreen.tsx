@@ -17,6 +17,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import { VideoView, useVideoPlayer } from "expo-video";
 
 import { AppleSignInButton } from "../components/AppleSignInButton";
 import { isAppleSignInAvailable } from "../lib/appleAuth";
@@ -28,6 +29,7 @@ import type { AuthMode } from "../types";
 
 const ORANGE = "#FF5A1F";
 const LAST_SLIDE_INDEX = 4;
+const WORKOUT_VIDEO = require("../../assets/my-workout.mp4");
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -66,9 +68,14 @@ export function AuthLandingScreen({
   onSelectMode,
   themeMode = "dark",
 }: AuthLandingScreenProps) {
-  const { width } = useWindowDimensions();
+  const { height, width } = useWindowDimensions();
   const scrollRef = useRef<ScrollView>(null);
   const pulseAnim = useRef(new Animated.Value(0)).current;
+  const workoutVideoPlayer = useVideoPlayer(WORKOUT_VIDEO, (player) => {
+    player.loop = true;
+    player.muted = true;
+    player.play();
+  });
 
   const [fullName, setFullName] = useState(initialFullName ?? "");
   const [phoneNumber, setPhoneNumber] = useState(initialPhoneNumber ?? "");
@@ -124,6 +131,8 @@ export function AuthLandingScreen({
     : Boolean(phoneNumber.trim()) && !isSubmitting;
 
   const featureDot = Math.min(Math.max(activeIndex - 1, 0), 2);
+  const videoPreviewWidth = Math.min(Math.max(width * 0.62, 198), height * 0.31, 250);
+  const videoPreviewHeight = videoPreviewWidth * 1.82;
 
   // Glow animated values
   const glowScale   = pulseAnim.interpolate({ inputRange: [0, 1], outputRange: [1,    1.14] });
@@ -180,37 +189,42 @@ export function AuthLandingScreen({
 
              
 
-              {/* Visual proof — input link → parsed workout preview */}
-              <View style={S.proofCard}>
-                <View style={S.proofRibbonRow}>
-                  <PreviewRibbon />
-                </View>
-                <View style={S.proofInputRow}>
-                  <Ionicons color="#A8A8A8" name="logo-tiktok" size={14} />
-                  <Text style={S.proofInputText} numberOfLines={1}>
-                    tiktok.com/@creator/legday
-                  </Text>
-                </View>
-
-                <View style={S.proofArrowRow}>
-                  <View style={S.proofArrowLine} />
-                  <View style={S.proofArrowBadge}>
-                    <Text style={S.proofArrowText}>Fitfo</Text>
-                  </View>
-                  <View style={S.proofArrowLine} />
-                </View>
-
-                <View style={S.proofOutput}>
-                  <View style={S.proofOutputHeader}>
-                    <Text style={S.proofOutputTitle}>Full Leg Day</Text>
-                    <View style={S.proofOutputBadge}>
-                      <Ionicons color={ORANGE} name="checkmark" size={10} />
-                      <Text style={S.proofOutputBadgeText}>Parsed</Text>
-                    </View>
-                  </View>
-                  <ProofRow meta="3 × 8 reps" name="Squats" />
-                  <ProofRow meta="3 × 10 reps" name="Leg Press" />
-                  <ProofRow last meta="3 × 8 reps" name="Romanian Deadlift" />
+              <View style={S.videoPreviewWrap}>
+                <View
+                  style={[
+                    S.videoPhoneShadow,
+                    {
+                      height: videoPreviewHeight + 18,
+                      width: videoPreviewWidth + 18,
+                    },
+                  ]}
+                />
+                <View
+                  style={[
+                    S.videoPhoneShell,
+                    {
+                      height: videoPreviewHeight,
+                      width: videoPreviewWidth,
+                    },
+                  ]}
+                >
+                  <View style={S.videoPhoneNotch} />
+                  <VideoView
+                    allowsPictureInPicture={false}
+                    contentFit="cover"
+                    fullscreenOptions={{ enable: false }}
+                    nativeControls={false}
+                    player={workoutVideoPlayer}
+                    playsInline
+                    surfaceType="textureView"
+                    style={S.workoutVideo}
+                  />
+                  <LinearGradient
+                    colors={["rgba(0,0,0,0.48)", "transparent", "rgba(0,0,0,0.72)"]}
+                    pointerEvents="none"
+                    style={S.workoutVideoScrim}
+                  />
+                  <View style={S.videoHomeBar} />
                 </View>
               </View>
             </View>
@@ -572,32 +586,6 @@ function ExRow({ meta, name }: { meta: string; name: string }) {
   );
 }
 
-// Compact exercise row used inside the splash proof card. Smaller and
-// borderless so the preview card stays visually dense but readable.
-function ProofRow({
-  last,
-  meta,
-  name,
-}: {
-  last?: boolean;
-  meta: string;
-  name: string;
-}) {
-  return (
-    <View style={[S.proofRow, last ? S.proofRowLast : null]}>
-      <View style={S.proofRowIcon}>
-        <Ionicons color={ORANGE} name="barbell-outline" size={13} />
-      </View>
-      <View style={S.proofRowCopy}>
-        <Text style={S.proofRowName} numberOfLines={1}>
-          {name}
-        </Text>
-        <Text style={S.proofRowMeta}>{meta}</Text>
-      </View>
-    </View>
-  );
-}
-
 function SlideFooter({
   activeDot,
   nextLabel = "Next",
@@ -666,9 +654,9 @@ const S = StyleSheet.create({
     // Two-section layout: hero sits at top, CTA pinned to bottom.
     justifyContent: "space-between",
     overflow: "hidden",
-    paddingBottom: Platform.OS === "ios" ? 36 : 28,
+    paddingBottom: Platform.OS === "ios" ? 16 : 12,
     paddingHorizontal: 26,
-    paddingTop: Platform.OS === "ios" ? 64 : 48,
+    paddingTop: Platform.OS === "ios" ? 38 : 30,
   },
   glowBlob: {
     backgroundColor: "rgba(176, 70, 23, 0.08)",
@@ -691,7 +679,7 @@ const S = StyleSheet.create({
   },
   splashFooter: {
     alignItems: "stretch",
-    gap: 10,
+    gap: 8,
     width: "100%",
   },
 
@@ -704,9 +692,9 @@ const S = StyleSheet.create({
   brandWordmark: {
     color: "#FFFFFF",
     fontFamily: F.condensedBlack,
-    fontSize: 24,
+    fontSize: 22,
     letterSpacing: -0.6,
-    lineHeight: 24,
+    lineHeight: 22,
   },
   brandAccent: {
     color: ORANGE,
@@ -719,8 +707,8 @@ const S = StyleSheet.create({
   brandTagline: {
     color: "rgba(255, 90, 31, 0.85)",
     fontFamily: F.condensedBold,
-    fontSize: 10,
-    letterSpacing: 2.2,
+    fontSize: 9,
+    letterSpacing: 1.8,
     textTransform: "uppercase",
   },
 
@@ -728,10 +716,10 @@ const S = StyleSheet.create({
   splashHeadline: {
     color: "#FFFFFF",
     fontFamily: F.display,
-    fontSize: 38,
-    letterSpacing: -1.4,
-    lineHeight: 42,
-    marginTop: 28,
+    fontSize: 32,
+    letterSpacing: -1,
+    lineHeight: 36,
+    marginTop: 16,
   },
   splashHeadlineAccent: {
     color: ORANGE,
@@ -746,135 +734,70 @@ const S = StyleSheet.create({
     textAlign: "left",
   },
 
-  // Visual proof card — input link → AI parsing → structured workout.
-  proofCard: {
-    backgroundColor: "rgba(18, 18, 18, 0.88)",
-    borderColor: "rgba(255, 255, 255, 0.06)",
-    borderRadius: 20,
-    borderWidth: 1,
-    gap: 10,
-    marginTop: 26,
-    padding: 14,
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.4,
-    shadowRadius: 24,
+  // Workout video preview shown in a compact phone frame.
+  videoPreviewWrap: {
+    alignItems: "center",
+    alignSelf: "center",
+    justifyContent: "center",
+    marginTop: 8,
     width: "100%",
   },
-  proofRibbonRow: {
-    alignItems: "flex-start",
-    marginBottom: -4,
+  videoPhoneShadow: {
+    backgroundColor: "rgba(255, 90, 31, 0.08)",
+    borderRadius: 46,
+    position: "absolute",
+    shadowColor: "#FF5A1F",
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.34,
+    shadowRadius: 34,
   },
-  proofInputRow: {
-    alignItems: "center",
-    backgroundColor: "#1C1C1C",
-    borderRadius: 12,
-    flexDirection: "row",
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+  videoPhoneShell: {
+    backgroundColor: "#050505",
+    borderColor: "rgba(255, 255, 255, 0.1)",
+    borderRadius: 36,
+    borderWidth: 2,
+    elevation: 10,
+    overflow: "hidden",
+    padding: 6,
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.52,
+    shadowRadius: 30,
   },
-  proofInputText: {
-    color: "#A8A8A8",
-    flex: 1,
-    fontFamily: F.medium,
-    fontSize: 12,
+  videoPhoneNotch: {
+    alignSelf: "center",
+    backgroundColor: "#050505",
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
+    height: 18,
+    position: "absolute",
+    top: 6,
+    width: 72,
+    zIndex: 3,
   },
-  proofArrowRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 10,
-    paddingHorizontal: 4,
+  workoutVideo: {
+    backgroundColor: "#000000",
+    borderRadius: 30,
+    height: "100%",
+    overflow: "hidden",
+    width: "100%",
   },
-  proofArrowLine: {
-    backgroundColor: "rgba(255, 90, 31, 0.25)",
-    flex: 1,
-    height: 1,
+  workoutVideoScrim: {
+    borderRadius: 30,
+    bottom: 6,
+    left: 6,
+    position: "absolute",
+    right: 6,
+    top: 6,
   },
-  proofArrowBadge: {
-    alignItems: "center",
-    backgroundColor: "rgba(255, 90, 31, 0.12)",
-    borderColor: "rgba(255, 90, 31, 0.35)",
+  videoHomeBar: {
+    alignSelf: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.34)",
     borderRadius: 999,
-    borderWidth: 1,
-    flexDirection: "row",
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  proofArrowText: {
-    color: ORANGE,
-    fontFamily: F.extraBold,
-    fontSize: 9,
-    letterSpacing: 1.2,
-    textTransform: "uppercase",
-  },
-  proofOutput: {
-    backgroundColor: "#161616",
-    borderRadius: 14,
-    padding: 12,
-  },
-  proofOutputHeader: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 6,
-  },
-  proofOutputTitle: {
-    color: "#FFFFFF",
-    fontFamily: F.extraBold,
-    fontSize: 14,
-    letterSpacing: -0.2,
-  },
-  proofOutputBadge: {
-    alignItems: "center",
-    backgroundColor: "rgba(255, 90, 31, 0.14)",
-    borderRadius: 999,
-    flexDirection: "row",
-    gap: 3,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  proofOutputBadgeText: {
-    color: ORANGE,
-    fontFamily: F.extraBold,
-    fontSize: 9,
-    letterSpacing: 0.8,
-    textTransform: "uppercase",
-  },
-  proofRow: {
-    alignItems: "center",
-    borderBottomColor: "rgba(255, 255, 255, 0.05)",
-    borderBottomWidth: 1,
-    flexDirection: "row",
-    gap: 10,
-    paddingVertical: 8,
-  },
-  proofRowLast: {
-    borderBottomWidth: 0,
-    paddingBottom: 2,
-  },
-  proofRowIcon: {
-    alignItems: "center",
-    backgroundColor: "#252525",
-    borderRadius: 8,
-    height: 28,
-    justifyContent: "center",
-    width: 28,
-  },
-  proofRowCopy: {
-    flex: 1,
-  },
-  proofRowName: {
-    color: "#FFFFFF",
-    fontFamily: F.extraBold,
-    fontSize: 12,
-  },
-  proofRowMeta: {
-    color: "#7A7A7A",
-    fontFamily: F.regular,
-    fontSize: 11,
-    marginTop: 1,
+    bottom: 12,
+    height: 4,
+    position: "absolute",
+    width: 72,
   },
   ctaWrap: {
     alignItems: "stretch",
@@ -920,7 +843,7 @@ const S = StyleSheet.create({
     fontFamily: F.semiBold,
     fontSize: 13,
     letterSpacing: 0.1,
-    marginTop: 6,
+    marginTop: 4,
     textAlign: "center",
   },
   // Legal — pinned to bottom of footer, centered.
@@ -929,7 +852,7 @@ const S = StyleSheet.create({
     fontFamily: F.medium,
     fontSize: 11,
     letterSpacing: 0.2,
-    marginTop: 2,
+    marginTop: 0,
     textAlign: "center",
   },
   pressed: {
