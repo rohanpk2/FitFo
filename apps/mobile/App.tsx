@@ -148,6 +148,13 @@ export default function App() {
   const [pendingOtpChallenge, setPendingOtpChallenge] =
     useState<PendingOtpChallenge | null>(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
+  const [isMinSplashDone, setIsMinSplashDone] = useState(false);
+  useEffect(() => {
+    // Keep the launch loading animation on screen for at least 2s so the
+    // brand moment doesn't flash by even when auth restore is instant.
+    const timeout = setTimeout(() => setIsMinSplashDone(true), 2000);
+    return () => clearTimeout(timeout);
+  }, []);
   const [isResendingOtp, setIsResendingOtp] = useState(false);
   const [activeOnboardingUserId, setActiveOnboardingUserId] = useState<string | null>(
     null,
@@ -1656,18 +1663,14 @@ export default function App() {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar style={themeMode === "dark" ? "light" : "dark"} />
       <View style={styles.appShell}>
-        {!isAuthReady || !fontsLoaded ? (
+        {!isAuthReady || !fontsLoaded || !isMinSplashDone ? (
           <View style={styles.loadingScreen}>
             <FitfoLoadingAnimation
-              caption="connecting"
-              label="Connecting to Fitfo"
+              caption="loading"
+              label="Fitfo is loading"
               size={160}
               themeMode={themeMode}
             />
-            <Text style={styles.loadingTitle}>Connecting to Fitfo</Text>
-            <Text style={styles.loadingBody}>
-              Restoring your session and profile.
-            </Text>
           </View>
         ) : currentUser ? (
           !currentUser.onboarding || activeOnboardingUserId === currentUser.id ? (

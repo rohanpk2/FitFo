@@ -9,7 +9,7 @@ export function Footer() {
           <div className="max-w-sm">
             <Link href="/" className="flex items-center gap-2.5">
               <Image
-                src="/vector-no-bg.png"
+                src="/fitfo-logo.png"
                 alt=""
                 width={180}
                 height={180}

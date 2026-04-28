@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { StyleSheet, Text, View, type ViewStyle } from "react-native";
 import Svg, {
   Circle,
@@ -9,6 +9,7 @@ import Svg, {
   Rect,
 } from "react-native-svg";
 
+import { F } from "../lib/fonts";
 import { getTheme, type ThemeMode } from "../theme";
 
 const ORANGE = "#FF5A14";
@@ -18,7 +19,6 @@ const DURATION = 2400;
 const HOLD = 900;
 const FADE = 600;
 const LOOP = DURATION + HOLD + FADE;
-const SPARK_COUNT = 10;
 
 const PTS = [
   { x: 190, y: 720 },
@@ -36,19 +36,55 @@ interface Segment {
   start: number;
 }
 
-interface SparkState {
-  bornAt: number;
-  lifetime: number;
-  x: number;
-  y: number;
-  vx: number;
-  vy: number;
-  r0: number;
-}
-
 const { segs, total } = polyLengths(PTS);
 const fullPath = `M ${PTS.map((p) => `${p.x} ${p.y}`).join(" L ")}`;
 const SQUIRCLE_PATH = squircle(1024);
+const APEX = PTS[PTS.length - 1];
+
+interface Frame {
+  d: string;
+  pathOpacity: number;
+  headX: number;
+  headY: number;
+  headOpacity: number;
+  apexOpacity: number;
+}
+
+function computeFrame(elapsed: number): Frame {
+  if (elapsed <= DURATION) {
+    const t = elapsed / DURATION;
+    const distance = easeInOutCubic(t) * total;
+    const point = pointAt(distance);
+    return {
+      d: pathUpTo(distance),
+      pathOpacity: 1,
+      headX: point.x,
+      headY: point.y,
+      headOpacity: Math.min(1, t * 8),
+      apexOpacity: 0,
+    };
+  }
+  if (elapsed <= DURATION + HOLD) {
+    return {
+      d: pathUpTo(total),
+      pathOpacity: 1,
+      headX: APEX.x,
+      headY: APEX.y,
+      headOpacity: 0,
+      apexOpacity: 1,
+    };
+  }
+  const fadeT = (elapsed - DURATION - HOLD) / FADE;
+  const opacity = Math.max(0, 1 - fadeT);
+  return {
+    d: pathUpTo(total),
+    pathOpacity: opacity,
+    headX: APEX.x,
+    headY: APEX.y,
+    headOpacity: 0,
+    apexOpacity: opacity,
+  };
+}
 
 interface FitfoLoadingAnimationProps {
   caption?: string | null;
@@ -66,108 +102,31 @@ export function FitfoLoadingAnimation({
   themeMode = "dark",
 }: FitfoLoadingAnimationProps) {
   const theme = getTheme(themeMode);
-  const corePathRef = useRef<Path>(null);
-  const headRef = useRef<Circle>(null);
-  const apexRef = useRef<Circle>(null);
-  const sparkRefs = useRef<Array<Circle | null>>([]);
-  const sparks = useMemo<SparkState[]>(
-    () =>
-      Array.from({ length: SPARK_COUNT }, () => ({
-        bornAt: -1,
-        lifetime: 0,
-        x: 0,
-        y: 0,
-        vx: 0,
-        vy: 0,
-        r0: 0,
-      })),
-    [],
-  );
+  const reactId = useId();
+  const clipId = `fitfo-clip-${reactId.replace(/[^a-zA-Z0-9]/g, "")}`;
+  const [frame, setFrame] = useState<Frame>(() => computeFrame(0));
+  const startRef = useRef<number>(Date.now());
+  const lastUpdateRef = useRef<number>(0);
 
   useEffect(() => {
     let raf = 0;
-    let start = Date.now();
-    let lastSpark = 0;
+    startRef.current = Date.now();
 
-    const spawn = (now: number, x: number, y: number) => {
-      const spark = sparks.find((s) => now > s.bornAt + s.lifetime);
-      if (!spark) return;
-      spark.bornAt = now;
-      spark.lifetime = 400 + Math.random() * 300;
-      spark.x = x + (Math.random() - 0.5) * 16;
-      spark.y = y + (Math.random() - 0.5) * 16;
-      spark.vx = (Math.random() - 0.5) * 0.4;
-      spark.vy = (Math.random() - 0.2) * 0.4 - 0.2;
-      spark.r0 = 3 + Math.random() * 5;
-    };
-
-    const updateSparks = (now: number) => {
-      sparks.forEach((spark, index) => {
-        const node = sparkRefs.current[index];
-        if (!node || spark.bornAt < 0) return;
-        const age = now - spark.bornAt;
-        if (age > spark.lifetime) {
-          node.setNativeProps({ opacity: 0 });
-          return;
-        }
-        const t = age / spark.lifetime;
-        const x = spark.x + spark.vx * age;
-        const y = spark.y + spark.vy * age + 0.0008 * age * age;
-        const r = spark.r0 * (1 - t);
-        const opacity = 1 - t;
-        node.setNativeProps({ cx: x, cy: y, r, opacity });
-      });
-    };
-
-    const frame = () => {
+    const tick = () => {
       const now = Date.now();
-      let elapsed = now - start;
-      if (elapsed > LOOP) {
-        start = now;
-        elapsed = 0;
+      const elapsed = (now - startRef.current) % LOOP;
+      // Throttle React state updates to ~30fps; keeps GC light and the
+      // animation perfectly smooth visually.
+      if (now - lastUpdateRef.current >= 33) {
+        lastUpdateRef.current = now;
+        setFrame(computeFrame(elapsed));
       }
-
-      if (elapsed <= DURATION) {
-        const t = elapsed / DURATION;
-        const distance = easeInOutCubic(t) * total;
-        const d = pathUpTo(distance);
-        const point = pointAt(distance);
-        corePathRef.current?.setNativeProps({ d, opacity: 1 });
-        headRef.current?.setNativeProps({
-          cx: point.x,
-          cy: point.y,
-          opacity: Math.min(1, t * 8),
-        });
-        apexRef.current?.setNativeProps({ opacity: 0 });
-        if (now - lastSpark > 40) {
-          spawn(now, point.x, point.y);
-          lastSpark = now;
-        }
-      } else if (elapsed <= DURATION + HOLD) {
-        const endPoint = PTS[PTS.length - 1];
-        const holdT = (elapsed - DURATION) / HOLD;
-        corePathRef.current?.setNativeProps({ d: pathUpTo(total), opacity: 1 });
-        headRef.current?.setNativeProps({ opacity: 0 });
-        apexRef.current?.setNativeProps({ opacity: 1 });
-        if (holdT < 0.15 && now - lastSpark > 20) {
-          spawn(now, endPoint.x, endPoint.y);
-          lastSpark = now;
-        }
-      } else {
-        const fadeT = (elapsed - DURATION - HOLD) / FADE;
-        const opacity = Math.max(0, 1 - fadeT);
-        corePathRef.current?.setNativeProps({ opacity });
-        headRef.current?.setNativeProps({ opacity: 0 });
-        apexRef.current?.setNativeProps({ opacity });
-      }
-
-      updateSparks(now);
-      raf = requestAnimationFrame(frame);
+      raf = requestAnimationFrame(tick);
     };
 
-    raf = requestAnimationFrame(frame);
+    raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [sparks]);
+  }, []);
 
   const radius = size * 0.2237;
 
@@ -187,11 +146,11 @@ export function FitfoLoadingAnimation({
       >
         <Svg viewBox="0 0 1024 1024" width={size} height={size}>
           <Defs>
-            <ClipPath id="fitfo-clip">
+            <ClipPath id={clipId}>
               <Path d={SQUIRCLE_PATH} />
             </ClipPath>
           </Defs>
-          <G clipPath="url(#fitfo-clip)">
+          <G clipPath={`url(#${clipId})`}>
             <Rect x={0} y={0} width={1024} height={1024} fill={BG} />
             <Path
               d={fullPath}
@@ -203,53 +162,33 @@ export function FitfoLoadingAnimation({
               strokeWidth={88}
             />
             <Path
-              ref={corePathRef}
-              d=""
+              d={frame.d || `M ${PTS[0].x} ${PTS[0].y}`}
               fill="none"
               stroke={ORANGE}
               strokeLinecap="square"
               strokeLinejoin="miter"
               strokeWidth={88}
+              opacity={frame.pathOpacity}
             />
-            {sparks.map((_, index) => (
-              <Circle
-                key={index}
-                ref={(node) => {
-                  sparkRefs.current[index] = node;
-                }}
-                cx={0}
-                cy={0}
-                fill={ORANGE}
-                opacity={0}
-                r={0}
-              />
-            ))}
             <Circle
-              ref={headRef}
-              cx={0}
-              cy={0}
+              cx={frame.headX}
+              cy={frame.headY}
               fill={ORANGE_HI}
-              opacity={0}
+              opacity={frame.headOpacity}
               r={36}
             />
             <Circle
-              ref={apexRef}
-              cx={PTS[PTS.length - 1].x}
-              cy={PTS[PTS.length - 1].y}
+              cx={APEX.x}
+              cy={APEX.y}
               fill={ORANGE_HI}
-              opacity={0}
+              opacity={frame.apexOpacity}
               r={36}
             />
           </G>
         </Svg>
       </View>
       {caption ? (
-        <Text
-          style={[
-            styles.caption,
-            { color: theme.colors.textMuted },
-          ]}
-        >
+        <Text style={[styles.caption, { color: theme.colors.textMuted }]}>
           <Text
             style={[
               styles.captionAccent,
@@ -273,6 +212,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   caption: {
+    fontFamily: F.bold,
     fontSize: 10,
     fontWeight: "700",
     letterSpacing: 2.4,
@@ -280,6 +220,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   captionAccent: {
+    fontFamily: F.bold,
     fontWeight: "700",
   },
 });
@@ -308,7 +249,7 @@ function pointAt(distance: number) {
       };
     }
   }
-  return PTS[PTS.length - 1];
+  return APEX;
 }
 
 function pathUpTo(distance: number) {
