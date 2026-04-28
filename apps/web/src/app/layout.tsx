@@ -26,10 +26,7 @@ const clashDisplay = localFont({
   display: "swap",
 });
 
-const ICON_180 = "/Fitfo-VectorTrace-180.png";
-const ICON_512 = "/Fitfo-VectorTrace-512.png";
-const ICON_1024 = "/Fitfo-VectorTrace-1024.png";
-const ICON_SVG = "/Fitfo-VectorTrace-1024.svg";
+const ICON = "/vector-no-bg.png";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://fitfo.app"),
@@ -46,21 +43,20 @@ export const metadata: Metadata = {
     url: "https://fitfo.app",
     siteName: "Fitfo",
     type: "website",
-    images: [ICON_1024],
+    images: [ICON],
   },
   twitter: {
     card: "summary_large_image",
     title: "Fitfo, Now on the App Store",
     description:
       "Share any TikTok or Instagram fitness video straight to Fitfo. Our AI extracts the exercises, sets, and reps into a clean, trackable workout. Available now on iOS.",
-    images: [ICON_1024],
+    images: [ICON],
   },
   icons: {
     icon: [
-      { url: ICON_SVG, type: "image/svg+xml" },
-      { url: ICON_512, sizes: "512x512", type: "image/png" },
+      { url: ICON, sizes: "512x512", type: "image/png" },
     ],
-    apple: [{ url: ICON_180, sizes: "180x180", type: "image/png" }],
+    apple: [{ url: ICON, sizes: "512x512", type: "image/png" }],
   },
 };
 

@@ -347,7 +347,7 @@ export function SavedWorkoutDetailScreen({
         </Pressable>
         <Image
           resizeMode="contain"
-          source={require("../../assets/Fitfo-VectorTrace-1024.png")}
+          source={require("../../assets/vector-no-bg.png")}
           style={styles.brandLogo}
         />
         <View style={styles.headerSpacer} />

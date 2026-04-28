@@ -11,7 +11,7 @@ export function Nav() {
           className="flex items-center"
         >
           <Image
-            src="/Fitfo-VectorTrace-1024.svg"
+            src="/vector-no-bg.png"
             alt="Fitfo"
             width={512}
             height={512}

@@ -4,12 +4,12 @@
     "slug": "fitfo-mobile",
     "version": "0.1.1",
     "orientation": "portrait",
-    "icon": "./assets/Fitfo-VectorTrace-1024.png",
+    "icon": "./assets/vector-no-bg.png",
     "scheme": "fitfo",
     "userInterfaceStyle": "light",
     "newArchEnabled": false,
     "splash": {
-      "image": "./assets/Fitfo-VectorTrace-1024.png",
+      "image": "./assets/vector-no-bg.png",
       "resizeMode": "contain",
       "backgroundColor": "#000000"
     },
@@ -17,12 +17,12 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.fitfo.mobile",
       "buildNumber": "14",
-      "icon": "./assets/Fitfo-VectorTrace-1024.png",
+      "icon": "./assets/vector-no-bg.png",
       "usesAppleSignIn": true
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/Fitfo-VectorTrace-1024.png",
+        "foregroundImage": "./assets/vector-no-bg.png",
         "backgroundColor": "#F4F1EC"
       },
       "edgeToEdgeEnabled": true,
