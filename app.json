@@ -16,7 +16,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.fitfo.mobile",
-      "buildNumber": "15",
+      "buildNumber": "16",
       "icon": "./apps/mobile/assets/icon.png",
       "usesAppleSignIn": true
     },
