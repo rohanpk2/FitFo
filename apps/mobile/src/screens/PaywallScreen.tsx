@@ -15,6 +15,7 @@ import { getTheme, type ThemeMode } from "../theme";
 interface PaywallScreenProps {
   error?: string | null;
   isLoading?: boolean;
+  onDevBypass?: () => void;
   onManageSubscription?: () => Promise<boolean>;
   onPresentPaywall: () => Promise<boolean>;
   onRestorePurchases: () => Promise<boolean>;
@@ -25,6 +26,7 @@ interface PaywallScreenProps {
 export function PaywallScreen({
   error,
   isLoading = false,
+  onDevBypass,
   onManageSubscription,
   onPresentPaywall,
   onRestorePurchases,
@@ -170,6 +172,17 @@ export function PaywallScreen({
         </Pressable>
       ) : null}
 
+      {__DEV__ && onDevBypass ? (
+        <Pressable
+          disabled={busy}
+          onPress={onDevBypass}
+          style={styles.devBypassButton}
+        >
+          <Ionicons color={theme.colors.warning} name="construct-outline" size={15} />
+          <Text style={styles.devBypassText}>Dev bypass paywall</Text>
+        </Pressable>
+      ) : null}
+
       <Text style={styles.finePrint}>
         Payments are processed by Apple. You can cancel or manage your
         subscription from your Apple ID settings.
@@ -275,6 +288,25 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       fontFamily: "Satoshi-Bold",
       fontWeight: "700",
       textDecorationLine: "underline",
+    },
+    devBypassButton: {
+      minHeight: 36,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: theme.colors.warning,
+      alignItems: "center",
+      justifyContent: "center",
+      flexDirection: "row",
+      gap: 6,
+      paddingHorizontal: 14,
+      backgroundColor:
+        theme.mode === "dark" ? "rgba(255, 177, 74, 0.08)" : theme.colors.warningSoft,
+    },
+    devBypassText: {
+      color: theme.colors.warning,
+      fontSize: 12,
+      fontFamily: "Satoshi-Bold",
+      fontWeight: "800",
     },
     finePrint: {
       maxWidth: 320,

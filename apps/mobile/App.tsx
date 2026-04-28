@@ -230,6 +230,7 @@ export default function App() {
   const [scheduledConfirmation, setScheduledConfirmation] = useState<
     ScheduledConfirmationState | null
   >(null);
+  const [isDevPaywallBypassed, setIsDevPaywallBypassed] = useState(false);
 
   const handledImportedWorkoutId = useRef<string | null>(null);
   // Tracks any pending post-close cleanup of AddWorkoutModal so we can cancel
@@ -243,7 +244,8 @@ export default function App() {
   const styles = createStyles(theme);
   const revenueCat = useRevenueCat(currentUser);
   const isInitialTrialActive = isWithinInitialTrial(currentUser?.created_at);
-  const hasBillingAccess = isInitialTrialActive || revenueCat.hasPro;
+  const hasBillingAccess =
+    isInitialTrialActive || revenueCat.hasPro || (__DEV__ && isDevPaywallBypassed);
   const isBillingCheckPending =
     Boolean(currentUser) &&
     !isInitialTrialActive &&
@@ -1334,6 +1336,7 @@ export default function App() {
     setAuthPrefillPhone("");
     setAuthPrefillFullName("");
     setAuthSubmittingMode(null);
+    setIsDevPaywallBypassed(false);
   }, []);
 
   const handleLogout = useCallback(async () => {
@@ -1732,6 +1735,13 @@ export default function App() {
               onManageSubscription={revenueCat.openCustomerCenter}
               onPresentPaywall={revenueCat.presentPaywall}
               onRestorePurchases={revenueCat.restorePurchases}
+              onDevBypass={
+                __DEV__
+                  ? () => {
+                      setIsDevPaywallBypassed(true);
+                    }
+                  : undefined
+              }
               onUnlocked={() => {
                 void revenueCat.refreshCustomerInfo();
               }}
