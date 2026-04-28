@@ -26,6 +26,11 @@ const clashDisplay = localFont({
   display: "swap",
 });
 
+const ICON_180 = "/FitFo-VectorTrace-180.png";
+const ICON_512 = "/FitFo-VectorTrace-512.png";
+const ICON_1024 = "/FitFo-VectorTrace-1024.png";
+const ICON_SVG = "/FitFo-VectorTrace-1024.svg";
+
 export const metadata: Metadata = {
   metadataBase: new URL("https://fitfo.app"),
   title: {
@@ -41,18 +46,22 @@ export const metadata: Metadata = {
     url: "https://fitfo.app",
     siteName: "FitFo",
     type: "website",
-    images: ["/fitfo-logo.png"],
+    images: [ICON_1024],
   },
   twitter: {
     card: "summary_large_image",
     title: "FitFo, Now on the App Store",
     description:
       "Share any TikTok or Instagram fitness video straight to FitFo. Our AI extracts the exercises, sets, and reps into a clean, trackable workout. Available now on iOS.",
-    images: ["/fitfo-logo.png"],
+    images: [ICON_1024],
   },
-  // Favicon + Apple touch icon are picked up automatically from the
-  // file-convention files at app/icon.png and app/apple-icon.png, so no
-  // manual `icons` entry is needed here.
+  icons: {
+    icon: [
+      { url: ICON_SVG, type: "image/svg+xml" },
+      { url: ICON_512, sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: ICON_180, sizes: "180x180", type: "image/png" }],
+  },
 };
 
 export default function RootLayout({
@@ -65,7 +74,7 @@ export default function RootLayout({
       lang="en"
       className={`${satoshi.variable} ${clashDisplay.variable} h-full antialiased`}
     >
-      <body className="min-h-full bg-[var(--bg)] font-sans text-[var(--text-primary)]">
+      <body className="min-h-full bg-bg font-sans text-text-primary">
         {children}
       </body>
     </html>

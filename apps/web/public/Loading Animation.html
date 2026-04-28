@@ -1,0 +1,406 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>FitFo · Loading Animation</title>
+<style>
+  html, body {
+    margin: 0; padding: 0; width: 100%; height: 100%;
+    background: #050506;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', Inter, sans-serif;
+    color: #fff;
+    overflow: hidden;
+  }
+  .stage {
+    position: fixed; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 40px;
+    padding-bottom: 120px;
+    box-sizing: border-box;
+  }
+  .tile-wrap {
+    position: relative;
+    width: min(72vmin, 540px);
+    aspect-ratio: 1;
+  }
+  .controls {
+    position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 10px; align-items: center;
+    background: rgba(20, 20, 24, 0.7);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 999px;
+    padding: 8px 10px;
+    font-size: 12px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #a0a0a8;
+  }
+  .controls button {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #fff;
+    padding: 8px 16px;
+    border-radius: 999px;
+    font: inherit;
+    letter-spacing: inherit;
+    text-transform: inherit;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+  .controls button:hover {
+    background: rgba(255, 77, 20, 0.12);
+    border-color: rgba(255, 77, 20, 0.4);
+  }
+  .controls .speed {
+    display: flex; gap: 4px;
+    background: rgba(0, 0, 0, 0.4);
+    padding: 4px;
+    border-radius: 999px;
+  }
+  .controls .speed button {
+    padding: 4px 10px;
+    font-size: 10px;
+    border: none;
+  }
+  .controls .speed button.active {
+    background: #FF4D14;
+    color: #000;
+    font-weight: 600;
+  }
+  .caption {
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #6a6a72;
+    text-align: center;
+  }
+  .caption strong { color: #FF4D14; font-weight: 600; letter-spacing: 3px; }
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <div class="tile-wrap" id="tileWrap"></div>
+  <div class="caption"><strong>FitFo</strong> &nbsp;·&nbsp; loading</div>
+</div>
+
+<div class="controls">
+  <button id="replay">↻ Replay</button>
+  <div class="speed">
+    <button data-speed="0.5">0.5×</button>
+    <button data-speed="1" class="active">1×</button>
+    <button data-speed="2">2×</button>
+  </div>
+</div>
+
+<script>
+(() => {
+  const ORANGE = "#FF4D14";
+  const ORANGE_HI = "#FF6A35";
+  const BG = "#000";
+
+  // Path points — same vector trace as the original icon
+  // Running in a 1024×1024 coordinate space, clipped to a squircle.
+  const PTS = [
+    { x: 190, y: 720 },
+    { x: 430, y: 470 },
+    { x: 560, y: 600 },
+    { x: 834, y: 310 },
+  ];
+
+  // Cumulative lengths along the polyline
+  function polyLengths(pts) {
+    const segs = [];
+    let total = 0;
+    for (let i = 1; i < pts.length; i++) {
+      const dx = pts[i].x - pts[i - 1].x;
+      const dy = pts[i].y - pts[i - 1].y;
+      const len = Math.hypot(dx, dy);
+      segs.push({ from: pts[i - 1], to: pts[i], len, start: total });
+      total += len;
+    }
+    return { segs, total };
+  }
+  const { segs, total } = polyLengths(PTS);
+
+  // Get point at distance s along the polyline
+  function pointAt(s) {
+    s = Math.max(0, Math.min(total, s));
+    for (const seg of segs) {
+      if (s <= seg.start + seg.len) {
+        const t = (s - seg.start) / seg.len;
+        return {
+          x: seg.from.x + (seg.to.x - seg.from.x) * t,
+          y: seg.from.y + (seg.to.y - seg.from.y) * t,
+        };
+      }
+    }
+    return PTS[PTS.length - 1];
+  }
+
+  // Build partial path "d" up to arc-length s
+  function pathUpTo(s) {
+    s = Math.max(0, Math.min(total, s));
+    let d = `M ${PTS[0].x} ${PTS[0].y}`;
+    let covered = 0;
+    for (const seg of segs) {
+      if (covered + seg.len <= s) {
+        d += ` L ${seg.to.x} ${seg.to.y}`;
+        covered += seg.len;
+      } else {
+        const remaining = s - covered;
+        const t = remaining / seg.len;
+        const x = seg.from.x + (seg.to.x - seg.from.x) * t;
+        const y = seg.from.y + (seg.to.y - seg.from.y) * t;
+        d += ` L ${x} ${y}`;
+        break;
+      }
+    }
+    return d;
+  }
+
+  // Squircle path — iOS-ish continuous corner
+  function squircle(s) {
+    const r = s * 0.2237;
+    return `M ${r},0 L ${s - r},0 C ${s - r/2.5},0 ${s},${r/2.5} ${s},${r}
+      L ${s},${s - r} C ${s},${s - r/2.5} ${s - r/2.5},${s} ${s - r},${s}
+      L ${r},${s} C ${r/2.5},${s} 0,${s - r/2.5} 0,${s - r}
+      L 0,${r} C 0,${r/2.5} ${r/2.5},0 ${r},0 Z`;
+  }
+
+  // Build the SVG once; we just update "d" and marker position on each tick.
+  const wrap = document.getElementById("tileWrap");
+  wrap.innerHTML = `
+    <svg viewBox="0 0 1024 1024" width="100%" height="100%" style="display:block; border-radius: 22.37%;">
+      <defs>
+        <clipPath id="squircleClip" clipPathUnits="userSpaceOnUse">
+          <path d="${squircle(1024)}" />
+        </clipPath>
+        <!-- Strong outer glow for laser bloom -->
+        <filter id="laserGlow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="22" result="b1" />
+          <feGaussianBlur stdDeviation="44" in="SourceGraphic" result="b2" />
+          <feMerge>
+            <feMergeNode in="b2" />
+            <feMergeNode in="b1" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+        <!-- Softer glow for the head marker -->
+        <filter id="headGlow" x="-100%" y="-100%" width="300%" height="300%">
+          <feGaussianBlur stdDeviation="28" />
+        </filter>
+        <!-- Radial gradient for the marker glow -->
+        <radialGradient id="headGrad" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="${ORANGE}" stop-opacity="1" />
+          <stop offset="60%" stop-color="${ORANGE}" stop-opacity="0.6" />
+          <stop offset="100%" stop-color="${ORANGE}" stop-opacity="0" />
+        </radialGradient>
+
+      </defs>
+
+      <g clip-path="url(#squircleClip)">
+        <!-- BG -->
+        <rect width="1024" height="1024" fill="${BG}" />
+
+        <!-- Ghost path (where the laser will travel) — very faint -->
+        <path id="ghostPath"
+              d="M ${PTS.map(p => `${p.x} ${p.y}`).join(" L ")}"
+              fill="none" stroke="${ORANGE}" stroke-opacity="0.06"
+              stroke-width="88" stroke-linecap="square" stroke-linejoin="miter" />
+
+        <!-- Core laser stroke — matches the original icon exactly -->
+        <path id="corePath" d=""
+              fill="none" stroke="${ORANGE}"
+              stroke-width="88" stroke-linecap="square" stroke-linejoin="miter" />
+
+        <!-- dummy bloomPath kept so existing JS refs don't break (invisible) -->
+        <path id="bloomPath" d="" fill="none" stroke="none" />
+
+        <!-- Trailing sparks (small circles) -->
+        <g id="sparks"></g>
+
+        <!-- Head marker — single orange dot, matches apex dot size -->
+        <circle id="headHalo" cx="0" cy="0" r="36" fill="${ORANGE_HI}" opacity="0" />
+        <circle id="head"     cx="0" cy="0" r="36" fill="${ORANGE_HI}" opacity="0" />
+        <circle id="headRing" cx="0" cy="0" r="36" fill="none" stroke="${ORANGE_HI}" stroke-width="0" opacity="0" />
+
+        <!-- Final apex dot revealed at the end -->
+        <circle id="apexDot" cx="${PTS[PTS.length-1].x}" cy="${PTS[PTS.length-1].y}"
+                r="36" fill="${ORANGE_HI}" opacity="0" />
+      </g>
+    </svg>
+  `;
+
+  const corePath  = wrap.querySelector("#corePath");
+  const bloomPath = wrap.querySelector("#bloomPath");
+  const hotPath   = wrap.querySelector("#hotPath");
+  const head      = wrap.querySelector("#head");
+  const headHalo  = wrap.querySelector("#headHalo");
+  const headRing  = wrap.querySelector("#headRing");
+  const apexDot   = wrap.querySelector("#apexDot");
+  const sparksG   = wrap.querySelector("#sparks");
+
+  // Easing
+  const easeInOutCubic = t => t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2;
+  const easeOutQuad    = t => 1 - (1 - t) * (1 - t);
+
+  // Animation state
+  let playing = true;
+  let speed = 1;
+  let start = performance.now();
+  const DURATION = 2400; // ms for the laser fill
+  const HOLD = 900;      // ms to hold at the end
+  const LOOP = DURATION + HOLD + 600; // 600ms fade-out
+
+  // Spark pool
+  const SPARK_COUNT = 10;
+  const sparks = [];
+  for (let i = 0; i < SPARK_COUNT; i++) {
+    const c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    c.setAttribute("r", "0");
+    c.setAttribute("fill", ORANGE);
+    c.setAttribute("opacity", "0");
+    sparksG.appendChild(c);
+    sparks.push({ el: c, bornAt: -1, lifetime: 0, x: 0, y: 0, vx: 0, vy: 0 });
+  }
+
+  function spawnSpark(t, x, y) {
+    // Find a dead spark
+    const s = sparks.find(s => t > s.bornAt + s.lifetime);
+    if (!s) return;
+    s.bornAt = t;
+    s.lifetime = 400 + Math.random() * 300;
+    s.x = x + (Math.random() - 0.5) * 16;
+    s.y = y + (Math.random() - 0.5) * 16;
+    s.vx = (Math.random() - 0.5) * 0.4;
+    s.vy = (Math.random() - 0.2) * 0.4 - 0.2;
+    s.r0 = 3 + Math.random() * 5;
+  }
+
+  function updateSparks(now) {
+    for (const s of sparks) {
+      if (s.bornAt < 0) continue;
+      const age = now - s.bornAt;
+      if (age > s.lifetime) {
+        s.el.setAttribute("opacity", "0");
+        continue;
+      }
+      const t = age / s.lifetime;
+      const x = s.x + s.vx * age;
+      const y = s.y + s.vy * age + 0.0008 * age * age;
+      const r = s.r0 * (1 - t);
+      const op = 1 - t;
+      s.el.setAttribute("cx", x);
+      s.el.setAttribute("cy", y);
+      s.el.setAttribute("r", r);
+      s.el.setAttribute("opacity", op);
+    }
+  }
+
+  let lastSparkTime = 0;
+
+  function frame(now) {
+    if (!playing) {
+      requestAnimationFrame(frame);
+      return;
+    }
+
+    let elapsed = (now - start) * speed;
+    if (elapsed > LOOP) {
+      start = now;
+      elapsed = 0;
+    }
+
+    // Phase 1: laser fills path
+    if (elapsed <= DURATION) {
+      const t = elapsed / DURATION;
+      const eased = easeInOutCubic(t);
+      const s = eased * total;
+      const d = pathUpTo(s);
+
+      corePath.setAttribute("d", d);
+      bloomPath.setAttribute("d", d);
+
+      const p = pointAt(s);
+      head.setAttribute("cx", p.x);
+      head.setAttribute("cy", p.y);
+
+      // Head (leading dot) fades in quickly
+      const headOp = Math.min(1, t * 8);
+      head.setAttribute("opacity", headOp);
+      headHalo.setAttribute("opacity", 0);
+      headRing.setAttribute("opacity", 0);
+
+      apexDot.setAttribute("opacity", "0");
+
+      // Spawn sparks along the way
+      if (now - lastSparkTime > 40) {
+        spawnSpark(now, p.x, p.y);
+        lastSparkTime = now;
+      }
+    } else if (elapsed <= DURATION + HOLD) {
+      // Phase 2: hold — full path visible, apex pulses in
+      const d = pathUpTo(total);
+      corePath.setAttribute("d", d);
+      bloomPath.setAttribute("d", d);
+
+      const endP = PTS[PTS.length - 1];
+      const holdT = (elapsed - DURATION) / HOLD;
+
+      // Head traveler becomes the apex dot — no fade swap, they occupy the same position
+      head.setAttribute("opacity", 0);
+      headHalo.setAttribute("opacity", 0);
+      headRing.setAttribute("opacity", 0);
+
+      // Apex dot is on — solid, exactly like the original icon
+      apexDot.setAttribute("opacity", 1);
+      apexDot.setAttribute("r", 36);
+
+      // A burst of sparks right at the apex when we hit it
+      if (holdT < 0.15 && now - lastSparkTime > 20) {
+        spawnSpark(now, endP.x, endP.y);
+        lastSparkTime = now;
+      }
+    } else {
+      // Phase 3: fade whole thing out before loop
+      const fadeT = (elapsed - DURATION - HOLD) / 600;
+      const op = Math.max(0, 1 - fadeT);
+      corePath.setAttribute("stroke-opacity", op);
+      bloomPath.setAttribute("stroke-opacity", op * 0.9);
+      apexDot.setAttribute("opacity", op);
+    }
+
+    // Reset opacity properties at the start of each loop
+    if (elapsed < 20) {
+      corePath.setAttribute("stroke-opacity", "1");
+      bloomPath.setAttribute("stroke-opacity", "0.9");
+    }
+
+    updateSparks(now);
+    requestAnimationFrame(frame);
+  }
+
+  requestAnimationFrame(frame);
+
+  // Controls
+  document.getElementById("replay").addEventListener("click", () => {
+    start = performance.now();
+    corePath.setAttribute("stroke-opacity", "1");
+    bloomPath.setAttribute("stroke-opacity", "0.9");
+  });
+  document.querySelectorAll(".speed button").forEach(b => {
+    b.addEventListener("click", () => {
+      document.querySelectorAll(".speed button").forEach(x => x.classList.remove("active"));
+      b.classList.add("active");
+      speed = parseFloat(b.dataset.speed);
+    });
+  });
+})();
+</script>
+</body>
+</html>
