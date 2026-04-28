@@ -538,7 +538,7 @@ export default function App() {
           );
         });
 
-        // Fire-and-forget local notification for 30 min before the 7 AM workout.
+        // Fire-and-forget local reminders for the day before and day of.
         void scheduleWorkoutReminder(scheduled);
 
         setSavedWorkoutsError(null);
@@ -646,7 +646,7 @@ export default function App() {
           current.filter((item) => item.id !== scheduledWorkoutId),
         );
         setScheduledWorkoutsError(null);
-        // Cancel the paired local notification (no-op if one wasn't scheduled).
+        // Cancel paired local reminders (no-op if none were scheduled).
         void cancelWorkoutReminder(scheduledWorkoutId);
       } catch (error) {
         setScheduledWorkoutsError(

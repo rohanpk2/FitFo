@@ -726,7 +726,9 @@ export function ActiveWorkoutScreen({
   const theme = getTheme(themeMode);
   const styles = createStyles(theme);
   const previousCompletedSetCountRef = useRef(0);
+  const lastElapsedTickRef = useRef(Date.now());
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [isTimerPaused, setIsTimerPaused] = useState(false);
   const [expandedExerciseId, setExpandedExerciseId] = useState<string | null>(
     session.exercises[0]?.id || null,
   );
@@ -744,18 +746,32 @@ export function ActiveWorkoutScreen({
     setAutoFocusExerciseId(null);
     setRestCountdownSeconds(null);
     setElapsedSeconds(Math.max(0, Math.floor((Date.now() - session.startedAt) / 1000)));
+    setIsTimerPaused(false);
+    lastElapsedTickRef.current = Date.now();
   }, [session]);
 
   useEffect(() => {
+    if (isTimerPaused) {
+      lastElapsedTickRef.current = Date.now();
+      return undefined;
+    }
+
     const interval = setInterval(() => {
-      setElapsedSeconds(Math.max(0, Math.floor((Date.now() - session.startedAt) / 1000)));
+      const now = Date.now();
+      const deltaSeconds = Math.floor((now - lastElapsedTickRef.current) / 1000);
+      if (deltaSeconds <= 0) {
+        return;
+      }
+
+      lastElapsedTickRef.current += deltaSeconds * 1000;
+      setElapsedSeconds((current) => current + deltaSeconds);
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [session.startedAt]);
+  }, [isTimerPaused]);
 
   useEffect(() => {
-    if (restCountdownSeconds == null || restCountdownSeconds <= 0) {
+    if (isTimerPaused || restCountdownSeconds == null || restCountdownSeconds <= 0) {
       if (restCountdownSeconds === 0) {
         setRestCountdownSeconds(null);
       }
@@ -773,7 +789,7 @@ export function ActiveWorkoutScreen({
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [restCountdownSeconds]);
+  }, [isTimerPaused, restCountdownSeconds]);
 
   const totalSetCount = useMemo(
     () => exercises.reduce((count, exercise) => count + exercise.sets.length, 0),
@@ -1216,6 +1232,10 @@ export function ActiveWorkoutScreen({
     });
   };
 
+  const handleToggleTimerPaused = () => {
+    setIsTimerPaused((current) => !current);
+  };
+
   const toggleExercise = (exerciseId: string) => {
     setExpandedExerciseId((current) => (current === exerciseId ? null : exerciseId));
   };
@@ -1259,8 +1279,31 @@ export function ActiveWorkoutScreen({
         <Text style={styles.timerEyebrow}>Time Elapsed</Text>
         <Text style={styles.timerValue}>{formatClock(elapsedSeconds)}</Text>
         <Text style={styles.timerHelper}>
-          {completedSetCount} of {totalSetCount} sets logged
+          {isTimerPaused
+            ? "Workout paused"
+            : `${completedSetCount} of ${totalSetCount} sets logged`}
         </Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={isTimerPaused ? "Resume workout timer" : "Pause workout timer"}
+          onPress={handleToggleTimerPaused}
+          style={styles.timerPauseButton}
+        >
+          <Ionicons
+            color={theme.colors.primary}
+            name={isTimerPaused ? "play" : "pause"}
+            size={16}
+          />
+          <Text style={styles.timerPauseButtonText}>
+            {isTimerPaused ? "Resume Workout" : "Pause Workout"}
+          </Text>
+        </Pressable>
+        {restCountdownSeconds != null ? (
+          <Text style={styles.restCountdownText}>
+            Rest: {formatClock(restCountdownSeconds)}
+            {isTimerPaused ? " paused" : ""}
+          </Text>
+        ) : null}
       </View>
 
       <View style={styles.exerciseStack}>
@@ -1551,6 +1594,34 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
       fontSize: 13,
       fontFamily: "Satoshi-Medium",
       fontWeight: "600",
+    },
+    timerPauseButton: {
+      marginTop: 16,
+      minHeight: 42,
+      borderRadius: 999,
+      backgroundColor: theme.colors.surface,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+      paddingHorizontal: 18,
+      paddingVertical: 10,
+    },
+    timerPauseButtonText: {
+      color: theme.colors.primary,
+      fontSize: 13,
+      fontFamily: "Satoshi-Bold",
+      fontWeight: "800",
+      letterSpacing: 0.2,
+    },
+    restCountdownText: {
+      marginTop: 10,
+      color: theme.colors.primarySoftText,
+      fontSize: 12,
+      fontFamily: "Satoshi-Bold",
+      fontWeight: "800",
+      letterSpacing: 0.3,
+      textTransform: "uppercase",
     },
     statGrid: {
       flexDirection: "row",
