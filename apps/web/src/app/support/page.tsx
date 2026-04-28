@@ -4,9 +4,12 @@ import { Footer } from "@/components/site/Footer";
 import { Nav } from "@/components/site/Nav";
 
 export const metadata: Metadata = {
-  title: "Support",
+  title: "Support, FAQ, and Account Help",
   description:
-    "Get help with Fitfo. Troubleshoot imports, sign-in issues, account deletion, and more.",
+    "Get help with Fitfo imports, TikTok and Instagram workout parsing, SMS sign-in, privacy, creator takedowns, account deletion, and workout troubleshooting.",
+  alternates: {
+    canonical: "/support",
+  },
 };
 
 const FAQS: { q: string; a: React.ReactNode }[] = [

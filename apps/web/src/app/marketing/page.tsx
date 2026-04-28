@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
 
 import { Footer } from "@/components/site/Footer";
@@ -7,9 +6,12 @@ import { Nav } from "@/components/site/Nav";
 import { PhoneFrame } from "@/components/site/PhoneFrame";
 
 export const metadata: Metadata = {
-  title: "Press & Marketing",
+  title: "Press Kit, Brand Assets, and Product Facts",
   description:
-    "Everything you need to write about Fitfo: boilerplate, screenshots, brand colors, and contact.",
+    "Fitfo press kit with product boilerplate, screenshots, brand assets, company facts, App Store details, and media contact for the AI workout app.",
+  alternates: {
+    canonical: "/marketing",
+  },
 };
 
 const SCREENS = [
@@ -19,15 +21,6 @@ const SCREENS = [
   { src: "/assets/IMG_4971.PNG", label: "Scheduled calendar" },
   { src: "/assets/IMG_4969.PNG", label: "Schedule again modal" },
   { src: "/assets/IMG_4968.PNG", label: "Training archive" },
-];
-
-const SWATCHES = [
-  { name: "Primary", hex: "#FF5A14", bg: "#FF5A14", text: "#fff" },
-  { name: "Primary Bright", hex: "#FF6A2C", bg: "#FF6A2C", text: "#fff" },
-  { name: "Background", hex: "#0B0B0C", bg: "#0B0B0C", text: "#F5F5F4" },
-  { name: "Surface", hex: "#151517", bg: "#151517", text: "#F5F5F4" },
-  { name: "Text Primary", hex: "#F5F5F4", bg: "#F5F5F4", text: "#0B0B0C" },
-  { name: "Text Secondary", hex: "#A1A1AA", bg: "#A1A1AA", text: "#0B0B0C" },
 ];
 
 export default function MarketingPage() {

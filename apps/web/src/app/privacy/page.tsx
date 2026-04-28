@@ -6,7 +6,10 @@ import { Nav } from "@/components/site/Nav";
 export const metadata: Metadata = {
   title: "Privacy Policy",
   description:
-    "How Fitfo collects, uses, and protects your data. Plain English, no dark patterns.",
+    "Fitfo privacy policy covering workout imports, account data, SMS sign-in, Apple Sign-In, saved workouts, logged sessions, and account deletion.",
+  alternates: {
+    canonical: "/privacy",
+  },
 };
 
 export default function PrivacyPage() {

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 
 import { Footer } from "@/components/site/Footer";
@@ -6,6 +7,15 @@ import { PhoneFrame } from "@/components/site/PhoneFrame";
 import { Reveal } from "@/components/site/Reveal";
 
 const APP_STORE_URL = "https://apps.apple.com/app/id6762418380";
+
+export const metadata: Metadata = {
+  title: "AI Workout App for TikTok and Instagram Reels",
+  description:
+    "Share a TikTok or Instagram workout video to Fitfo and get exercises, sets, reps, rest, and notes in a structured workout you can save, edit, schedule, and log.",
+  alternates: {
+    canonical: "/",
+  },
+};
 
 const FEATURES = [
   {
