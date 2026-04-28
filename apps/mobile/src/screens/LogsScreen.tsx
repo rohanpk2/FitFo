@@ -182,7 +182,7 @@ export function LogsScreen({
           <ActivityIndicator color={theme.colors.primary} size="small" />
           <Text style={styles.feedbackTitle}>Loading workout history</Text>
           <Text style={styles.feedbackBody}>
-            Syncing completed workouts from your FitFo account.
+            Syncing completed workouts from your Fitfo account.
           </Text>
         </View>
       ) : error ? (

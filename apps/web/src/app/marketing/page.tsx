@@ -9,7 +9,7 @@ import { PhoneFrame } from "@/components/site/PhoneFrame";
 export const metadata: Metadata = {
   title: "Press & Marketing",
   description:
-    "Everything you need to write about FitFo: boilerplate, screenshots, brand colors, and contact.",
+    "Everything you need to write about Fitfo: boilerplate, screenshots, brand colors, and contact.",
 };
 
 const SCREENS = [
@@ -49,7 +49,7 @@ export default function MarketingPage() {
               className="mt-3 text-4xl font-bold leading-[1.02] tracking-[-0.03em] sm:text-5xl text-balance"
               style={{ fontFamily: "var(--font-display)" }}
             >
-              Write about FitFo. <span className="text-[var(--primary)]">We&apos;ll make it easy.</span>
+              Write about Fitfo. <span className="text-[var(--primary)]">We&apos;ll make it easy.</span>
             </h1>
             <p className="mt-5 max-w-2xl text-[15px] leading-relaxed text-[var(--text-secondary)] text-pretty sm:text-base">
               Everything you need, boilerplate, screenshots, brand colors, and
@@ -80,15 +80,15 @@ export default function MarketingPage() {
                 className="mt-3 text-2xl font-bold tracking-[-0.015em] sm:text-3xl text-balance"
                 style={{ fontFamily: "var(--font-display)" }}
               >
-                What FitFo does.
+                What Fitfo does.
               </h2>
             </div>
             <div className="space-y-4 text-[14px] leading-relaxed text-[var(--text-secondary)] text-pretty">
               <p>
-                <strong className="text-[var(--text-primary)]">FitFo</strong> is
+                <strong className="text-[var(--text-primary)]">Fitfo</strong> is
                 a fitness app that turns TikTok and Instagram workout videos
                 into structured, followable training plans. Users share a
-                public video straight from TikTok or Reels into FitFo, just
+                public video straight from TikTok or Reels into Fitfo, just
                 like sending it to a friend, and get back a clean card with
                 exercises, sets, reps, rest times, and notes, ready to save,
                 schedule, edit, and log.
@@ -98,11 +98,11 @@ export default function MarketingPage() {
                 fitness apps ignore: people already follow creators on short
                 video, already take screenshots of workouts, and already feel
                 overwhelmed trying to reverse-engineer reels into real plans.
-                FitFo closes the loop between &ldquo;inspiration&rdquo; and
+                Fitfo closes the loop between &ldquo;inspiration&rdquo; and
                 &ldquo;execution.&rdquo;
               </p>
               <p>
-                FitFo is built by Vaayu Athletics LLC and is available now on
+                Fitfo is built by Vaayu Athletics LLC and is available now on
                 the App Store. Download it{" "}
                 <a
                   href="https://apps.apple.com/app/id6762418380"
@@ -182,7 +182,7 @@ export default function MarketingPage() {
 
             <dl className="mt-10 divide-y divide-[var(--border-soft)] rounded-3xl border border-[var(--border-soft)] bg-[var(--surface)]">
               <Fact term="Company" value="Vaayu Athletics LLC" />
-              <Fact term="Product" value="FitFo, iOS fitness app" />
+              <Fact term="Product" value="Fitfo, iOS fitness app" />
               <Fact term="Launched" value="2026" />
               <Fact term="Platforms" value="iOS (iPhone)" />
               <Fact term="Price" value="Free to download" />
@@ -233,15 +233,15 @@ export default function MarketingPage() {
             </h2>
             <div className="mt-8 space-y-4 text-[15px] leading-relaxed text-[var(--text-secondary)]">
               <p>
-                By using FitFo you agree that: the service is provided as-is;
+                By using Fitfo you agree that: the service is provided as-is;
                 workouts parsed from videos are for informational purposes only
                 and are not medical, training, or nutritional advice; you are
                 responsible for the URLs you submit and represent that you
-                have the right to analyze them; FitFo may remove content at its
+                have the right to analyze them; Fitfo may remove content at its
                 discretion, particularly following a creator takedown request.
               </p>
               <p>
-                FitFo does not host or redistribute third-party video content.
+                Fitfo does not host or redistribute third-party video content.
                 We extract factual exercise data (names, sets, reps) and link
                 back to the original post. Creator takedown requests should go
                 to{" "}

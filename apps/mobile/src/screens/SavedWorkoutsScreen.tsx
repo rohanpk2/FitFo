@@ -540,7 +540,7 @@ export function SavedWorkoutsScreen({
 
         {isLoading ? (
           <FeedbackCard
-            body="Pulling your saved routines from your FitFo account."
+            body="Pulling your saved routines from your Fitfo account."
             isLoading
             theme={theme}
             title="Loading workouts"

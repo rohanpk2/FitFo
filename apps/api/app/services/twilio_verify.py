@@ -51,7 +51,7 @@ def _service_sid() -> str:
 def _friendly_name() -> str:
     _load_env_if_missing()
     friendly_name = (os.environ.get("TWILIO_VERIFY_FRIENDLY_NAME") or "").strip()
-    return friendly_name or "FitFo"
+    return friendly_name or "Fitfo"
 
 
 def send_sms_otp(phone: str):
@@ -73,7 +73,7 @@ def send_sms_otp(phone: str):
         # overrides. In that case, fall back to the service-level friendly
         # name instead — but warn loudly so the operator notices, because
         # Twilio will quietly use whatever is configured on the Verify
-        # Service in the Twilio Console (which may not be "FitFo"). If the
+        # Service in the Twilio Console (which may not be "Fitfo"). If the
         # SMS body shows the wrong brand, rename the Verify Service in the
         # Twilio Console to match TWILIO_VERIFY_FRIENDLY_NAME.
         logger.warning(

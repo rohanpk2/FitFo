@@ -19,7 +19,7 @@ alter table public.profiles
 
 update public.profiles
 set
-  full_name = coalesce(nullif(trim(full_name), ''), 'FitFo User'),
+  full_name = coalesce(nullif(trim(full_name), ''), 'Fitfo User'),
   phone = coalesce(nullif(trim(phone), ''), id::text)
 where full_name is null
    or trim(full_name) = ''

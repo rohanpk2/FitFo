@@ -1252,7 +1252,7 @@ export function ActiveWorkoutScreen({
         </Pressable>
         <Image
           resizeMode="contain"
-          source={require("../../assets/logo_white_no_bg.png")}
+          source={require("../../assets/Fitfo-VectorTrace-1024.png")}
           style={styles.brandLogo}
         />
         <View style={styles.headerSpacer} />
@@ -1536,7 +1536,7 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
       height: 36,
     },
     brandLogo: {
-      width: 200,
+      width: 72,
       height: 72,
     },
     heroSection: {

@@ -1,15 +1,15 @@
 {
   "expo": {
-    "name": "FitFo",
+    "name": "Fitfo",
     "slug": "fitfo-mobile",
     "version": "0.1.1",
     "orientation": "portrait",
-    "icon": "./assets/logo.png",
+    "icon": "./assets/Fitfo-VectorTrace-1024.png",
     "scheme": "fitfo",
     "userInterfaceStyle": "light",
     "newArchEnabled": false,
     "splash": {
-      "image": "./assets/logo.png",
+      "image": "./assets/Fitfo-VectorTrace-1024.png",
       "resizeMode": "contain",
       "backgroundColor": "#000000"
     },
@@ -17,12 +17,12 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.fitfo.mobile",
       "buildNumber": "14",
-      "icon": "./assets/logo.png",
+      "icon": "./assets/Fitfo-VectorTrace-1024.png",
       "usesAppleSignIn": true
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/logo.png",
+        "foregroundImage": "./assets/Fitfo-VectorTrace-1024.png",
         "backgroundColor": "#F4F1EC"
       },
       "edgeToEdgeEnabled": true,

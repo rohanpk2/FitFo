@@ -11,7 +11,7 @@ const FEATURES = [
   {
     eyebrow: "Import",
     title: "Share a video, get a workout",
-    copy: "Hit share on any TikTok or Reel and send it straight to FitFo, the same way you'd send it to a friend. Our AI pulls the audio, reads the on-screen text, and turns it into a clean, structured session.",
+    copy: "Hit share on any TikTok or Reel and send it straight to Fitfo, the same way you'd send it to a friend. Our AI pulls the audio, reads the on-screen text, and turns it into a clean, structured session.",
     image: "/assets/IMG_4970.PNG",
   },
   {
@@ -32,7 +32,7 @@ const STEPS = [
   {
     n: "01",
     title: "Share a fitness video",
-    body: "Hit the share button on any public TikTok or Reel and pick FitFo. No copy-pasting, no leaving the app you were scrolling.",
+    body: "Hit the share button on any public TikTok or Reel and pick Fitfo. No copy-pasting, no leaving the app you were scrolling.",
   },
   {
     n: "02",
@@ -85,7 +85,7 @@ export default function LandingPage() {
                 className="hero-anim mt-5 max-w-md text-[15px] leading-relaxed text-[var(--text-secondary)] text-pretty sm:text-base"
                 style={{ animationDelay: "300ms" }}
               >
-                See a workout on TikTok or Reels? Share it straight to FitFo,
+                See a workout on TikTok or Reels? Share it straight to Fitfo,
                 the same way you&apos;d send it to a friend. Our AI parses the
                 video, pulls the exercises, sets, and reps, and builds a clean
                 workout you can follow, edit, and track.
@@ -140,7 +140,7 @@ export default function LandingPage() {
               >
                 <PhoneFrame
                   src="/assets/IMG_4970.PNG"
-                  alt="FitFo app, share a TikTok or Instagram video and get a structured workout"
+                  alt="Fitfo app, share a TikTok or Instagram video and get a structured workout"
                   width={280}
                   priority
                   float
@@ -350,7 +350,7 @@ export default function LandingPage() {
                 </span>
               </h2>
               <p className="mx-auto mt-5 max-w-xl text-[15px] text-[var(--text-secondary)] text-pretty sm:text-base">
-                FitFo is available now on the App Store. Share your first
+                Fitfo is available now on the App Store. Share your first
                 TikTok or Reel straight to the app and be lifting off a real
                 plan in under a minute.
               </p>

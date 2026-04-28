@@ -26,33 +26,33 @@ const clashDisplay = localFont({
   display: "swap",
 });
 
-const ICON_180 = "/FitFo-VectorTrace-180.png";
-const ICON_512 = "/FitFo-VectorTrace-512.png";
-const ICON_1024 = "/FitFo-VectorTrace-1024.png";
-const ICON_SVG = "/FitFo-VectorTrace-1024.svg";
+const ICON_180 = "/Fitfo-VectorTrace-180.png";
+const ICON_512 = "/Fitfo-VectorTrace-512.png";
+const ICON_1024 = "/Fitfo-VectorTrace-1024.png";
+const ICON_SVG = "/Fitfo-VectorTrace-1024.svg";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://fitfo.app"),
   title: {
-    default: "FitFo",
-    template: "%s · FitFo",
+    default: "Fitfo",
+    template: "%s · Fitfo",
   },
   description:
-    "FitFo turns fitness videos you find on TikTok and Instagram into structured, followable workouts. Available now on the App Store.",
+    "Fitfo turns fitness videos you find on TikTok and Instagram into structured, followable workouts. Available now on the App Store.",
   openGraph: {
-    title: "FitFo, Now on the App Store",
+    title: "Fitfo, Now on the App Store",
     description:
-      "Share any TikTok or Instagram fitness video straight to FitFo. Our AI extracts the exercises, sets, and reps into a clean, trackable workout. Available now on iOS.",
+      "Share any TikTok or Instagram fitness video straight to Fitfo. Our AI extracts the exercises, sets, and reps into a clean, trackable workout. Available now on iOS.",
     url: "https://fitfo.app",
-    siteName: "FitFo",
+    siteName: "Fitfo",
     type: "website",
     images: [ICON_1024],
   },
   twitter: {
     card: "summary_large_image",
-    title: "FitFo, Now on the App Store",
+    title: "Fitfo, Now on the App Store",
     description:
-      "Share any TikTok or Instagram fitness video straight to FitFo. Our AI extracts the exercises, sets, and reps into a clean, trackable workout. Available now on iOS.",
+      "Share any TikTok or Instagram fitness video straight to Fitfo. Our AI extracts the exercises, sets, and reps into a clean, trackable workout. Available now on iOS.",
     images: [ICON_1024],
   },
   icons: {

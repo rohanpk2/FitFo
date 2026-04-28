@@ -6,7 +6,7 @@ import { Nav } from "@/components/site/Nav";
 export const metadata: Metadata = {
   title: "Support",
   description:
-    "Get help with FitFo. Troubleshoot imports, sign-in issues, account deletion, and more.",
+    "Get help with Fitfo. Troubleshoot imports, sign-in issues, account deletion, and more.",
 };
 
 const FAQS: { q: string; a: React.ReactNode }[] = [
@@ -41,7 +41,7 @@ const FAQS: { q: string; a: React.ReactNode }[] = [
     a: (
       <>
         <p>
-          FitFo uses audio transcription and on-screen text OCR to extract
+          Fitfo uses audio transcription and on-screen text OCR to extract
           workouts, so short, heavily-edited, or music-only videos can be tough.
         </p>
         <ul className="mt-3 list-disc space-y-1.5 pl-5">
@@ -67,7 +67,7 @@ const FAQS: { q: string; a: React.ReactNode }[] = [
     a: (
       <>
         <p>
-          Open the FitFo app → <strong>Profile</strong> tab →{" "}
+          Open the Fitfo app → <strong>Profile</strong> tab →{" "}
           <strong>Delete Account</strong>. This permanently removes your
           profile, every saved and scheduled workout, every logged session, and
           any body-weight entries. For users signed in with Apple we also
@@ -93,7 +93,7 @@ const FAQS: { q: string; a: React.ReactNode }[] = [
     a: (
       <>
         <p>
-          FitFo collects only what it needs to run the app: your phone number
+          Fitfo collects only what it needs to run the app: your phone number
           (for sign-in), name/email (if you use Apple Sign-In), the workouts
           you save, the sessions you log, and body-weight entries you add. We
           do not sell data, share it with advertisers, or run third-party ad
@@ -110,12 +110,12 @@ const FAQS: { q: string; a: React.ReactNode }[] = [
     ),
   },
   {
-    q: "Do FitFo workouts belong to the original creator?",
+    q: "Do Fitfo workouts belong to the original creator?",
     a: (
       <>
         <p>
-          Yes. FitFo does not host or redistribute any third-party video
-          content. When you share a video into FitFo, we extract factual
+          Yes. Fitfo does not host or redistribute any third-party video
+          content. When you share a video into Fitfo, we extract factual
           exercise data (names, sets, reps) and always link back to the
           original post via the &ldquo;View on TikTok&rdquo; or &ldquo;View on
           Instagram&rdquo; button on every imported workout. If you&apos;re a
@@ -132,11 +132,11 @@ const FAQS: { q: string; a: React.ReactNode }[] = [
     ),
   },
   {
-    q: "Is FitFo free?",
+    q: "Is Fitfo free?",
     a: (
       <>
         <p>
-          Yes, FitFo is free to download on the App Store. If we add premium
+          Yes, Fitfo is free to download on the App Store. If we add premium
           features later (e.g. higher video volume, advanced analytics) we will
           give everyone plenty of notice and the core &ldquo;share a video, get
           a workout&rdquo; loop will always remain available.
@@ -145,11 +145,11 @@ const FAQS: { q: string; a: React.ReactNode }[] = [
     ),
   },
   {
-    q: "Does FitFo give medical or training advice?",
+    q: "Does Fitfo give medical or training advice?",
     a: (
       <>
         <p>
-          No. FitFo turns the content of videos into structured data. Workouts
+          No. Fitfo turns the content of videos into structured data. Workouts
           parsed from videos are labeled <strong>AI-Parsed</strong> and may
           contain errors, so always verify sets, reps, and weights before
           training and talk to a doctor or qualified coach if you have any

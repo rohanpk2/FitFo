@@ -64,7 +64,7 @@ class HasAudioStreamTests(unittest.TestCase):
 - [ ] **Step 2: Run tests — expect failure**
 
 ```bash
-cd /Users/rohan/Projects/FitFo/apps/api && .venv/bin/python -m pytest tests/test_ingestion_pipeline.py::HasAudioStreamTests -v
+cd /Users/rohan/Projects/Fitfo/apps/api && .venv/bin/python -m pytest tests/test_ingestion_pipeline.py::HasAudioStreamTests -v
 ```
 
 Expected: `AttributeError: module 'app.services.ingestion_pipeline' has no attribute 'has_audio_stream'`
@@ -101,7 +101,7 @@ def has_audio_stream(video_path: Path) -> bool:
 - [ ] **Step 4: Run tests — expect pass**
 
 ```bash
-cd /Users/rohan/Projects/FitFo/apps/api && .venv/bin/python -m pytest tests/test_ingestion_pipeline.py::HasAudioStreamTests -v
+cd /Users/rohan/Projects/Fitfo/apps/api && .venv/bin/python -m pytest tests/test_ingestion_pipeline.py::HasAudioStreamTests -v
 ```
 
 Expected: 5 passed
@@ -295,7 +295,7 @@ class TryAudioTranscriptionTests(unittest.IsolatedAsyncioTestCase):
 - [ ] **Step 2: Run tests — expect failure**
 
 ```bash
-cd /Users/rohan/Projects/FitFo/apps/api && .venv/bin/python -m pytest tests/test_ingestion_pipeline.py::TryAudioTranscriptionTests -v
+cd /Users/rohan/Projects/Fitfo/apps/api && .venv/bin/python -m pytest tests/test_ingestion_pipeline.py::TryAudioTranscriptionTests -v
 ```
 
 Expected: `AttributeError: module '...' has no attribute '_try_audio_transcription'`
@@ -383,7 +383,7 @@ async def _try_audio_transcription(
 - [ ] **Step 4: Run tests — expect pass**
 
 ```bash
-cd /Users/rohan/Projects/FitFo/apps/api && .venv/bin/python -m pytest tests/test_ingestion_pipeline.py::TryAudioTranscriptionTests -v
+cd /Users/rohan/Projects/Fitfo/apps/api && .venv/bin/python -m pytest tests/test_ingestion_pipeline.py::TryAudioTranscriptionTests -v
 ```
 
 Expected: 4 passed
@@ -570,7 +570,7 @@ async def test_tiktok_pipeline_continues_when_no_audio_stream(self) -> None:
 - [ ] **Step 2: Run updated tests — expect failure on the two replaced tests**
 
 ```bash
-cd /Users/rohan/Projects/FitFo/apps/api && .venv/bin/python -m pytest tests/test_ingestion_pipeline.py::IngestionPipelineTests::test_tiktok_pipeline_continues_when_audio_extraction_fails tests/test_ingestion_pipeline.py::IngestionPipelineTests::test_tiktok_pipeline_continues_when_transcription_fails tests/test_ingestion_pipeline.py::IngestionPipelineTests::test_tiktok_pipeline_continues_when_no_audio_stream -v
+cd /Users/rohan/Projects/Fitfo/apps/api && .venv/bin/python -m pytest tests/test_ingestion_pipeline.py::IngestionPipelineTests::test_tiktok_pipeline_continues_when_audio_extraction_fails tests/test_ingestion_pipeline.py::IngestionPipelineTests::test_tiktok_pipeline_continues_when_transcription_fails tests/test_ingestion_pipeline.py::IngestionPipelineTests::test_tiktok_pipeline_continues_when_no_audio_stream -v
 ```
 
 Expected: 3 FAILED (old pipeline still hard-fails)
@@ -645,7 +645,7 @@ async def _run_tiktok_pipeline(job_id: str, source_url: str) -> None:
 - [ ] **Step 4: Run all TikTok-related tests**
 
 ```bash
-cd /Users/rohan/Projects/FitFo/apps/api && .venv/bin/python -m pytest tests/test_ingestion_pipeline.py::IngestionPipelineTests::test_run_ingestion_job_uses_full_audio_for_transcription tests/test_ingestion_pipeline.py::IngestionPipelineTests::test_tiktok_pipeline_continues_when_audio_extraction_fails tests/test_ingestion_pipeline.py::IngestionPipelineTests::test_tiktok_pipeline_continues_when_transcription_fails tests/test_ingestion_pipeline.py::IngestionPipelineTests::test_tiktok_pipeline_continues_when_no_audio_stream -v
+cd /Users/rohan/Projects/Fitfo/apps/api && .venv/bin/python -m pytest tests/test_ingestion_pipeline.py::IngestionPipelineTests::test_run_ingestion_job_uses_full_audio_for_transcription tests/test_ingestion_pipeline.py::IngestionPipelineTests::test_tiktok_pipeline_continues_when_audio_extraction_fails tests/test_ingestion_pipeline.py::IngestionPipelineTests::test_tiktok_pipeline_continues_when_transcription_fails tests/test_ingestion_pipeline.py::IngestionPipelineTests::test_tiktok_pipeline_continues_when_no_audio_stream -v
 ```
 
 Expected: 4 passed
@@ -792,7 +792,7 @@ async def test_instagram_pipeline_continues_when_no_audio_stream(self) -> None:
 - [ ] **Step 2: Run updated tests — expect failure**
 
 ```bash
-cd /Users/rohan/Projects/FitFo/apps/api && .venv/bin/python -m pytest tests/test_ingestion_pipeline.py::IngestionPipelineTests::test_instagram_pipeline_continues_when_audio_extraction_fails tests/test_ingestion_pipeline.py::IngestionPipelineTests::test_instagram_pipeline_continues_when_no_audio_stream -v
+cd /Users/rohan/Projects/Fitfo/apps/api && .venv/bin/python -m pytest tests/test_ingestion_pipeline.py::IngestionPipelineTests::test_instagram_pipeline_continues_when_audio_extraction_fails tests/test_ingestion_pipeline.py::IngestionPipelineTests::test_instagram_pipeline_continues_when_no_audio_stream -v
 ```
 
 Expected: 2 FAILED
@@ -889,7 +889,7 @@ async def _run_instagram_pipeline(job_id: str, source_url: str) -> None:
 - [ ] **Step 4: Run all Instagram-related tests**
 
 ```bash
-cd /Users/rohan/Projects/FitFo/apps/api && .venv/bin/python -m pytest tests/test_ingestion_pipeline.py::IngestionPipelineTests::test_instagram_pipeline_continues_when_audio_extraction_fails tests/test_ingestion_pipeline.py::IngestionPipelineTests::test_instagram_pipeline_continues_when_no_audio_stream tests/test_ingestion_pipeline.py::IngestionPipelineTests::test_instagram_pipeline_uses_whisper_and_skips_ocr_when_strong tests/test_ingestion_pipeline.py::IngestionPipelineTests::test_instagram_pipeline_runs_ocr_when_whisper_weak tests/test_ingestion_pipeline.py::IngestionPipelineTests::test_instagram_pipeline_marks_failed_when_no_video_url tests/test_ingestion_pipeline.py::IngestionPipelineTests::test_instagram_pipeline_records_soft_ocr_failure_and_still_completes -v
+cd /Users/rohan/Projects/Fitfo/apps/api && .venv/bin/python -m pytest tests/test_ingestion_pipeline.py::IngestionPipelineTests::test_instagram_pipeline_continues_when_audio_extraction_fails tests/test_ingestion_pipeline.py::IngestionPipelineTests::test_instagram_pipeline_continues_when_no_audio_stream tests/test_ingestion_pipeline.py::IngestionPipelineTests::test_instagram_pipeline_uses_whisper_and_skips_ocr_when_strong tests/test_ingestion_pipeline.py::IngestionPipelineTests::test_instagram_pipeline_runs_ocr_when_whisper_weak tests/test_ingestion_pipeline.py::IngestionPipelineTests::test_instagram_pipeline_marks_failed_when_no_video_url tests/test_ingestion_pipeline.py::IngestionPipelineTests::test_instagram_pipeline_records_soft_ocr_failure_and_still_completes -v
 ```
 
 Expected: 6 passed
@@ -910,7 +910,7 @@ git commit -m "feat: instagram pipeline — replace hard-fail audio block, OCR n
 - [ ] **Step 1: Run the complete ingestion test file**
 
 ```bash
-cd /Users/rohan/Projects/FitFo/apps/api && .venv/bin/python -m pytest tests/test_ingestion_pipeline.py -v
+cd /Users/rohan/Projects/Fitfo/apps/api && .venv/bin/python -m pytest tests/test_ingestion_pipeline.py -v
 ```
 
 Expected: All tests pass. If any fail, fix them before proceeding.
@@ -918,7 +918,7 @@ Expected: All tests pass. If any fail, fix them before proceeding.
 - [ ] **Step 2: Run all API tests**
 
 ```bash
-cd /Users/rohan/Projects/FitFo/apps/api && .venv/bin/python -m pytest tests/ -v
+cd /Users/rohan/Projects/Fitfo/apps/api && .venv/bin/python -m pytest tests/ -v
 ```
 
 Expected: All tests pass.

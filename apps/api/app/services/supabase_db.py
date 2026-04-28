@@ -638,7 +638,7 @@ def create_profile_with_apple(
     email: Optional[str] = None,
 ) -> Dict[str, Any]:
     supa = get_supabase()
-    clean_name = (full_name or "").strip() or "FitFo User"
+    clean_name = (full_name or "").strip() or "Fitfo User"
     clean_email = (email or "").strip() or None
     payload: Dict[str, Any] = {
         "full_name": clean_name,
@@ -752,7 +752,7 @@ def update_profile_apple_fields(
     """
     patch: Dict[str, Any] = {}
     clean_name = (full_name or "").strip()
-    if clean_name and clean_name != "FitFo User":
+    if clean_name and clean_name != "Fitfo User":
         patch["full_name"] = clean_name
     clean_email = (email or "").strip()
     if clean_email:

@@ -59,7 +59,7 @@ function askUserBeforeSystemPrompt(): Promise<boolean> {
   return new Promise<boolean>((resolve) => {
     Alert.alert(
       "Turn on workout reminders?",
-      "FitFo sends local reminders the day before and the morning of each workout you schedule. No marketing, no ads. You can turn them off anytime in iOS Settings.",
+      "Fitfo sends local reminders the day before and the morning of each workout you schedule. No marketing, no ads. You can turn them off anytime in iOS Settings.",
       [
         {
           text: "Not now",
@@ -188,7 +188,7 @@ const REMINDER_TITLES = [
   "No excuses.",
   "War mode.",
   "Move.",
-  "FitFo says show up.",
+  "Fitfo says show up.",
 ];
 
 const DAY_BEFORE_TITLES = [

@@ -37,7 +37,7 @@ interface SparkState {
   r0: number;
 }
 
-interface FitFoLoadingAnimationProps {
+interface FitfoLoadingAnimationProps {
   caption?: string;
   className?: string;
   label?: string;
@@ -46,11 +46,11 @@ interface FitFoLoadingAnimationProps {
 const { segs, total } = polyLengths(PTS);
 const fullPath = `M ${PTS.map((point) => `${point.x} ${point.y}`).join(" L ")}`;
 
-export function FitFoLoadingAnimation({
+export function FitfoLoadingAnimation({
   caption = "loading",
   className = "",
-  label = "FitFo is loading",
-}: FitFoLoadingAnimationProps) {
+  label = "Fitfo is loading",
+}: FitfoLoadingAnimationProps) {
   const clipId = useDomId("fitfo-loader-clip");
   const corePathRef = useRef<SVGPathElement | null>(null);
   const headRef = useRef<SVGCircleElement | null>(null);
@@ -258,7 +258,7 @@ export function FitFoLoadingAnimation({
       </div>
       {caption ? (
         <p className="text-center text-[10px] font-bold uppercase tracking-[0.24em] text-text-muted">
-          <span className="text-primary-bright">FitFo</span> · {caption}
+          <span className="text-primary-bright">Fitfo</span> · {caption}
         </p>
       ) : null}
     </div>

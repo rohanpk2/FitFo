@@ -1658,7 +1658,7 @@ export default function App() {
         {!isAuthReady || !fontsLoaded ? (
           <View style={styles.loadingScreen}>
             <ActivityIndicator color={theme.colors.primary} size="large" />
-            <Text style={styles.loadingTitle}>Connecting to FitFo</Text>
+            <Text style={styles.loadingTitle}>Connecting to Fitfo</Text>
             <Text style={styles.loadingBody}>
               Restoring your session and profile.
             </Text>

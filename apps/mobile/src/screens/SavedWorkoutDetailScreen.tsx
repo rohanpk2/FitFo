@@ -347,7 +347,7 @@ export function SavedWorkoutDetailScreen({
         </Pressable>
         <Image
           resizeMode="contain"
-          source={require("../../assets/logo_white_no_bg.png")}
+          source={require("../../assets/Fitfo-VectorTrace-1024.png")}
           style={styles.brandLogo}
         />
         <View style={styles.headerSpacer} />
@@ -978,7 +978,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       ...theme.shadows.softCard,
     },
     brandLogo: {
-      width: 168,
+      width: 60,
       height: 60,
     },
     headerSpacer: {

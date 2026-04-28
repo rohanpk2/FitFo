@@ -1,7 +1,7 @@
 "use client";
 
 import type { JobStatus } from "@/types";
-import { FitFoLoadingAnimation } from "@/components/FitFoLoadingAnimation";
+import { FitfoLoadingAnimation } from "@/components/FitfoLoadingAnimation";
 import { getStatusInfo } from "@/lib/status";
 
 interface StatusCardProps {
@@ -16,7 +16,7 @@ export function StatusCard({ status, error }: StatusCardProps) {
   return (
     <div className="w-full rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
       {isLoading && (
-        <FitFoLoadingAnimation
+        <FitfoLoadingAnimation
           caption={info.label}
           className="mx-auto mb-5 max-w-32"
           label={info.description}

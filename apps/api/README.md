@@ -1,6 +1,6 @@
-# FitFo API
+# Fitfo API
 
-FastAPI backend for FitFo. This service handles phone-based auth, TikTok workout ingestion, saved workouts, and per-user workout history.
+FastAPI backend for Fitfo. This service handles phone-based auth, TikTok workout ingestion, saved workouts, and per-user workout history.
 
 ## Run locally
 

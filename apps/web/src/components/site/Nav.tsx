@@ -7,12 +7,12 @@ export function Nav() {
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-5 sm:h-16 sm:px-8">
         <Link
           href="/"
-          aria-label="FitFo home"
+          aria-label="Fitfo home"
           className="flex items-center"
         >
           <Image
-            src="/FitFo-VectorTrace-512.png"
-            alt="FitFo"
+            src="/Fitfo-VectorTrace-1024.svg"
+            alt="Fitfo"
             width={512}
             height={512}
             className="h-12 w-12 sm:h-14 sm:w-14"

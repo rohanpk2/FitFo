@@ -33,10 +33,10 @@ export function ProfileScreen({
   themeMode = "light",
 }: ProfileScreenProps) {
   const handleSuggestFeatures = () => {
-    const subject = encodeURIComponent("FitFo feature suggestion");
+    const subject = encodeURIComponent("Fitfo feature suggestion");
     const body = encodeURIComponent(
       [
-        "Tell us what would make FitFo better for you.",
+        "Tell us what would make Fitfo better for you.",
         "",
         "Feature idea:",
         "",
@@ -49,7 +49,7 @@ export function ProfileScreen({
     Linking.openURL(mailto).catch(() => {
       Alert.alert(
         "Email unavailable",
-        "Send your feature ideas to suggestions@fitfo.app and we'll use them to improve FitFo.",
+        "Send your feature ideas to suggestions@fitfo.app and we'll use them to improve Fitfo.",
       );
     });
   };
@@ -72,7 +72,7 @@ export function ProfileScreen({
           onPress: () => {
             Alert.alert(
               "Are you sure?",
-              "Once you confirm, all of your FitFo data will be deleted and you'll be signed out. For Sign in with Apple, FitFo will also be unlinked from your Apple ID.",
+              "Once you confirm, all of your Fitfo data will be deleted and you'll be signed out. For Sign in with Apple, Fitfo will also be unlinked from your Apple ID.",
               [
                 { text: "Cancel", style: "cancel" },
                 {
@@ -157,7 +157,7 @@ export function ProfileScreen({
           <View style={styles.infoCopy}>
             <Text style={styles.infoTitle}>Suggest features</Text>
             <Text style={styles.infoBody}>
-              Tell us what would make FitFo feel more useful for your training.
+              Tell us what would make Fitfo feel more useful for your training.
             </Text>
           </View>
           <Ionicons color={theme.colors.textMuted} name="chevron-forward" size={18} />

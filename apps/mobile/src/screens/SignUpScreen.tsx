@@ -63,7 +63,7 @@ export function SignUpScreen({
       <View style={styles.shell}>
         <View style={styles.hero}>
           <Image 
-            source={themeMode === 'dark' ? require('../../assets/logo_white_no_bg.png') : require('../../assets/logo_no_bg.png')} 
+            source={require('../../assets/Fitfo-VectorTrace-1024.png')} 
             style={styles.logo}
             resizeMode="contain"
           />

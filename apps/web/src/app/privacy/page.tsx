@@ -6,7 +6,7 @@ import { Nav } from "@/components/site/Nav";
 export const metadata: Metadata = {
   title: "Privacy Policy",
   description:
-    "How FitFo collects, uses, and protects your data. Plain English, no dark patterns.",
+    "How Fitfo collects, uses, and protects your data. Plain English, no dark patterns.",
 };
 
 export default function PrivacyPage() {
@@ -30,7 +30,7 @@ export default function PrivacyPage() {
               Privacy Policy.
             </h1>
             <p className="mt-5 text-[15px] leading-relaxed text-[var(--text-secondary)] text-pretty sm:text-base">
-              FitFo is built by a small team that trains every day. This policy
+              Fitfo is built by a small team that trains every day. This policy
               explains, in plain English, what we collect, why, who touches it,
               and how to get rid of it whenever you want.
             </p>
@@ -62,16 +62,16 @@ export default function PrivacyPage() {
 
               <H2>2. Who we are</H2>
               <p>
-                &ldquo;FitFo,&rdquo; &ldquo;we,&rdquo; &ldquo;us,&rdquo; and
+                &ldquo;Fitfo,&rdquo; &ldquo;we,&rdquo; &ldquo;us,&rdquo; and
                 &ldquo;our&rdquo; refer to <strong>Vaayu Athletics LLC</strong>
-                , a US-based company that operates the FitFo mobile app and the
+                , a US-based company that operates the Fitfo mobile app and the
                 website at fitfo.app. You can reach us at{" "}
                 <a href="mailto:nirv@fitfo.app">nirv@fitfo.app</a>.
               </p>
 
               <H2>3. What we collect</H2>
               <p>
-                FitFo collects only the information needed to authenticate you
+                Fitfo collects only the information needed to authenticate you
                 and operate the app. That includes:
               </p>
               <ul>
@@ -220,7 +220,7 @@ export default function PrivacyPage() {
 
               <H2>8. Children</H2>
               <p>
-                FitFo is not directed to children under 13 and we do not
+                Fitfo is not directed to children under 13 and we do not
                 knowingly collect personal information from anyone under 13. If
                 you believe a child has provided us data, email us and we&apos;ll
                 delete it.
@@ -229,7 +229,7 @@ export default function PrivacyPage() {
               <H2>9. International transfers</H2>
               <p>
                 Our servers and sub-processors are primarily located in the
-                United States. If you access FitFo from outside the US, you
+                United States. If you access Fitfo from outside the US, you
                 consent to your data being transferred to and processed in the
                 US under the safeguards described in this policy.
               </p>
@@ -247,8 +247,8 @@ export default function PrivacyPage() {
 
               <H2>11. Third-party content (TikTok / Instagram videos)</H2>
               <p>
-                FitFo does not host or redistribute third-party video content.
-                When you share a TikTok or Instagram video into FitFo, we
+                Fitfo does not host or redistribute third-party video content.
+                When you share a TikTok or Instagram video into Fitfo, we
                 fetch public metadata, transcribe audio, and run OCR on
                 frames to extract factual exercise information (names, sets,
                 reps, rest). We always link back to the original post inside
