@@ -459,9 +459,9 @@ export function SavedWorkoutsScreen({
           hitSlop={10}
         >
           <Ionicons
-            color={theme.colors.primaryBright}
-            name="person"
-            size={22}
+            color={theme.colors.textPrimary}
+            name="person-outline"
+            size={20}
           />
         </Pressable>
       </View>
@@ -807,27 +807,25 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       flex: 1,
     },
     profileButton: {
-      width: 48,
-      height: 48,
+      width: 40,
+      height: 40,
       borderRadius: 999,
       alignItems: "center",
       justifyContent: "center",
       backgroundColor:
         theme.mode === "dark"
-          ? "rgba(255, 90, 20, 0.14)"
-          : "rgba(255, 90, 20, 0.10)",
-      borderWidth: 1.5,
-      borderColor: theme.colors.primaryBright,
-      shadowColor: theme.colors.primaryBright,
-      shadowOpacity: theme.mode === "dark" ? 0.55 : 0.35,
-      shadowRadius: 14,
-      shadowOffset: { width: 0, height: 6 },
-      elevation: 8,
+          ? "rgba(255, 255, 255, 0.06)"
+          : "rgba(20, 32, 85, 0.06)",
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor:
+        theme.mode === "dark"
+          ? "rgba(255, 255, 255, 0.10)"
+          : "rgba(20, 32, 85, 0.12)",
       marginTop: 6,
     },
     profileButtonPressed: {
-      opacity: 0.82,
-      transform: [{ scale: 0.94 }],
+      opacity: 0.7,
+      transform: [{ scale: 0.96 }],
     },
     eyebrow: {
       color: theme.colors.primary,

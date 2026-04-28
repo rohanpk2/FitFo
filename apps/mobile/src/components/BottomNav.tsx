@@ -1,6 +1,7 @@
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
+import { LinearGradient } from "expo-linear-gradient";
 
 import { getTheme, type ThemeMode } from "../theme";
 import type { AppTab } from "../types";
@@ -75,15 +76,24 @@ export function BottomNav({
     );
   };
 
+  const gradientColors = isDark
+    ? (["#3A3A3A", "#2C2C2C"] as const)
+    : (["#1B2E6E", "#142055"] as const);
+
   return (
     <View style={styles.shell} pointerEvents="box-none">
       <BlurView
-        intensity={Platform.OS === "ios" ? 70 : 100}
+        intensity={Platform.OS === "ios" ? 50 : 80}
         tint={isDark ? "dark" : "light"}
         style={styles.blurContainer}
       >
-        <View style={styles.glossOverlay} pointerEvents="none" />
-        <View style={styles.glossHighlight} pointerEvents="none" />
+        <LinearGradient
+          colors={gradientColors}
+          start={{ x: 0.5, y: 0 }}
+          end={{ x: 0.5, y: 1 }}
+          style={StyleSheet.absoluteFill}
+          pointerEvents="none"
+        />
         <View style={styles.row}>
           {renderTab(tabs[0])}
 
@@ -125,31 +135,9 @@ const createStyles = (theme: ReturnType<typeof getTheme>) => {
     blurContainer: {
       borderRadius: 32,
       overflow: "hidden",
-      borderWidth: 1,
+      borderWidth: StyleSheet.hairlineWidth,
       borderColor: isDark
-        ? "rgba(255, 255, 255, 0.14)"
-        : "rgba(255, 255, 255, 0.22)",
-      backgroundColor: isDark
-        ? "rgba(32, 32, 36, 0.94)"
-        : "rgba(22, 40, 103, 0.94)",
-    },
-    glossOverlay: {
-      ...StyleSheet.absoluteFillObject,
-      borderRadius: 32,
-      backgroundColor: isDark
-        ? "rgba(255, 255, 255, 0.03)"
-        : "rgba(255, 255, 255, 0.06)",
-    },
-    glossHighlight: {
-      position: "absolute",
-      top: 0,
-      left: 0,
-      right: 0,
-      height: 18,
-      borderTopLeftRadius: 32,
-      borderTopRightRadius: 32,
-      backgroundColor: isDark
-        ? "rgba(255, 255, 255, 0.04)"
+        ? "rgba(255, 255, 255, 0.06)"
         : "rgba(255, 255, 255, 0.10)",
     },
     row: {

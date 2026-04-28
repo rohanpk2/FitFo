@@ -18,6 +18,7 @@ interface ProfileScreenProps {
   onEditOnboarding: () => void;
   onLogout: () => void;
   onDeleteAccount: () => Promise<void>;
+  onManageSubscription?: () => Promise<boolean>;
   isDeletingAccount?: boolean;
   profile: UserProfile;
   themeMode?: ThemeMode;
@@ -28,6 +29,7 @@ export function ProfileScreen({
   onEditOnboarding,
   onLogout,
   onDeleteAccount,
+  onManageSubscription,
   isDeletingAccount = false,
   profile,
   themeMode = "light",
@@ -162,6 +164,25 @@ export function ProfileScreen({
           </View>
           <Ionicons color={theme.colors.textMuted} name="chevron-forward" size={18} />
         </Pressable>
+        {onManageSubscription ? (
+          <Pressable
+            onPress={() => {
+              void onManageSubscription();
+            }}
+            style={styles.infoCard}
+          >
+            <View style={styles.infoIcon}>
+              <Ionicons color={theme.colors.primary} name="card-outline" size={18} />
+            </View>
+            <View style={styles.infoCopy}>
+              <Text style={styles.infoTitle}>Manage Fitfo Pro</Text>
+              <Text style={styles.infoBody}>
+                View, restore, cancel, or update your Apple subscription.
+              </Text>
+            </View>
+            <Ionicons color={theme.colors.textMuted} name="chevron-forward" size={18} />
+          </Pressable>
+        ) : null}
       </View>
 
       <Pressable onPress={onLogout} style={styles.logoutButton}>

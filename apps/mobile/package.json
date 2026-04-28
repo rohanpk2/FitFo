@@ -27,6 +27,8 @@
     "expo-video": "~3.0.16",
     "react": "19.1.0",
     "react-native": "0.81.5",
+    "react-native-purchases": "^10.0.1",
+    "react-native-purchases-ui": "^10.0.1",
     "react-native-svg": "15.12.1"
   },
   "devDependencies": {

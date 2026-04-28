@@ -22,6 +22,7 @@ applyDefaultFont();
 import { BottomNav } from "./src/components/BottomNav";
 import { ScheduleAgainModal } from "./src/components/ScheduleAgainModal";
 import { useIngestionJob } from "./src/hooks/useIngestionJob";
+import { useRevenueCat } from "./src/hooks/useRevenueCat";
 import { useSharedIngestUrl } from "./src/hooks/useSharedIngestUrl";
 import {
   clearAuthSession,
@@ -74,6 +75,7 @@ import { AuthLandingScreen } from "./src/screens/AuthLandingScreen";
 import { LogsScreen } from "./src/screens/LogsScreen";
 import { OnboardingScreen } from "./src/screens/OnboardingScreen";
 import { OtpVerificationScreen } from "./src/screens/OtpVerificationScreen";
+import { PaywallScreen } from "./src/screens/PaywallScreen";
 import { ProfileScreen } from "./src/screens/ProfileScreen";
 import { ProgressChartsScreen } from "./src/screens/ProgressChartsScreen";
 import {
@@ -121,6 +123,20 @@ interface ScheduledConfirmationState {
 }
 
 const AUTH_LANDING_AUTH_INDEX = 4;
+const TRIAL_LENGTH_MS = 7 * 24 * 60 * 60 * 1000;
+
+function isWithinInitialTrial(createdAt: string | null | undefined) {
+  if (!createdAt) {
+    return false;
+  }
+
+  const createdAtMs = new Date(createdAt).getTime();
+  if (!Number.isFinite(createdAtMs)) {
+    return false;
+  }
+
+  return Date.now() < createdAtMs + TRIAL_LENGTH_MS;
+}
 
 export default function App() {
   const themeMode: ThemeMode = "dark";
@@ -225,6 +241,14 @@ export default function App() {
   const { job, workout, error: pollError } = useIngestionJob(jobId, accessToken);
   const theme = getTheme(themeMode);
   const styles = createStyles(theme);
+  const revenueCat = useRevenueCat(currentUser);
+  const isInitialTrialActive = isWithinInitialTrial(currentUser?.created_at);
+  const hasBillingAccess = isInitialTrialActive || revenueCat.hasPro;
+  const isBillingCheckPending =
+    Boolean(currentUser) &&
+    !isInitialTrialActive &&
+    !revenueCat.customerInfo &&
+    revenueCat.isLoading;
 
   const resetPostLoginState = useCallback(() => {
     setActiveTab("saved");
@@ -1316,6 +1340,7 @@ export default function App() {
     setAuthSubmittingMode("bootstrap");
 
     try {
+      await revenueCat.logOut();
       await clearAuthSession();
     } catch (error) {
       setAuthError(
@@ -1326,7 +1351,12 @@ export default function App() {
       handleCloseAddWorkout();
       resetPostLoginState();
     }
-  }, [handleCloseAddWorkout, resetAuthenticatedState, resetPostLoginState]);
+  }, [
+    handleCloseAddWorkout,
+    resetAuthenticatedState,
+    resetPostLoginState,
+    revenueCat,
+  ]);
 
   // App Store Guideline 5.1.1(v): users must be able to delete their account
   // from inside the app. Calls the backend cascade-delete, clears local
@@ -1340,6 +1370,7 @@ export default function App() {
       await deleteAccount(accessToken);
       try {
         await clearAuthSession();
+        await revenueCat.logOut();
       } catch {
         // Keep deletion successful even if local storage clear fails; the
         // session token is already invalidated server-side.
@@ -1366,6 +1397,7 @@ export default function App() {
     accessToken,
     handleCloseAddWorkout,
     isDeletingAccount,
+    revenueCat,
     resetAuthenticatedState,
     resetPostLoginState,
   ]);
@@ -1576,6 +1608,7 @@ export default function App() {
           }}
           onLogout={handleLogout}
           onDeleteAccount={handleDeleteAccount}
+          onManageSubscription={revenueCat.openCustomerCenter}
           isDeletingAccount={isDeletingAccount}
           profile={currentUser}
           themeMode={themeMode}
@@ -1683,6 +1716,27 @@ export default function App() {
               profile={currentUser}
               themeMode={themeMode}
             />
+          ) : isBillingCheckPending ? (
+            <View style={styles.loadingScreen}>
+              <FitfoLoadingAnimation
+                caption="checking access"
+                label="Checking your Fitfo Pro status"
+                size={160}
+                themeMode={themeMode}
+              />
+            </View>
+          ) : !hasBillingAccess ? (
+            <PaywallScreen
+              error={revenueCat.error}
+              isLoading={revenueCat.isLoading}
+              onManageSubscription={revenueCat.openCustomerCenter}
+              onPresentPaywall={revenueCat.presentPaywall}
+              onRestorePurchases={revenueCat.restorePurchases}
+              onUnlocked={() => {
+                void revenueCat.refreshCustomerInfo();
+              }}
+              themeMode={themeMode}
+            />
           ) : (
             <>
               <View style={styles.screenArea}>{renderAuthenticatedScreen()}</View>
@@ -1762,7 +1816,7 @@ export default function App() {
         onSubmit={handleExtractWorkout}
         routine={latestImportedRoutine}
         themeMode={themeMode}
-        visible={isAddWorkoutVisible}
+        visible={hasBillingAccess && isAddWorkoutVisible}
       />
 
       <ScheduleAgainModal
