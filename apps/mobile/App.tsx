@@ -12,6 +12,7 @@ import { useFonts } from "expo-font";
 
 import { applyDefaultFont } from "./src/lib/fonts";
 import { AddWorkoutModal } from "./src/components/AddWorkoutModal";
+import { FitfoLoadingAnimation } from "./src/components/FitfoLoadingAnimation";
 
 // Patch <Text> and <TextInput> globally so every screen in the app inherits
 // Satoshi by default, with the right weight picked from the existing
@@ -1657,7 +1658,12 @@ export default function App() {
       <View style={styles.appShell}>
         {!isAuthReady || !fontsLoaded ? (
           <View style={styles.loadingScreen}>
-            <ActivityIndicator color={theme.colors.primary} size="large" />
+            <FitfoLoadingAnimation
+              caption="connecting"
+              label="Connecting to Fitfo"
+              size={160}
+              themeMode={themeMode}
+            />
             <Text style={styles.loadingTitle}>Connecting to Fitfo</Text>
             <Text style={styles.loadingBody}>
               Restoring your session and profile.
