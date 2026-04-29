@@ -13,6 +13,14 @@ import {
 } from "../lib/revenueCat";
 import type { UserProfile } from "../types";
 
+// TEMP DEV BYPASS: paired with the hasBillingAccess override in App.tsx. The
+// hardcoded RevenueCat key in lib/revenueCat.ts is a `test_…` key, and the
+// RevenueCat iOS SDK force-closes the app with a "Wrong API Key" alert if it
+// detects a test key on a non-debug build. Until a production `appl_…` key is
+// wired in, skip every RevenueCat SDK call from this hook so the alert is
+// never triggered. Flip this to `false` once the real key is in place.
+const REVENUECAT_BYPASS = true;
+
 export function useRevenueCat(profile: UserProfile | null) {
   const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null);
   const [isConfigured, setIsConfigured] = useState(false);
@@ -22,6 +30,9 @@ export function useRevenueCat(profile: UserProfile | null) {
   const hasPro = hasFitfoPro(customerInfo);
 
   const refreshCustomerInfo = useCallback(async () => {
+    if (REVENUECAT_BYPASS) {
+      return null;
+    }
     setIsLoading(true);
     setError(null);
 
@@ -46,6 +57,14 @@ export function useRevenueCat(profile: UserProfile | null) {
     if (!profile?.id) {
       setCustomerInfo(null);
       setIsConfigured(false);
+      setError(null);
+      return;
+    }
+
+    if (REVENUECAT_BYPASS) {
+      setCustomerInfo(null);
+      setIsConfigured(false);
+      setIsLoading(false);
       setError(null);
       return;
     }
@@ -95,6 +114,9 @@ export function useRevenueCat(profile: UserProfile | null) {
   }, [profile?.id]);
 
   const presentPaywall = useCallback(async () => {
+    if (REVENUECAT_BYPASS) {
+      return true;
+    }
     setIsLoading(true);
     setError(null);
 
@@ -113,6 +135,9 @@ export function useRevenueCat(profile: UserProfile | null) {
   }, []);
 
   const restorePurchases = useCallback(async () => {
+    if (REVENUECAT_BYPASS) {
+      return true;
+    }
     setIsLoading(true);
     setError(null);
 
@@ -134,6 +159,9 @@ export function useRevenueCat(profile: UserProfile | null) {
   }, []);
 
   const openCustomerCenter = useCallback(async () => {
+    if (REVENUECAT_BYPASS) {
+      return true;
+    }
     setError(null);
 
     try {
@@ -155,6 +183,9 @@ export function useRevenueCat(profile: UserProfile | null) {
     setCustomerInfo(null);
     setIsConfigured(false);
     setError(null);
+    if (REVENUECAT_BYPASS) {
+      return;
+    }
     await logOutRevenueCat().catch(() => undefined);
   }, []);
 
