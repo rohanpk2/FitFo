@@ -1287,16 +1287,14 @@ export function ActiveWorkoutScreen({
         />
         <Pressable
           onPress={() => setCoachOpen(true)}
-          style={styles.coachButton}
+          style={({ pressed }) => [
+            styles.coachButton,
+            pressed && styles.coachButtonPressed,
+          ]}
           hitSlop={10}
           accessibilityLabel="Open coach chat"
           accessibilityRole="button"
         >
-          <Ionicons
-            color={theme.colors.primary}
-            name="chatbubble-ellipses-outline"
-            size={18}
-          />
           <Text style={styles.coachButtonText}>Coach</Text>
         </Pressable>
       </View>
@@ -1591,15 +1589,22 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
       gap: 6,
       paddingHorizontal: 12,
       paddingVertical: 8,
-      borderRadius: radii.medium,
-      backgroundColor: theme.colors.surfaceMuted,
-      borderColor: theme.colors.borderSoft,
-      borderWidth: 1,
+      borderRadius: 999,
+      backgroundColor: theme.colors.primary,
+      shadowColor: theme.colors.primary,
+      shadowOpacity: theme.mode === "dark" ? 0.45 : 0.3,
+      shadowRadius: 12,
+      shadowOffset: { width: 0, height: 6 },
+      elevation: 5,
+    },
+    coachButtonPressed: {
+      opacity: 0.85,
+      transform: [{ scale: 0.97 }],
     },
     coachButtonText: {
-      color: theme.colors.primary,
+      color: "#FFFFFF",
       fontSize: 13,
-      fontFamily: F.semiBold,
+      fontFamily: F.bold,
       letterSpacing: -0.1,
     },
     brandLogo: {
