@@ -39,6 +39,12 @@ export interface SavedRoutineUpdate {
 interface SavedWorkoutDetailScreenProps {
   onBack: () => void;
   onRemove?: () => void;
+  /**
+   * Open the schedule-picker modal for this routine. Omitted when the
+   * detail screen represents an already-scheduled instance (rescheduling
+   * is handled via unschedule + schedule from the saved row).
+   */
+  onSchedule?: () => void;
   onStart: () => void;
   /**
    * Fired whenever the user commits an inline edit (on blur / submit). The
@@ -234,6 +240,7 @@ function parseIntegerInput(raw: string): number | null | undefined {
 export function SavedWorkoutDetailScreen({
   onBack,
   onRemove,
+  onSchedule,
   onStart,
   onUpdate,
   removeLabel = "Unsave",
@@ -411,6 +418,24 @@ export function SavedWorkoutDetailScreen({
           <Ionicons color={theme.colors.surface} name="play" size={16} />
           <Text style={styles.primaryButtonText}>Start Session</Text>
         </Pressable>
+        {onSchedule ? (
+          <Pressable
+            onPress={onSchedule}
+            style={({ pressed }) => [
+              styles.scheduleButton,
+              pressed ? styles.scheduleButtonPressed : null,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Schedule this workout"
+          >
+            <Ionicons
+              color={theme.colors.primary}
+              name="calendar-outline"
+              size={14}
+            />
+            <Text style={styles.scheduleButtonText}>Schedule</Text>
+          </Pressable>
+        ) : null}
         {onRemove ? (
           <Pressable onPress={onRemove} style={styles.secondaryButton}>
             <Ionicons
@@ -1064,6 +1089,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     },
     primaryActionRow: {
       flexDirection: "row",
+      flexWrap: "wrap",
       gap: 10,
       paddingHorizontal: 4,
     },
@@ -1078,6 +1104,30 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       backgroundColor: theme.colors.primary,
       paddingHorizontal: 20,
       ...theme.shadows.primary,
+    },
+    scheduleButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+      paddingHorizontal: 16,
+      borderRadius: 20,
+      backgroundColor: theme.colors.surface,
+      borderWidth: 1,
+      borderColor:
+        theme.mode === "dark"
+          ? "rgba(255, 90, 20, 0.32)"
+          : "rgba(41, 86, 215, 0.18)",
+    },
+    scheduleButtonPressed: {
+      opacity: 0.85,
+      transform: [{ scale: 0.98 }],
+    },
+    scheduleButtonText: {
+      color: theme.colors.primary,
+      fontSize: 14,
+      fontFamily: "Satoshi-Bold",
+      fontWeight: "800",
     },
     primaryButtonText: {
       color: theme.colors.surface,

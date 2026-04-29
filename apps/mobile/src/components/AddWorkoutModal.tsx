@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 
+import { FitfoLoadingAnimation } from "./FitfoLoadingAnimation";
 import { getCreatorHandle } from "../lib/fitfo";
 import { getStatusInfo } from "../lib/status";
 import { getTheme, type ThemeMode } from "../theme";
@@ -154,6 +155,10 @@ export function AddWorkoutModal({
   const info = getStatusInfo(job?.status ?? "pending", themeMode);
   const workoutPlan = routine?.workoutPlan ?? null;
   const hasImportedWorkout = workoutPlan != null;
+  // While the import job is running we hide the URL input + title and show
+  // a focused "compiling" view instead. As soon as the parsed workout comes
+  // back (`hasImportedWorkout` flips true) we transition to the preview card.
+  const isCompiling = !hasImportedWorkout && (isSubmitting || isPolling);
   const creatorHandle = useMemo(
     () => getCreatorHandle(routine?.sourceUrl ?? null),
     [routine?.sourceUrl],
@@ -212,79 +217,99 @@ export function AddWorkoutModal({
             showsVerticalScrollIndicator={false}
             style={styles.cardScroll}
           >
-            <View style={styles.headerIcon}>
-              <MaterialIcons color={theme.colors.primary} name="fitness-center" size={24} />
-            </View>
-            <Text style={styles.title}>Import Workout</Text>
-            <Text style={styles.subtitle}>
-              Paste a TikTok or Instagram reel link to turn it into a workout you can
-              start now or save for later.
-            </Text>
-
-            <View style={styles.formBlock}>
-              <Text style={styles.label}>Video Link</Text>
-              <View style={styles.inputShell}>
-                <Ionicons color={theme.colors.textMuted} name="link-outline" size={18} />
-                <TextInput
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  editable={!isSubmitting && !isPolling && !hasImportedWorkout}
-                  keyboardType="url"
-                  onChangeText={setUrl}
-                  placeholder="tiktok.com/... or instagram.com/reel/..."
-                  placeholderTextColor={theme.colors.textMuted}
-                  style={styles.input}
-                  value={url}
+            {isCompiling ? (
+              <View style={styles.compilingBlock}>
+                <FitfoLoadingAnimation
+                  caption={info.label.toLowerCase()}
+                  label="Compiling your workout"
+                  size={156}
+                  themeMode={themeMode}
                 />
+                <Text style={styles.compilingTitle}>Compiling workout</Text>
+                <Text style={styles.compilingDescription}>{info.description}</Text>
+                <View style={styles.compilingProgress}>
+                  <View style={styles.statusHeader}>
+                    <Text style={[styles.statusLabel, { color: info.color }]}>
+                      {info.label}
+                    </Text>
+                    <Text style={styles.statusPercent}>
+                      {info.progressPercent}%
+                    </Text>
+                  </View>
+                  <View style={styles.progressTrack}>
+                    <View
+                      style={[
+                        styles.progressFill,
+                        {
+                          width: `${info.progressPercent}%`,
+                          backgroundColor: info.color,
+                        },
+                      ]}
+                    />
+                  </View>
+                </View>
               </View>
+            ) : !hasImportedWorkout ? (
+              <>
+                <View style={styles.headerIcon}>
+                  <MaterialIcons
+                    color={theme.colors.primary}
+                    name="fitness-center"
+                    size={24}
+                  />
+                </View>
+                <Text style={styles.title}>Import Workout</Text>
+                <Text style={styles.subtitle}>
+                  Paste a TikTok or Instagram reel link to turn it into a workout you
+                  can start now or save for later.
+                </Text>
 
-              {!hasImportedWorkout ? (
-                <>
+                <View style={styles.formBlock}>
+                  <Text style={styles.label}>Video Link</Text>
+                  <View style={styles.inputShell}>
+                    <Ionicons
+                      color={theme.colors.textMuted}
+                      name="link-outline"
+                      size={18}
+                    />
+                    <TextInput
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      editable
+                      keyboardType="url"
+                      onChangeText={setUrl}
+                      placeholder="tiktok.com/... or instagram.com/reel/..."
+                      placeholderTextColor={theme.colors.textMuted}
+                      style={styles.input}
+                      value={url}
+                    />
+                  </View>
+
                   <Text style={styles.helperText}>
-                    We&apos;ll extract the workout structure and let you decide what to do next.
+                    We&apos;ll extract the workout structure and let you decide what
+                    to do next.
                   </Text>
 
                   <Pressable
-                    disabled={!trimmedUrl || isSubmitting || isPolling}
+                    disabled={!trimmedUrl}
                     onPress={() => onSubmit(trimmedUrl)}
                     style={({ pressed }) => [
                       styles.primaryButton,
-                      (!trimmedUrl || isSubmitting || isPolling) &&
-                        styles.primaryButtonDisabled,
+                      !trimmedUrl && styles.primaryButtonDisabled,
                       pressed ? styles.primaryButtonPressed : null,
                     ]}
                   >
-                    {isSubmitting || isPolling ? (
-                      <View style={styles.buttonRow}>
-                        <ActivityIndicator color={theme.colors.surface} size="small" />
-                        <Text style={styles.primaryButtonText}>
-                          {isSubmitting ? "Starting..." : "Extracting..."}
-                        </Text>
-                      </View>
-                    ) : (
-                      <View style={styles.buttonRow}>
-                        <Ionicons color={theme.colors.surface} name="flash" size={16} />
-                        <Text style={styles.primaryButtonText}>Import Workout</Text>
-                      </View>
-                    )}
+                    <View style={styles.buttonRow}>
+                      <Ionicons
+                        color={theme.colors.surface}
+                        name="flash"
+                        size={16}
+                      />
+                      <Text style={styles.primaryButtonText}>Import Workout</Text>
+                    </View>
                   </Pressable>
-                </>
-              ) : null}
-            </View>
-
-            {isPolling ? (
-              <View style={styles.statusCard}>
-                <View style={styles.statusHeader}>
-                  <Text style={[styles.statusLabel, { color: info.color }]}>{info.label}</Text>
-                  <Text style={styles.statusPercent}>{info.progressPercent}%</Text>
                 </View>
-                <View style={styles.progressTrack}>
-                  <View
-                    style={[styles.progressFill, { width: `${info.progressPercent}%` }]}
-                  />
-                </View>
-                <Text style={styles.statusText}>{info.description}</Text>
-              </View>
+              </>
             ) : null}
 
             {error ? (
@@ -488,7 +513,7 @@ export function AddWorkoutModal({
               </View>
             ) : null}
 
-            {!hasImportedWorkout ? (
+            {!hasImportedWorkout && !isCompiling ? (
               <>
                 <View style={styles.orRow}>
                   <View style={styles.orLine} />
@@ -624,6 +649,32 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       fontSize: 17,
       fontFamily: "Satoshi-Bold",
       fontWeight: "800",
+    },
+    compilingBlock: {
+      paddingTop: 8,
+      paddingBottom: 4,
+      alignItems: "center",
+      gap: 16,
+    },
+    compilingTitle: {
+      color: theme.colors.textPrimary,
+      fontSize: 24,
+      fontFamily: "Satoshi-Bold",
+      fontWeight: "800",
+      letterSpacing: -0.6,
+      textAlign: "center",
+    },
+    compilingDescription: {
+      color: theme.colors.textSecondary,
+      fontSize: 15,
+      lineHeight: 21,
+      textAlign: "center",
+      marginTop: -8,
+    },
+    compilingProgress: {
+      width: "100%",
+      gap: 10,
+      marginTop: 8,
     },
     statusCard: {
       marginTop: 18,

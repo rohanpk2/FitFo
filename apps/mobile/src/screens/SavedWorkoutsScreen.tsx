@@ -33,6 +33,7 @@ interface SavedWorkoutsScreenProps {
   onOpenWorkout: (routine: SavedRoutinePreview) => void;
   onRemoveWorkout: (savedWorkoutId: string) => void;
   onRetry: () => void;
+  onScheduleWorkout: (routine: SavedRoutinePreview) => void;
   onStartSession: (routine?: SavedRoutinePreview) => void;
   onUnschedule: (scheduledWorkoutId: string) => void;
   scheduledError: string | null;
@@ -184,6 +185,7 @@ function WorkoutCard({
   accent,
   onOpen,
   onRemove,
+  onSchedule,
   onStart,
   removeLabel = "Unsave",
   routine,
@@ -192,6 +194,7 @@ function WorkoutCard({
   accent: "saved" | "scheduled";
   onOpen: () => void;
   onRemove?: () => void;
+  onSchedule?: () => void;
   onStart: () => void;
   removeLabel?: string;
   routine: SavedRoutinePreview;
@@ -286,6 +289,24 @@ function WorkoutCard({
         <Pressable onPress={onStart} style={styles.primaryButton}>
           <Text style={styles.primaryButtonText}>Start Session</Text>
         </Pressable>
+        {onSchedule ? (
+          <Pressable
+            onPress={onSchedule}
+            style={({ pressed }) => [
+              styles.scheduleButton,
+              pressed ? styles.scheduleButtonPressed : null,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel={`Schedule ${routine.title}`}
+          >
+            <Ionicons
+              color={theme.colors.primary}
+              name="calendar-outline"
+              size={14}
+            />
+            <Text style={styles.scheduleButtonText}>Schedule</Text>
+          </Pressable>
+        ) : null}
         {onRemove ? (
           <Pressable onPress={onRemove} style={styles.secondaryButton}>
             <Text style={styles.secondaryButtonText}>{removeLabel}</Text>
@@ -306,6 +327,7 @@ export function SavedWorkoutsScreen({
   onOpenWorkout,
   onRemoveWorkout,
   onRetry,
+  onScheduleWorkout,
   onStartSession,
   onUnschedule,
   scheduledError,
@@ -564,6 +586,7 @@ export function SavedWorkoutsScreen({
                     ? () => onRemoveWorkout(routine.savedWorkoutId || routine.id)
                     : undefined
                 }
+                onSchedule={() => onScheduleWorkout(routine)}
                 onStart={() => onStartSession(routine)}
                 routine={routine}
                 theme={theme}
@@ -1221,6 +1244,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     },
     actionRow: {
       flexDirection: "row",
+      flexWrap: "wrap",
       gap: 10,
       marginTop: 16,
     },
@@ -1232,6 +1256,31 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       minWidth: 150,
       alignItems: "center",
       justifyContent: "center",
+    },
+    scheduleButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 6,
+      borderRadius: 999,
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+      backgroundColor: theme.colors.surfaceMuted,
+      borderWidth: 1,
+      borderColor:
+        theme.mode === "dark"
+          ? "rgba(255, 90, 20, 0.32)"
+          : "rgba(41, 86, 215, 0.18)",
+    },
+    scheduleButtonPressed: {
+      opacity: 0.85,
+      transform: [{ scale: 0.98 }],
+    },
+    scheduleButtonText: {
+      color: theme.colors.primary,
+      fontSize: 15,
+      fontFamily: "Satoshi-Bold",
+      fontWeight: "800",
     },
     primaryButtonText: {
       color: theme.colors.surface,

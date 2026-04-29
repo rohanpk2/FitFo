@@ -112,6 +112,10 @@ interface ScheduleAgainTarget {
   metaLeft: string;
   metaRight: string;
   badgeLabel: string | null;
+  // When set, the workout already lives in the user's saved library and we
+  // should reuse that row as the schedule's source instead of round-tripping
+  // through saveWorkoutForLater again (which would create a duplicate).
+  savedWorkoutId: string | null;
 }
 
 type AuthSubmitMode = "login" | "signup" | "otp" | "apple" | "bootstrap";
@@ -832,6 +836,7 @@ export default function App() {
         metaLeft: meta.metaLeft,
         metaRight: meta.metaRight,
         badgeLabel: "Scheduled",
+        savedWorkoutId: null,
       });
     },
     [],
@@ -861,6 +866,31 @@ export default function App() {
         metaLeft,
         metaRight,
         badgeLabel: "Scheduled",
+        savedWorkoutId: null,
+      });
+    },
+    [],
+  );
+
+  // Schedule a workout that's already in the user's saved library. The
+  // existing saved row is reused as the schedule's source — no need to
+  // re-save it.
+  const handleRequestScheduleSavedWorkout = useCallback(
+    (routine: SavedRoutinePreview) => {
+      const savedWorkoutId = routine.savedWorkoutId || routine.id;
+      setScheduleAgainError(null);
+      setScheduleAgainTarget({
+        id: `saved-${savedWorkoutId}`,
+        title: routine.title,
+        description: routine.description ? routine.description : null,
+        workoutId: routine.workoutId ?? null,
+        jobId: routine.jobId ?? null,
+        sourceUrl: routine.sourceUrl ?? null,
+        workoutPlan: routine.workoutPlan ?? null,
+        metaLeft: routine.metaLeft,
+        metaRight: routine.metaRight,
+        badgeLabel: routine.badgeLabel ?? "Scheduled",
+        savedWorkoutId,
       });
     },
     [],
@@ -883,32 +913,46 @@ export default function App() {
       setIsSchedulingAgain(true);
       setScheduleAgainError(null);
       try {
-        // Mirror the workout into the saved library so the schedule references a persistent
-        // source record (same pattern as scheduling freshly imported workouts).
-        const saved = await saveWorkoutForLater(accessToken, {
-          workout_id: scheduleAgainTarget.workoutId,
-          job_id: scheduleAgainTarget.jobId,
-          source_url: scheduleAgainTarget.sourceUrl,
-          title: scheduleAgainTarget.title,
-          description: scheduleAgainTarget.description,
-          meta_left: scheduleAgainTarget.metaLeft,
-          meta_right: scheduleAgainTarget.metaRight,
-          badge_label: scheduleAgainTarget.badgeLabel,
-          workout_plan: scheduleAgainTarget.workoutPlan,
-        });
-        const savedPreview = createSavedRoutinePreviewFromRecord(saved);
-        setSavedWorkouts((current) => {
-          const withoutDuplicate = current.filter(
-            (item) => item.id !== savedPreview.id,
-          );
-          return [savedPreview, ...withoutDuplicate];
-        });
+        // If the target is already a saved-library row, skip the round trip
+        // through saveWorkoutForLater (which would create a duplicate). Otherwise
+        // mirror the workout into the saved library first so the schedule has a
+        // persistent source record (same pattern as scheduling freshly
+        // imported workouts).
+        let sourceWorkoutId: string | null = scheduleAgainTarget.savedWorkoutId;
+        let sourceWorkoutWorkoutId: string | null = scheduleAgainTarget.workoutId;
+        let sourceJobId: string | null = scheduleAgainTarget.jobId;
+        let sourceSourceUrl: string | null = scheduleAgainTarget.sourceUrl;
+
+        if (!sourceWorkoutId) {
+          const saved = await saveWorkoutForLater(accessToken, {
+            workout_id: scheduleAgainTarget.workoutId,
+            job_id: scheduleAgainTarget.jobId,
+            source_url: scheduleAgainTarget.sourceUrl,
+            title: scheduleAgainTarget.title,
+            description: scheduleAgainTarget.description,
+            meta_left: scheduleAgainTarget.metaLeft,
+            meta_right: scheduleAgainTarget.metaRight,
+            badge_label: scheduleAgainTarget.badgeLabel,
+            workout_plan: scheduleAgainTarget.workoutPlan,
+          });
+          sourceWorkoutId = saved.id;
+          sourceWorkoutWorkoutId = saved.workout_id ?? null;
+          sourceJobId = saved.job_id ?? null;
+          sourceSourceUrl = saved.source_url ?? null;
+          const savedPreview = createSavedRoutinePreviewFromRecord(saved);
+          setSavedWorkouts((current) => {
+            const withoutDuplicate = current.filter(
+              (item) => item.id !== savedPreview.id,
+            );
+            return [savedPreview, ...withoutDuplicate];
+          });
+        }
 
         const scheduled = await createScheduledWorkout(accessToken, {
-          source_workout_id: saved.id,
-          workout_id: saved.workout_id ?? null,
-          job_id: saved.job_id ?? null,
-          source_url: saved.source_url ?? null,
+          source_workout_id: sourceWorkoutId,
+          workout_id: sourceWorkoutWorkoutId,
+          job_id: sourceJobId,
+          source_url: sourceSourceUrl,
           scheduled_for: scheduledFor,
           title: scheduleAgainTarget.title,
           description: scheduleAgainTarget.description,
@@ -1593,6 +1637,11 @@ export default function App() {
                 }
               : undefined
           }
+          onSchedule={
+            isScheduledView
+              ? undefined
+              : () => handleRequestScheduleSavedWorkout(routine)
+          }
           onUpdate={handleUpdateSavedRoutine}
           removeLabel={isScheduledView ? "Unschedule" : "Unsave"}
           themeMode={themeMode}
@@ -1635,6 +1684,7 @@ export default function App() {
               void loadScheduledWorkouts(accessToken);
             }
           }}
+          onScheduleWorkout={handleRequestScheduleSavedWorkout}
           onStartSession={handleStartSession}
           onUnschedule={handleUnscheduleWorkout}
           scheduledError={scheduledWorkoutsError}
