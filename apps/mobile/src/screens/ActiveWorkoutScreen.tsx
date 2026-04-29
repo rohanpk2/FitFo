@@ -12,7 +12,9 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
+import CoachSheet from "../components/CoachSheet";
 import { titleCase } from "../lib/fitfo";
+import type { WorkoutContext as ChatWorkoutContext } from "../lib/chat";
 import { getTheme, radii, type ThemeMode } from "../theme";
 import type {
   ActiveExercisePreview,
@@ -738,6 +740,7 @@ export function ActiveWorkoutScreen({
   const [restCountdownSeconds, setRestCountdownSeconds] = useState<number | null>(
     null,
   );
+  const [coachOpen, setCoachOpen] = useState(false);
 
   useEffect(() => {
     setExercises(session.exercises);
@@ -795,6 +798,31 @@ export function ActiveWorkoutScreen({
     () => exercises.reduce((count, exercise) => count + exercise.sets.length, 0),
     [exercises],
   );
+
+  // Snapshot the current workout into the shape the chat backend expects.
+  // Sets/reps come from the first target set on each exercise — that's what
+  // the user sees as the "prescription" for the exercise.
+  const coachWorkoutContext = useMemo<ChatWorkoutContext>(() => {
+    const plan = session.workoutPlan;
+    return {
+      title: session.title || null,
+      description: session.description || null,
+      workout_type: plan?.workout_type ?? null,
+      muscle_groups: plan?.muscle_groups?.length ? plan.muscle_groups : null,
+      equipment: plan?.equipment?.length ? plan.equipment : null,
+      exercises: exercises.map((exercise) => {
+        const referenceSet = exercise.sets[0];
+        return {
+          name: exercise.name,
+          sets: exercise.sets.length || null,
+          reps: referenceSet?.targetReps ?? null,
+          duration_sec: referenceSet?.targetDurationSec ?? null,
+          rest_sec: exercise.restSeconds ?? null,
+          notes: exercise.notes ?? null,
+        };
+      }),
+    };
+  }, [exercises, session]);
   const completedSetCount = useMemo(
     () =>
       exercises.reduce(
@@ -1241,6 +1269,7 @@ export function ActiveWorkoutScreen({
   };
 
   return (
+    <>
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.content}
@@ -1255,7 +1284,20 @@ export function ActiveWorkoutScreen({
           source={require("../../assets/logo_no_bg.png")}
           style={styles.brandLogo}
         />
-        <View style={styles.headerSpacer} />
+        <Pressable
+          onPress={() => setCoachOpen(true)}
+          style={styles.coachButton}
+          hitSlop={10}
+          accessibilityLabel="Open coach chat"
+          accessibilityRole="button"
+        >
+          <Ionicons
+            color={theme.colors.primary}
+            name="chatbubble-ellipses-outline"
+            size={18}
+          />
+          <Text style={styles.coachButtonText}>Coach</Text>
+        </Pressable>
       </View>
 
       <View style={styles.heroSection}>
@@ -1393,6 +1435,13 @@ export function ActiveWorkoutScreen({
         <Ionicons color={theme.colors.surface} name="flag" size={16} />
       </Pressable>
     </ScrollView>
+    <CoachSheet
+      visible={coachOpen}
+      onClose={() => setCoachOpen(false)}
+      workout={coachWorkoutContext}
+      themeMode={themeMode}
+    />
+    </>
   );
 }
 
@@ -1534,6 +1583,22 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
     headerSpacer: {
       width: 36,
       height: 36,
+    },
+    coachButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: radii.medium,
+      backgroundColor: theme.colors.surfaceMuted,
+      borderColor: theme.colors.borderSoft,
+      borderWidth: 1,
+    },
+    coachButtonText: {
+      color: theme.colors.primary,
+      fontSize: 13,
+      fontWeight: "600",
     },
     brandLogo: {
       width: 72,

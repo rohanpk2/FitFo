@@ -10,8 +10,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.routers import (
+    admin_corpus,
     auth,
     body_weight,
+    chat,
     completed_workouts,
     ingest,
     jobs,
@@ -43,6 +45,8 @@ app.include_router(saved_workouts.router)
 app.include_router(completed_workouts.router)
 app.include_router(body_weight.router)
 app.include_router(scheduled_workouts.router)
+app.include_router(admin_corpus.router)
+app.include_router(chat.router)
 
 
 @app.get("/health")

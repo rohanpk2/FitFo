@@ -47,6 +47,8 @@ Run these SQL files in the Supabase SQL editor, in order:
 3. `sql/005_workout_persistence.sql`
 4. `sql/006_profile_onboarding.sql`
 5. `sql/007_body_weight_entries.sql`
+6. `sql/011_creator_corpus.sql` *(creates pgvector + creator-corpus tables)*
+7. `sql/012_corpus_retrieval.sql` *(creates `match_content_chunks` RPC for chat)*
 
 `sql/003_profiles_auth_link.sql` is legacy and only applies to an older `auth.users`-linked profile setup. The current backend OTP flow uses `sql/004_profiles_backend_auth.sql`, which preserves `profiles` data and detaches any stale `auth.users` linkage instead of dropping the table.
 
@@ -112,6 +114,93 @@ of inventing fallback exercises.
 Expect OCR-enabled imports to add some latency and model cost versus the
 audio-only pipeline, especially on longer reels with all configured providers
 available.
+
+## Creator corpus (TikTok knowledge base)
+
+Separate ingestion path that crawls a coach's whole TikTok profile and stores
+transcripts + LLM-chunked, LLM-tagged, OpenAI-embedded knowledge in Postgres
+(pgvector). Powers a future RAG chatbot that answers in the coach's voice.
+
+### Schema
+
+`sql/011_creator_corpus.sql` adds (RLS deny-all, service role only):
+
+- `creators` — one row per coach `(platform, handle)`
+- `content_sources` — one row per source video, holds `transcript`
+- `content_chunks` — retrieval chunks with locked-enum tags
+- `content_embeddings` — `vector(1536)` per chunk, HNSW + cosine index
+
+### Pipeline
+
+```
+discover (Apify clockworks/tiktok-scraper)
+  → transcribe (TikWM + ffmpeg + OpenAI Whisper)
+  → chunk (OpenAI gpt-4.1-mini → 1-4 sentence chunks)
+  → tag (OpenAI gpt-4.1-mini → exercise/muscle_group/equipment/goal)
+  → embed (OpenAI text-embedding-3-small)
+  → human approval queue (admin UI)
+```
+
+Each phase is idempotent — re-running picks up where it stopped.
+
+### Run it
+
+```bash
+cd apps/api
+python -m app.scripts.ingest_creator jacoboestreichercoaching
+```
+
+Phase-by-phase (useful when iterating on prompts):
+
+```bash
+python -m app.scripts.ingest_creator jacoboestreichercoaching --phase discover
+python -m app.scripts.ingest_creator jacoboestreichercoaching --phase transcribe
+python -m app.scripts.ingest_creator jacoboestreichercoaching --phase chunk
+python -m app.scripts.ingest_creator jacoboestreichercoaching --phase tag
+python -m app.scripts.ingest_creator jacoboestreichercoaching --phase embed
+```
+
+### Admin endpoints
+
+All gated behind `CORPUS_ADMIN_ENABLED=1`. Returns 503 when not enabled.
+
+- `POST /admin/corpus/ingest-creator` — `{handle, results_per_page, run_full_pipeline}`
+- `GET /admin/corpus/chunks?status=pending,needs_review` — review queue
+- `POST /admin/corpus/chunks/{id}/review` — `{action, chunk_text?, ...edits}`
+- `GET /admin/corpus/sources` / `GET /admin/corpus/sources/{id}` — debugging
+
+### Web review UI
+
+`apps/web/src/app/admin/review` — only renders when
+`NEXT_PUBLIC_CORPUS_ADMIN_ENABLED=1` is set in `apps/web/.env`. Approves /
+rejects / edits chunks via the admin endpoints above.
+
+### Chat (RAG) endpoint
+
+Once chunks are approved, `POST /chat` answers user questions grounded in
+those chunks:
+
+```
+POST /chat
+{
+  "message": "How do I make my triceps bigger?",
+  "history": [],
+  "muscle_groups": ["arms"],   // optional hard filter
+  "goals": ["hypertrophy"],    // optional hard filter
+  "top_k": 8                   // default 8
+}
+→ { answer, citations: [...], retrieval: [...], model }
+```
+
+Pipeline: query → embed → pgvector cosine search via `match_content_chunks`
+RPC → top-K approved chunks → `gpt-4.1-mini` synthesizes an answer in the
+coach's voice with inline `[1] [2]` citations. Override the synthesis model
+with `OPENAI_CHAT_MODEL=...` in `.env`.
+
+Same `CORPUS_ADMIN_ENABLED=1` gate as the admin endpoints — flip to a
+profile-allowlist `Depends` when you ship chat to real users.
+
+Web UI lives at `apps/web/src/app/chat`.
 
 ## Docs
 
