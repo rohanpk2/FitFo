@@ -293,23 +293,38 @@ function WorkoutCard({
           <Pressable
             onPress={onSchedule}
             style={({ pressed }) => [
-              styles.scheduleButton,
-              pressed ? styles.scheduleButtonPressed : null,
+              styles.iconButton,
+              styles.scheduleIconButton,
+              pressed ? styles.iconButtonPressed : null,
             ]}
             accessibilityRole="button"
             accessibilityLabel={`Schedule ${routine.title}`}
+            hitSlop={6}
           >
             <Ionicons
               color={theme.colors.primary}
               name="calendar-outline"
-              size={14}
+              size={20}
             />
-            <Text style={styles.scheduleButtonText}>Schedule</Text>
           </Pressable>
         ) : null}
         {onRemove ? (
-          <Pressable onPress={onRemove} style={styles.secondaryButton}>
-            <Text style={styles.secondaryButtonText}>{removeLabel}</Text>
+          <Pressable
+            onPress={onRemove}
+            style={({ pressed }) => [
+              styles.iconButton,
+              styles.removeIconButton,
+              pressed ? styles.iconButtonPressed : null,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel={removeLabel}
+            hitSlop={6}
+          >
+            <Ionicons
+              color={theme.colors.error}
+              name="trash-outline"
+              size={20}
+            />
           </Pressable>
         ) : null}
       </View>
@@ -1244,43 +1259,18 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     },
     actionRow: {
       flexDirection: "row",
-      flexWrap: "wrap",
+      alignItems: "center",
       gap: 10,
       marginTop: 16,
     },
     primaryButton: {
+      flex: 1,
       borderRadius: 999,
       backgroundColor: theme.colors.primaryBright,
       paddingHorizontal: 18,
       paddingVertical: 14,
-      minWidth: 150,
       alignItems: "center",
       justifyContent: "center",
-    },
-    scheduleButton: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 6,
-      borderRadius: 999,
-      paddingHorizontal: 16,
-      paddingVertical: 14,
-      backgroundColor: theme.colors.surfaceMuted,
-      borderWidth: 1,
-      borderColor:
-        theme.mode === "dark"
-          ? "rgba(255, 90, 20, 0.32)"
-          : "rgba(41, 86, 215, 0.18)",
-    },
-    scheduleButtonPressed: {
-      opacity: 0.85,
-      transform: [{ scale: 0.98 }],
-    },
-    scheduleButtonText: {
-      color: theme.colors.primary,
-      fontSize: 15,
-      fontFamily: "Satoshi-Bold",
-      fontWeight: "800",
     },
     primaryButtonText: {
       color: theme.colors.surface,
@@ -1288,19 +1278,30 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       fontFamily: "Satoshi-Bold",
       fontWeight: "800",
     },
-    secondaryButton: {
-      borderRadius: 999,
-      backgroundColor: theme.colors.surfaceMuted,
-      paddingHorizontal: 18,
-      paddingVertical: 14,
+    iconButton: {
+      width: 46,
+      height: 46,
+      borderRadius: 23,
       alignItems: "center",
       justifyContent: "center",
+      backgroundColor: theme.colors.surfaceMuted,
+      borderWidth: 1,
     },
-    secondaryButtonText: {
-      color: theme.colors.textPrimary,
-      fontSize: 15,
-      fontFamily: "Satoshi-Bold",
-      fontWeight: "800",
+    iconButtonPressed: {
+      opacity: 0.85,
+      transform: [{ scale: 0.96 }],
+    },
+    scheduleIconButton: {
+      borderColor:
+        theme.mode === "dark"
+          ? "rgba(255, 90, 20, 0.32)"
+          : "rgba(41, 86, 215, 0.18)",
+    },
+    removeIconButton: {
+      borderColor:
+        theme.mode === "dark"
+          ? "rgba(255, 101, 88, 0.32)"
+          : theme.colors.errorSoft,
     },
     emptyStateCard: {
       borderRadius: 24,

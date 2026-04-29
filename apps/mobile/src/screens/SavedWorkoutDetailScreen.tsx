@@ -422,28 +422,38 @@ export function SavedWorkoutDetailScreen({
           <Pressable
             onPress={onSchedule}
             style={({ pressed }) => [
-              styles.scheduleButton,
-              pressed ? styles.scheduleButtonPressed : null,
+              styles.iconButton,
+              styles.scheduleIconButton,
+              pressed ? styles.iconButtonPressed : null,
             ]}
             accessibilityRole="button"
             accessibilityLabel="Schedule this workout"
+            hitSlop={6}
           >
             <Ionicons
               color={theme.colors.primary}
               name="calendar-outline"
-              size={14}
+              size={22}
             />
-            <Text style={styles.scheduleButtonText}>Schedule</Text>
           </Pressable>
         ) : null}
         {onRemove ? (
-          <Pressable onPress={onRemove} style={styles.secondaryButton}>
+          <Pressable
+            onPress={onRemove}
+            style={({ pressed }) => [
+              styles.iconButton,
+              styles.removeIconButton,
+              pressed ? styles.iconButtonPressed : null,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel={removeLabel}
+            hitSlop={6}
+          >
             <Ionicons
               color={theme.colors.error}
               name="trash-outline"
-              size={14}
+              size={22}
             />
-            <Text style={styles.secondaryButtonText}>{removeLabel}</Text>
           </Pressable>
         ) : null}
       </View>
@@ -1089,7 +1099,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     },
     primaryActionRow: {
       flexDirection: "row",
-      flexWrap: "wrap",
+      alignItems: "center",
       gap: 10,
       paddingHorizontal: 4,
     },
@@ -1105,30 +1115,6 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       paddingHorizontal: 20,
       ...theme.shadows.primary,
     },
-    scheduleButton: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 8,
-      paddingHorizontal: 16,
-      borderRadius: 20,
-      backgroundColor: theme.colors.surface,
-      borderWidth: 1,
-      borderColor:
-        theme.mode === "dark"
-          ? "rgba(255, 90, 20, 0.32)"
-          : "rgba(41, 86, 215, 0.18)",
-    },
-    scheduleButtonPressed: {
-      opacity: 0.85,
-      transform: [{ scale: 0.98 }],
-    },
-    scheduleButtonText: {
-      color: theme.colors.primary,
-      fontSize: 14,
-      fontFamily: "Satoshi-Bold",
-      fontWeight: "800",
-    },
     primaryButtonText: {
       color: theme.colors.surface,
       fontSize: 16,
@@ -1136,22 +1122,30 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       fontWeight: "800",
       letterSpacing: 0.2,
     },
-    secondaryButton: {
-      flexDirection: "row",
+    iconButton: {
+      width: 56,
+      height: 56,
+      borderRadius: 20,
       alignItems: "center",
       justifyContent: "center",
-      gap: 8,
-      paddingHorizontal: 18,
-      borderRadius: 20,
       backgroundColor: theme.colors.surface,
       borderWidth: 1,
-      borderColor: theme.colors.errorSoft,
     },
-    secondaryButtonText: {
-      color: theme.colors.error,
-      fontSize: 14,
-      fontFamily: "Satoshi-Bold",
-      fontWeight: "800",
+    iconButtonPressed: {
+      opacity: 0.85,
+      transform: [{ scale: 0.96 }],
+    },
+    scheduleIconButton: {
+      borderColor:
+        theme.mode === "dark"
+          ? "rgba(255, 90, 20, 0.32)"
+          : "rgba(41, 86, 215, 0.18)",
+    },
+    removeIconButton: {
+      borderColor:
+        theme.mode === "dark"
+          ? "rgba(255, 101, 88, 0.32)"
+          : theme.colors.errorSoft,
     },
     aiDisclosureCard: {
       marginHorizontal: 4,
