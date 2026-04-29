@@ -244,13 +244,12 @@ export default function App() {
   const styles = createStyles(theme);
   const revenueCat = useRevenueCat(currentUser);
   const isInitialTrialActive = isWithinInitialTrial(currentUser?.created_at);
-  const hasBillingAccess =
-    isInitialTrialActive || revenueCat.hasPro || (__DEV__ && isDevPaywallBypassed);
-  const isBillingCheckPending =
-    Boolean(currentUser) &&
-    !isInitialTrialActive &&
-    !revenueCat.customerInfo &&
-    revenueCat.isLoading;
+  // TEMP DEV BYPASS: forced true so the RevenueCat test API key never triggers
+  // the "Wrong API Key" force-close on a real device. Revert this to the real
+  // expression below once a production `appl_…` RevenueCat key is wired in.
+  //   isInitialTrialActive || revenueCat.hasPro || (__DEV__ && isDevPaywallBypassed)
+  const hasBillingAccess = true;
+  const isBillingCheckPending = false;
 
   const resetPostLoginState = useCallback(() => {
     setActiveTab("saved");
