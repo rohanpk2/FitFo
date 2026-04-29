@@ -15,6 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import CoachSheet from "../components/CoachSheet";
 import { titleCase } from "../lib/fitfo";
 import type { WorkoutContext as ChatWorkoutContext } from "../lib/chat";
+import { F } from "../lib/fonts";
 import { getTheme, radii, type ThemeMode } from "../theme";
 import type {
   ActiveExercisePreview,
@@ -1598,7 +1599,8 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
     coachButtonText: {
       color: theme.colors.primary,
       fontSize: 13,
-      fontWeight: "600",
+      fontFamily: F.semiBold,
+      letterSpacing: -0.1,
     },
     brandLogo: {
       width: 72,

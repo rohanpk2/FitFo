@@ -21,6 +21,7 @@ import {
   WorkoutContext,
   sendChatMessage,
 } from "../lib/chat";
+import { F } from "../lib/fonts";
 import { MarkdownBlock, MarkdownInline, parseMarkdown } from "../lib/markdown";
 import { getTheme, radii, type ThemeMode } from "../theme";
 
@@ -188,18 +189,18 @@ export default function CoachSheet({
           <View style={styles.sheet}>
             <View style={styles.handle} />
             <View style={styles.header}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.headerTitle}>Coach</Text>
-                <Text style={styles.headerSub}>
-                  {workout?.title
-                    ? `Grounded in your "${workout.title}" workout`
-                    : "Ask about your workout or training"}
-                </Text>
+              <View style={styles.headerTitleRow}>
+                <View style={styles.statusDot} />
+                <Text style={styles.headerTitle}>Personal Coach</Text>
               </View>
-              <Pressable onPress={onClose} hitSlop={12}>
+              <Pressable
+                onPress={onClose}
+                hitSlop={12}
+                style={styles.closeButton}
+              >
                 <Ionicons
                   name="close"
-                  size={24}
+                  size={18}
                   color={theme.colors.textSecondary}
                 />
               </Pressable>
@@ -208,7 +209,12 @@ export default function CoachSheet({
             <ScrollView
               ref={scrollRef}
               style={styles.messages}
-              contentContainerStyle={styles.messagesContent}
+              contentContainerStyle={[
+                styles.messagesContent,
+                messages.length > 0 || pending
+                  ? styles.messagesContentChat
+                  : null,
+              ]}
               keyboardShouldPersistTaps="handled"
             >
               {messages.length === 0 && !pending && (
@@ -344,71 +350,96 @@ function createStyles(theme: ReturnType<typeof getTheme>) {
     },
     sheet: {
       backgroundColor: colors.surface,
-      borderTopLeftRadius: radii.large,
-      borderTopRightRadius: radii.large,
-      paddingBottom: 16,
-      maxHeight: "92%",
-      minHeight: "70%",
+      borderTopLeftRadius: 28,
+      borderTopRightRadius: 28,
+      paddingBottom: Platform.OS === "ios" ? 34 : 16,
+      minHeight: "82%",
+      maxHeight: "96%",
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: colors.borderSoft,
     },
     handle: {
       alignSelf: "center",
-      width: 44,
+      width: 38,
       height: 4,
       borderRadius: 2,
       backgroundColor: colors.border,
-      marginTop: 10,
-      marginBottom: 8,
+      marginTop: 8,
+      marginBottom: 4,
+      opacity: 0.7,
     },
     header: {
       flexDirection: "row",
       alignItems: "center",
-      paddingHorizontal: 20,
+      paddingHorizontal: 18,
+      paddingTop: 8,
       paddingBottom: 12,
-      borderBottomColor: colors.borderSoft,
-      borderBottomWidth: StyleSheet.hairlineWidth,
+    },
+    headerTitleRow: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+    },
+    statusDot: {
+      width: 7,
+      height: 7,
+      borderRadius: 4,
+      backgroundColor: colors.primary,
     },
     headerTitle: {
       color: colors.textPrimary,
-      fontSize: 20,
-      fontWeight: "700",
+      fontSize: 17,
+      fontFamily: F.bold,
+      letterSpacing: -0.2,
     },
-    headerSub: {
-      color: colors.textSecondary,
-      fontSize: 12,
-      marginTop: 2,
+    closeButton: {
+      width: 30,
+      height: 30,
+      borderRadius: 15,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: colors.surfaceMuted,
     },
     messages: {
       flex: 1,
     },
     messagesContent: {
-      padding: 16,
-      paddingBottom: 24,
-      gap: 12,
+      flexGrow: 1,
+      paddingHorizontal: 16,
+      paddingTop: 12,
+      paddingBottom: 12,
+      gap: 10,
+    },
+    messagesContentChat: {
+      justifyContent: "flex-end",
     },
     emptyState: {
-      paddingVertical: 24,
-      gap: 12,
+      paddingVertical: 18,
+      gap: 10,
     },
     emptyTitle: {
       color: colors.textPrimary,
-      fontSize: 16,
-      fontWeight: "600",
+      fontSize: 15,
+      fontFamily: F.semiBold,
+      letterSpacing: -0.1,
     },
     emptySub: {
       color: colors.textSecondary,
       fontSize: 13,
       lineHeight: 18,
+      fontFamily: F.regular,
     },
     suggestionWrap: {
       flexDirection: "row",
       flexWrap: "wrap",
       gap: 8,
-      marginTop: 8,
+      marginTop: 6,
     },
     suggestion: {
       paddingHorizontal: 12,
-      paddingVertical: 8,
-      borderRadius: radii.medium,
+      paddingVertical: 7,
+      borderRadius: 999,
       backgroundColor: colors.surfaceMuted,
       borderColor: colors.borderSoft,
       borderWidth: 1,
@@ -416,6 +447,7 @@ function createStyles(theme: ReturnType<typeof getTheme>) {
     suggestionText: {
       color: colors.textPrimary,
       fontSize: 12,
+      fontFamily: F.medium,
     },
     userRow: {
       alignItems: "flex-end",
@@ -424,14 +456,15 @@ function createStyles(theme: ReturnType<typeof getTheme>) {
       backgroundColor: colors.primary,
       paddingHorizontal: 14,
       paddingVertical: 9,
-      borderRadius: radii.medium,
-      borderTopRightRadius: 4,
+      borderRadius: 18,
+      borderTopRightRadius: 6,
       maxWidth: "85%",
     },
     userText: {
       color: "#FFFFFF",
       fontSize: 14,
       lineHeight: 20,
+      fontFamily: F.medium,
     },
     assistantRow: {
       alignItems: "flex-start",
@@ -441,14 +474,15 @@ function createStyles(theme: ReturnType<typeof getTheme>) {
       backgroundColor: colors.surfaceMuted,
       paddingHorizontal: 14,
       paddingVertical: 11,
-      borderRadius: radii.medium,
-      borderTopLeftRadius: 4,
+      borderRadius: 18,
+      borderTopLeftRadius: 6,
       maxWidth: "92%",
     },
     assistantText: {
       color: colors.textPrimary,
       fontSize: 14,
       lineHeight: 21,
+      fontFamily: F.regular,
     },
     paragraphGap: {
       marginTop: 8,
@@ -466,18 +500,20 @@ function createStyles(theme: ReturnType<typeof getTheme>) {
       color: colors.textSecondary,
       fontSize: 14,
       lineHeight: 21,
+      fontFamily: F.regular,
     },
     bulletText: {
       flex: 1,
     },
     bold: {
-      fontWeight: "700",
       color: colors.textPrimary,
+      fontFamily: F.bold,
     },
     citation: {
       color: colors.primaryLight,
       fontSize: 11,
       lineHeight: 21,
+      fontFamily: F.bold,
     },
     citationList: {
       gap: 6,
@@ -494,23 +530,26 @@ function createStyles(theme: ReturnType<typeof getTheme>) {
     citationIndex: {
       color: colors.primaryLight,
       fontSize: 11,
-      fontWeight: "700",
+      fontFamily: F.bold,
       marginBottom: 2,
     },
     citationSnippet: {
       color: colors.textPrimary,
       fontSize: 12,
       lineHeight: 16,
+      fontFamily: F.regular,
     },
     citationUrl: {
       color: colors.textMuted,
       fontSize: 10,
       marginTop: 4,
+      fontFamily: F.regular,
     },
     modelHint: {
       color: colors.textMuted,
       fontSize: 10,
       marginTop: 2,
+      fontFamily: F.regular,
     },
     thinking: {
       flexDirection: "row",
@@ -520,6 +559,7 @@ function createStyles(theme: ReturnType<typeof getTheme>) {
     thinkingText: {
       color: colors.textSecondary,
       fontSize: 13,
+      fontFamily: F.medium,
     },
     errorBanner: {
       backgroundColor: colors.errorSoft,
@@ -531,25 +571,30 @@ function createStyles(theme: ReturnType<typeof getTheme>) {
     errorText: {
       color: colors.error,
       fontSize: 12,
+      fontFamily: F.medium,
     },
     inputRow: {
       flexDirection: "row",
       alignItems: "flex-end",
       gap: 8,
-      paddingHorizontal: 16,
-      paddingTop: 8,
+      paddingHorizontal: 14,
+      paddingTop: 10,
+      paddingBottom: 0,
       borderTopColor: colors.borderSoft,
       borderTopWidth: StyleSheet.hairlineWidth,
     },
     input: {
       flex: 1,
       backgroundColor: colors.surfaceMuted,
-      borderRadius: radii.medium,
-      paddingHorizontal: 12,
-      paddingVertical: 10,
+      borderRadius: 22,
+      paddingHorizontal: 14,
+      paddingVertical: 11,
       color: colors.textPrimary,
       fontSize: 14,
       maxHeight: 120,
+      fontFamily: F.regular,
+      borderWidth: 1,
+      borderColor: colors.borderSoft,
     },
     sendButton: {
       width: 40,
@@ -561,6 +606,7 @@ function createStyles(theme: ReturnType<typeof getTheme>) {
     },
     sendButtonDisabled: {
       backgroundColor: colors.border,
+      opacity: 0.6,
     },
   });
 }
