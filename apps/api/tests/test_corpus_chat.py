@@ -82,7 +82,7 @@ class AnswerTests(unittest.IsolatedAsyncioTestCase):
             new=AsyncMock(return_value=[]),
         ):
             result = await corpus_chat.answer("how do triceps grow?")
-        self.assertIn("don't have direct coverage", result.answer)
+        self.assertIn("don't have coverage", result.answer)
         self.assertEqual(result.citations, [])
         self.assertEqual(result.retrieval, [])
 
@@ -234,17 +234,19 @@ class AnswerTests(unittest.IsolatedAsyncioTestCase):
         ):
             result = await corpus_chat.answer("how do triceps grow?")
         self.assertFalse(llm_called)
-        self.assertIn("don't have direct coverage", result.answer)
+        self.assertIn("don't have coverage", result.answer)
 
     async def test_system_prompt_carries_scope_guard(self) -> None:
         """Off-topic refusal is enforced in the system prompt itself."""
-        self.assertIn("HARD SCOPE GUARD", corpus_chat.SYSTEM_PROMPT)
-        self.assertIn("only help with training", corpus_chat.SYSTEM_PROMPT)
+        self.assertIn("SCOPE", corpus_chat.SYSTEM_PROMPT)
+        self.assertIn("ask me about your training", corpus_chat.SYSTEM_PROMPT)
 
-    async def test_system_prompt_requests_markdown(self) -> None:
-        self.assertIn("FORMATTING", corpus_chat.SYSTEM_PROMPT)
-        self.assertIn("**bold**", corpus_chat.SYSTEM_PROMPT)
-        self.assertIn("bullet lists", corpus_chat.SYSTEM_PROMPT.lower())
+    async def test_system_prompt_enforces_short_output(self) -> None:
+        """Style block must keep answers tight."""
+        prompt_lower = corpus_chat.SYSTEM_PROMPT.lower()
+        self.assertIn("style", prompt_lower)
+        self.assertIn("60 words", prompt_lower)
+        self.assertIn("**bold**", prompt_lower)
 
     async def test_includes_recent_history_in_messages(self) -> None:
         chunks = [_retrieval_chunk("Heavy compounds drive arm growth.", chunk_id="c1")]

@@ -67,7 +67,7 @@ class ChatRequest(BaseModel):
     muscle_groups: Optional[list[str]] = None
     goals: Optional[list[str]] = None
     workout: Optional[WorkoutContextSchema] = None
-    top_k: int = Field(8, ge=1, le=20)
+    top_k: int = Field(5, ge=1, le=20)
 
 
 class ChatCitationSchema(BaseModel):

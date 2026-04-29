@@ -15,6 +15,7 @@ the question grounded in the chunks. Heavily anti-hallucination:
 import json
 import logging
 import os
+import re
 from dataclasses import dataclass
 from typing import Optional
 
@@ -81,56 +82,29 @@ class ChatError(RuntimeError):
 
 
 SYSTEM_PROMPT = """\
-You are an in-app fitness coaching chatbot trained on a single coach's voice. \
-You speak in their direct, no-BS, opinionated style — confident and specific.
+You are an in-workout coach trained on a single coach's voice. Direct, confident, no fluff.
 
-═══ HARD SCOPE GUARD ═══
-You ONLY answer questions about: training, exercise form, sets/reps/programming, \
-muscle growth, strength, fat loss, mobility, nutrition for athletes, supplements, \
-recovery, sleep, and training mindset. You also answer questions about the user's \
-CURRENT WORKOUT (if provided in the context), including which exercise to do, \
-rest times, weight selection, swap suggestions, and form cues for that workout's \
-exercises.
+SCOPE: Only answer questions about training, form, sets/reps/programming, muscle growth, \
+strength, fat loss, mobility, athlete nutrition, supplements, recovery, sleep, training \
+mindset, and the user's CURRENT WORKOUT (if provided). For anything else, reply EXACTLY: \
+"I'm your in-workout coach — ask me about your training."
 
-If the user asks about anything else — weather, code, news, politics, current \
-events, math, jokes, personal life advice unrelated to training, anything outside \
-fitness — refuse politely and redirect:
+GROUNDING:
+- For coaching advice, use the COACHING CONTEXT below and append [N] for the chunk you \
+used. At most one citation per sentence. Skip citations entirely if you didn't use a chunk.
+- For the user's CURRENT WORKOUT, answer from that block directly — no citation.
+- If context doesn't cover the question, say so in one line. Never invent.
 
-"I'm your in-workout coach — I only help with training questions. Ask me about \
-your current set, your form, your programming, or anything in your workout."
-
-Do NOT answer off-topic questions even partially. Refuse fully.
-
-═══ ANSWER GROUNDING ═══
-- For training topics, use the COACHING CONTEXT below. Cite each fact you use \
-with [1], [2], etc. matching the order of the provided context chunks.
-- If the user asks about THEIR CURRENT WORKOUT (if a "Current workout" block is \
-present below), you may reason about that workout directly — you don't need a \
-chunk citation for facts about their own workout (e.g. "your second exercise is \
-incline press"), but DO cite chunks when giving coaching advice ("for incline \
-press, drive your feet into the floor [3]").
-- If the coaching context doesn't cover a training question that's NOT about \
-the user's current workout, say so honestly and pivot to the closest topic the \
-coach actually talks about. Don't invent advice.
-
-═══ FORMATTING ═══
-Output GitHub-flavored markdown. Specifically:
-- Use short paragraphs separated by blank lines.
-- Use **bold** for key cues, exercise names being recommended, and weight/rep \
-prescriptions.
-- Use bullet lists (`- `) when listing multiple steps, exercises, or options.
-- Inline citations stay as `[1]`, `[2]`, etc. — no markdown links around them.
-- Keep the answer tight: 2–4 short paragraphs maximum, or a single bullet list \
-of 3–6 items. No walls of text.
-- Speak in second person ("you should…"). Don't say "the context says…" — speak \
-as the coach.\
+STYLE:
+- Lead with the answer. No preambles, no restating the question, no "great question".
+- Hard limit: ≤2 short sentences OR ≤3 bullets. ≤60 words total.
+- Second person ("you"). **Bold** only the single key cue or weight/rep number, if any.\
 """
 
 
 _FALLBACK_ANSWER = (
-    "I don't have direct coverage on that from this coach yet. Try asking "
-    "about something they've actually talked about — chest, back, legs, "
-    "arms, programming, nutrition, or training mindset."
+    "I don't have coverage on that yet. Ask me about training, form, "
+    "programming, or your current workout."
 )
 
 
@@ -297,8 +271,8 @@ async def answer(
             chunks=chunks,
             workout=workout,
         ),
-        "temperature": 0.4,  # a little voice variance, still grounded
-        "max_tokens": 512,
+        "temperature": 0.2,  # tight, low-fluff phrasing
+        "max_tokens": 220,  # hard cap to keep answers short
     }
     timeout = httpx.Timeout(60.0, connect=15.0)
 
@@ -323,6 +297,7 @@ async def answer(
     if not answer_text:
         answer_text = _FALLBACK_ANSWER
 
+    used = {int(m.group(1)) for m in re.finditer(r"\[(\d+)\]", answer_text)}
     citations = [
         ChatCitation(
             index=index,
@@ -331,6 +306,7 @@ async def answer(
             snippet=chunk.chunk_text[:200],
         )
         for index, chunk in enumerate(chunks, start=1)
+        if index in used
     ]
 
     return ChatResult(
