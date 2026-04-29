@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { AppState, type AppStateStatus } from "react-native";
 
 import { getJob, getWorkoutByJob } from "../lib/api";
 import type { JobResponse, JobStatus, WorkoutRow } from "../types";
@@ -92,7 +93,24 @@ export function useIngestionJob(
       stopPolling();
     }, POLL_TIMEOUT_MS);
 
-    return stopPolling;
+    // iOS suspends JS timers when the app is backgrounded, so a job that
+    // completes during that window won't be picked up until the next
+    // interval tick after resume. Force an immediate poll on foreground so
+    // background-mode imports surface as ready the instant the user comes
+    // back to the app.
+    const appStateSub = AppState.addEventListener(
+      "change",
+      (nextState: AppStateStatus) => {
+        if (nextState === "active" && intervalRef.current) {
+          void poll();
+        }
+      },
+    );
+
+    return () => {
+      stopPolling();
+      appStateSub.remove();
+    };
   }, [accessToken, jobId, stopPolling]);
 
   return { job, workout, error };

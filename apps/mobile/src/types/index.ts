@@ -28,6 +28,11 @@ export interface JobResponse {
   status: JobStatus;
   error: string | null;
   provider_meta: Record<string, unknown>;
+  // Source video duration (seconds), once the fetch phase resolves and the
+  // provider returns metadata. Null while pending or when the provider
+  // didn't include duration in its payload. Surfaced by the backend so
+  // clients don't have to dig through provider-specific shapes.
+  video_duration_sec: number | null;
   created_at: string;
   updated_at: string;
 }

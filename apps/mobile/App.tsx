@@ -63,12 +63,18 @@ import {
   createScheduledRoutinePreview,
   getCompletedWorkoutMeta,
   getCompletedWorkoutSetCount,
+  getCreatorHandle,
   getRoutineDisplayTitle,
 } from "./src/lib/fitfo";
+import * as Notifications from "expo-notifications";
 import {
+  INGESTION_READY_NOTIFICATION_KIND,
   cancelWorkoutReminder,
+  getAutoNotifyImportsPreference,
+  notifyWorkoutReady,
   reconcileScheduledNotifications,
   scheduleWorkoutReminder,
+  setAutoNotifyImportsPreference,
 } from "./src/lib/notifications";
 import { ActiveWorkoutScreen } from "./src/screens/ActiveWorkoutScreen";
 import { AuthLandingScreen } from "./src/screens/AuthLandingScreen";
@@ -197,6 +203,15 @@ export default function App() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [latestImportedRoutine, setLatestImportedRoutine] =
     useState<SavedRoutinePreview | null>(null);
+  // True while a slow import is running with the modal closed. We keep
+  // polling alive in `useIngestionJob` and fire a local notification on
+  // completion. Cleared when the user opens the modal again or the job
+  // resolves.
+  const [isImportRunningInBackground, setIsImportRunningInBackground] =
+    useState(false);
+  // Persisted user choice — once true, future slow imports auto-promote to
+  // background mode at the threshold without showing the inline opt-in card.
+  const [autoNotifyImports, setAutoNotifyImports] = useState(false);
   const [savedWorkouts, setSavedWorkouts] = useState<SavedRoutinePreview[]>([]);
   const [savedWorkoutsLoading, setSavedWorkoutsLoading] = useState(false);
   const [savedWorkoutsError, setSavedWorkoutsError] = useState<string | null>(null);
@@ -276,11 +291,52 @@ export default function App() {
     );
   }, [job, workout]);
 
+  // Background-import completion → local notification. Fires only when the
+  // job finishes while the modal is closed (foreground users already see the
+  // preview card and don't need a banner) and the routine is fully built.
+  // The flag is cleared either way so the effect doesn't re-fire on every
+  // poll tick after completion.
+  useEffect(() => {
+    if (!isImportRunningInBackground) {
+      return;
+    }
+    if (job?.status === "complete" && latestImportedRoutine && jobId) {
+      setIsImportRunningInBackground(false);
+      if (!isAddWorkoutVisible) {
+        void notifyWorkoutReady({
+          title: latestImportedRoutine.title,
+          creatorHandle: getCreatorHandle(
+            latestImportedRoutine.sourceUrl ?? null,
+          ),
+          jobId,
+        });
+      }
+      return;
+    }
+    // Silent fail: clear background state and reset the import flow so the
+    // user gets a fresh slate next time they open the modal. We could surface
+    // a "your import didn't finish" notification here, but for v1 we keep
+    // failures invisible to avoid notification fatigue.
+    if (job?.status === "failed" && !isAddWorkoutVisible) {
+      setIsImportRunningInBackground(false);
+      setJobId(null);
+      setLatestImportedRoutine(null);
+      handledImportedWorkoutId.current = null;
+    }
+  }, [
+    isAddWorkoutVisible,
+    isImportRunningInBackground,
+    job?.status,
+    jobId,
+    latestImportedRoutine,
+  ]);
+
   const resetImportFlow = useCallback(() => {
     setIsExtractSubmitting(false);
     setJobId(null);
     setSubmitError(null);
     setLatestImportedRoutine(null);
+    setIsImportRunningInBackground(false);
     handledImportedWorkoutId.current = null;
   }, []);
 
@@ -318,6 +374,64 @@ export default function App() {
     setIsShareDrivenIngest(false);
     resetImportFlow();
   }, [cancelPendingAddWorkoutCleanup, resetImportFlow]);
+
+  // Slow-import → "notify me" path. Closes the modal but keeps `jobId` /
+  // `latestImportedRoutine` alive so `useIngestionJob` keeps polling. The
+  // completion effect below fires the local notification when the job
+  // finishes while the modal is closed. `remember` persists the auto-notify
+  // preference so subsequent slow imports skip the inline opt-in card.
+  const handleSendImportToBackground = useCallback(
+    ({ remember }: { remember: boolean }) => {
+      cancelPendingAddWorkoutCleanup();
+      setIsImportRunningInBackground(true);
+      setIsAddWorkoutVisible(false);
+      setSharedIngestUrl(null);
+      setIsShareDrivenIngest(false);
+      if (remember) {
+        setAutoNotifyImports(true);
+        void setAutoNotifyImportsPreference(true);
+      }
+    },
+    [cancelPendingAddWorkoutCleanup],
+  );
+
+  // Re-opens the AddWorkoutModal when the user taps the "Workout's ready"
+  // local notification. The routine is already populated in
+  // `latestImportedRoutine`, so the modal lands directly on the preview card.
+  const handleReopenImportFromNotification = useCallback(() => {
+    cancelPendingAddWorkoutCleanup();
+    setIsImportRunningInBackground(false);
+    setIsAddWorkoutVisible(true);
+  }, [cancelPendingAddWorkoutCleanup]);
+
+  // Load the persisted auto-notify preference once on mount.
+  useEffect(() => {
+    let isMounted = true;
+    void getAutoNotifyImportsPreference().then((value) => {
+      if (isMounted) {
+        setAutoNotifyImports(value);
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // One-shot listener: when the user taps the import-ready notification, hop
+  // back into the AddWorkoutModal preview card. Other notification kinds
+  // (scheduled-workout reminders) just open the app and rely on the existing
+  // saved/scheduled flows so nothing else needs to fan out from here.
+  useEffect(() => {
+    const subscription = Notifications.addNotificationResponseReceivedListener(
+      (response) => {
+        const data = response.notification.request.content.data;
+        if (data && data.kind === INGESTION_READY_NOTIFICATION_KIND) {
+          handleReopenImportFromNotification();
+        }
+      },
+    );
+    return () => subscription.remove();
+  }, [handleReopenImportFromNotification]);
 
   useEffect(
     () => () => {
@@ -1860,6 +1974,7 @@ export default function App() {
       </View>
 
       <AddWorkoutModal
+        autoNotifyImports={autoNotifyImports}
         autoSubmit={isShareDrivenIngest}
         error={importError}
         initialUrl={sharedIngestUrl}
@@ -1868,6 +1983,7 @@ export default function App() {
         isSubmitting={isExtractSubmitting}
         job={job}
         onClose={handleCloseAddWorkout}
+        onContinueInBackground={handleSendImportToBackground}
         onCreateManual={handleCreateManualWorkout}
         onSaveImported={handleSaveImportedWorkout}
         onScheduleImported={handleScheduleImportedWorkout}

@@ -27,6 +27,14 @@ interface AddWorkoutModalProps {
   error: string | null;
   initialUrl?: string | null;
   autoSubmit?: boolean;
+  // When the user opts to "be notified when this is ready", we close the
+  // modal but keep the polling alive in the background. `remember=true` means
+  // the user checked "always notify me" so future slow imports skip the card
+  // and auto-promote.
+  onContinueInBackground?: (opts: { remember: boolean }) => void;
+  // True once the user has opted into auto-notify-on-slow-imports. Used to
+  // auto-promote at the threshold without showing the inline card.
+  autoNotifyImports?: boolean;
   onClose: () => void;
   onSubmit: (url: string) => void;
   onCreateManual: () => void;
@@ -35,6 +43,22 @@ interface AddWorkoutModalProps {
   onStartImported: () => void;
   themeMode?: ThemeMode;
 }
+
+// Wall-clock fallback: how long to wait before offering to keep building in
+// the background when the predictive signal is unavailable. Short enough
+// that users see it on genuinely slow imports (>=60s of pipeline work) but
+// long enough that fast (<15s) ones never see it.
+const SLOW_IMPORT_THRESHOLD_MS = 15_000;
+// Predictive threshold: any video whose source duration exceeds this is
+// expected to take >25s of total pipeline time (Whisper runs at ~1/4 real
+// time plus ~20s of fixed overhead for fetch/OCR/parse). When we know the
+// duration up front we surface the opt-in immediately, before the wall
+// clock reaches the fallback threshold.
+const PREDICTED_SLOW_DURATION_SEC = 30;
+// Statuses that justify the slow-import opt-in. Once the job moves to
+// `parsing` the work is almost done so prompting the user to leave is
+// counter-productive.
+const SLOW_IMPORT_STATUSES = new Set(["pending", "fetching", "transcribing"]);
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTH_LABELS = [
@@ -102,6 +126,8 @@ export function AddWorkoutModal({
   onSaveImported,
   onScheduleImported,
   onStartImported,
+  onContinueInBackground,
+  autoNotifyImports = false,
   initialUrl = null,
   autoSubmit = false,
   themeMode = "light",
@@ -109,6 +135,18 @@ export function AddWorkoutModal({
   const [url, setUrl] = useState("");
   const [isPickingDate, setIsPickingDate] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  // Slow-import opt-in card state. `compileStartedAt` flips on when the
+  // first compiling render happens; the timer flips `slowImport` true after
+  // the threshold. `slowImportDismissed` hides the card if the user picked
+  // "Keep waiting" so it doesn't keep flapping back. `rememberAutoNotify`
+  // backs the "Always notify me" checkbox.
+  const [compileStartedAt, setCompileStartedAt] = useState<number | null>(null);
+  const [slowImportElapsed, setSlowImportElapsed] = useState(false);
+  const [slowImportDismissed, setSlowImportDismissed] = useState(false);
+  const [rememberAutoNotify, setRememberAutoNotify] = useState(false);
+  // Make sure we only auto-promote a single time per import — otherwise the
+  // effect could fire twice if React re-renders before the parent closes us.
+  const autoPromotedRef = useRef(false);
   const autoSubmittedRef = useRef<string | null>(null);
   const wasVisibleRef = useRef(visible);
   const theme = getTheme(themeMode);
@@ -159,6 +197,83 @@ export function AddWorkoutModal({
   // a focused "compiling" view instead. As soon as the parsed workout comes
   // back (`hasImportedWorkout` flips true) we transition to the preview card.
   const isCompiling = !hasImportedWorkout && (isSubmitting || isPolling);
+
+  // Track when this compile started so we can flip `slowImportElapsed` after
+  // the threshold. Reset whenever we leave the compiling state so a future
+  // import gets a fresh clock.
+  useEffect(() => {
+    if (isCompiling) {
+      if (compileStartedAt === null) {
+        setCompileStartedAt(Date.now());
+      }
+    } else if (compileStartedAt !== null) {
+      setCompileStartedAt(null);
+      setSlowImportElapsed(false);
+      setSlowImportDismissed(false);
+      setRememberAutoNotify(false);
+      autoPromotedRef.current = false;
+    }
+  }, [compileStartedAt, isCompiling]);
+
+  useEffect(() => {
+    if (!isCompiling || compileStartedAt === null || slowImportElapsed) {
+      return;
+    }
+    const remaining = Math.max(
+      0,
+      SLOW_IMPORT_THRESHOLD_MS - (Date.now() - compileStartedAt),
+    );
+    const timeout = setTimeout(() => setSlowImportElapsed(true), remaining);
+    return () => clearTimeout(timeout);
+  }, [compileStartedAt, isCompiling, slowImportElapsed]);
+
+  // Predictive signal: once the fetch phase resolves the backend exposes
+  // the source video duration, which lets us surface the opt-in *before* the
+  // 15s wall clock would have caught it. When duration is missing (older
+  // jobs, provider hiccup) we fall back to the timer below.
+  const predictedSlow =
+    job?.video_duration_sec != null &&
+    job.video_duration_sec > PREDICTED_SLOW_DURATION_SEC;
+
+  // Whether the inline opt-in card *would* show right now (modulo the user
+  // having opted into auto-promote). Centralised so the auto-promote effect
+  // and the renderer agree on the same gate. Triggered by either the
+  // predictive duration signal OR the elapsed-time fallback.
+  const shouldOfferBackground =
+    isCompiling &&
+    (predictedSlow || slowImportElapsed) &&
+    SLOW_IMPORT_STATUSES.has(job?.status ?? "pending") &&
+    onContinueInBackground != null;
+
+  // If the user previously opted into auto-notify, skip the card entirely
+  // and silently promote this import to background mode the moment it
+  // crosses the threshold.
+  useEffect(() => {
+    if (
+      shouldOfferBackground &&
+      autoNotifyImports &&
+      !autoPromotedRef.current &&
+      onContinueInBackground
+    ) {
+      autoPromotedRef.current = true;
+      onContinueInBackground({ remember: true });
+    }
+  }, [autoNotifyImports, onContinueInBackground, shouldOfferBackground]);
+
+  const showSlowImportCard =
+    shouldOfferBackground && !autoNotifyImports && !slowImportDismissed;
+
+  const handleNotifyMe = () => {
+    if (!onContinueInBackground || autoPromotedRef.current) {
+      return;
+    }
+    autoPromotedRef.current = true;
+    onContinueInBackground({ remember: rememberAutoNotify });
+  };
+
+  const handleKeepWaiting = () => {
+    setSlowImportDismissed(true);
+  };
   const creatorHandle = useMemo(
     () => getCreatorHandle(routine?.sourceUrl ?? null),
     [routine?.sourceUrl],
@@ -248,6 +363,67 @@ export function AddWorkoutModal({
                     />
                   </View>
                 </View>
+                {showSlowImportCard ? (
+                  <View style={styles.slowImportCard}>
+                    <Text style={styles.slowImportTitle}>
+                      {predictedSlow && job?.video_duration_sec != null
+                        ? `This is a ${Math.round(job.video_duration_sec)}-second video.`
+                        : "This one\u2019s taking a minute."}
+                    </Text>
+                    <Text style={styles.slowImportBody}>
+                      {predictedSlow
+                        ? "Transcribing will take about a minute. Keep scrolling — we\u2019ll notify you when it\u2019s built."
+                        : "Long reels need 60–90s to transcribe. Keep scrolling — we\u2019ll notify you when it\u2019s built."}
+                    </Text>
+                    <Pressable
+                      onPress={() => setRememberAutoNotify((prev) => !prev)}
+                      style={styles.slowImportCheckRow}
+                      hitSlop={8}
+                    >
+                      <View
+                        style={[
+                          styles.slowImportCheckbox,
+                          rememberAutoNotify && styles.slowImportCheckboxOn,
+                        ]}
+                      >
+                        {rememberAutoNotify ? (
+                          <Ionicons
+                            color={theme.colors.surface}
+                            name="checkmark"
+                            size={14}
+                          />
+                        ) : null}
+                      </View>
+                      <Text style={styles.slowImportCheckLabel}>
+                        Always notify me — don&apos;t ask again
+                      </Text>
+                    </Pressable>
+                    <View style={styles.slowImportActions}>
+                      <Pressable
+                        onPress={handleKeepWaiting}
+                        style={({ pressed }) => [
+                          styles.slowImportSecondary,
+                          pressed && styles.slowImportSecondaryPressed,
+                        ]}
+                      >
+                        <Text style={styles.slowImportSecondaryText}>
+                          Keep waiting
+                        </Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={handleNotifyMe}
+                        style={({ pressed }) => [
+                          styles.slowImportPrimary,
+                          pressed && styles.slowImportPrimaryPressed,
+                        ]}
+                      >
+                        <Text style={styles.slowImportPrimaryText}>
+                          Notify me
+                        </Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                ) : null}
               </View>
             ) : !hasImportedWorkout ? (
               <>
@@ -675,6 +851,96 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       width: "100%",
       gap: 10,
       marginTop: 8,
+    },
+    slowImportCard: {
+      width: "100%",
+      marginTop: 16,
+      borderRadius: 18,
+      backgroundColor: theme.colors.surfaceMuted,
+      borderWidth: 1,
+      borderColor: theme.colors.borderSoft,
+      padding: 16,
+      gap: 10,
+    },
+    slowImportTitle: {
+      color: theme.colors.textPrimary,
+      fontSize: 16,
+      fontFamily: "Satoshi-Bold",
+      fontWeight: "800",
+      letterSpacing: -0.2,
+    },
+    slowImportBody: {
+      color: theme.colors.textSecondary,
+      fontSize: 14,
+      lineHeight: 20,
+    },
+    slowImportCheckRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      paddingVertical: 4,
+    },
+    slowImportCheckbox: {
+      width: 20,
+      height: 20,
+      borderRadius: 6,
+      borderWidth: 1.5,
+      borderColor: theme.colors.border,
+      backgroundColor: "transparent",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    slowImportCheckboxOn: {
+      backgroundColor: theme.colors.primary,
+      borderColor: theme.colors.primary,
+    },
+    slowImportCheckLabel: {
+      flex: 1,
+      color: theme.colors.textPrimary,
+      fontSize: 13,
+      fontFamily: "Satoshi-Medium",
+      fontWeight: "500",
+    },
+    slowImportActions: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      marginTop: 4,
+    },
+    slowImportSecondary: {
+      flex: 1,
+      minHeight: 44,
+      borderRadius: 999,
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+    },
+    slowImportSecondaryPressed: {
+      opacity: 0.7,
+    },
+    slowImportSecondaryText: {
+      color: theme.colors.textPrimary,
+      fontSize: 14,
+      fontFamily: "Satoshi-Bold",
+      fontWeight: "700",
+    },
+    slowImportPrimary: {
+      flex: 1,
+      minHeight: 44,
+      borderRadius: 999,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.colors.primary,
+    },
+    slowImportPrimaryPressed: {
+      opacity: 0.85,
+    },
+    slowImportPrimaryText: {
+      color: theme.colors.surface,
+      fontSize: 14,
+      fontFamily: "Satoshi-Bold",
+      fontWeight: "800",
     },
     statusCard: {
       marginTop: 18,

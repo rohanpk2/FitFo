@@ -1,4 +1,5 @@
 import json
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -9,14 +10,91 @@ from app.services import supabase_db, workout_parser
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
 
+def _coerce_duration(value: Any) -> float | None:
+    """Best-effort numeric coercion. Both TikWM and Apify sometimes ship
+    duration as a stringified number, so we accept either as long as the
+    value parses to a positive finite float."""
+    if isinstance(value, bool):
+        # bool is a subclass of int in Python; reject it explicitly so a
+        # `True` payload doesn't masquerade as a 1-second video.
+        return None
+    if isinstance(value, (int, float)):
+        try:
+            number = float(value)
+        except (TypeError, ValueError):
+            return None
+        return number if number > 0 else None
+    if isinstance(value, str):
+        stripped = value.strip()
+        if not stripped:
+            return None
+        try:
+            number = float(stripped)
+        except ValueError:
+            return None
+        return number if number > 0 else None
+    return None
+
+
+def _extract_video_duration_sec(provider_meta: Any) -> float | None:
+    """Pull a video duration (seconds) out of the provider-specific metadata
+    blob written by the ingestion pipeline. Returns None when the field is
+    missing, malformed, or the metadata isn't a dict yet (e.g. job is still
+    in `pending` before fetch resolves).
+
+    TikTok branch (TikWM) stores everything under ``provider_meta.tikwm``,
+    typically with ``data.duration`` in seconds. Apify Instagram dumps the
+    raw dataset item under ``provider_meta.apify``; the duration field name
+    varies by actor version, so we probe a handful of candidate keys.
+    """
+    if not isinstance(provider_meta, dict):
+        return None
+
+    # TikTok / TikWM
+    tikwm = provider_meta.get("tikwm")
+    if isinstance(tikwm, dict):
+        data = tikwm.get("data")
+        if isinstance(data, dict):
+            duration = _coerce_duration(data.get("duration"))
+            if duration is not None:
+                return duration
+
+    # Apify Instagram Reel scraper
+    apify = provider_meta.get("apify")
+    if isinstance(apify, dict):
+        for key in ("videoDuration", "duration", "video_duration"):
+            duration = _coerce_duration(apify.get(key))
+            if duration is not None:
+                return duration
+        video = apify.get("video")
+        if isinstance(video, dict):
+            for key in ("duration", "videoDuration"):
+                duration = _coerce_duration(video.get(key))
+                if duration is not None:
+                    return duration
+
+    return None
+
+
+def _augment_job_payload(row: dict) -> dict:
+    """Add derived fields (video_duration_sec, etc.) to the raw job row so
+    clients can use them without having to dig through `provider_meta`."""
+    if not isinstance(row, dict):
+        return row
+    duration = _extract_video_duration_sec(row.get("provider_meta"))
+    return {**row, "video_duration_sec": duration}
+
+
 @router.get("/{job_id}")
 def get_job(job_id: str, profile_id: str = Depends(require_profile_id)) -> dict:
     try:
-        return supabase_db.get_ingestion_job(job_id, user_id=profile_id)
+        row = supabase_db.get_ingestion_job(job_id, user_id=profile_id)
     except supabase_db.SupabaseNotConfiguredError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    return _augment_job_payload(row)
 
 
 @router.get("/{job_id}/workout")

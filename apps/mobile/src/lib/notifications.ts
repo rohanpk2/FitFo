@@ -9,6 +9,10 @@ import type { ScheduledWorkoutRecord } from "../types";
 // cancel local notifications when the user unschedules without keeping a DB column.
 const NOTIFICATION_MAP_STORAGE_KEY = "@fitfo:scheduled-workout-notification-map";
 
+// Persists the user's "always notify me when an import is taking long" choice
+// so we can auto-promote slow imports to background mode without re-asking.
+const AUTO_NOTIFY_IMPORTS_STORAGE_KEY = "@fitfo:auto-notify-imports";
+
 // Scheduled workouts currently store a date only. Until users can choose an
 // exact workout time, use stable local reminder times around that date.
 const DAY_BEFORE_REMINDER_HOUR_24H = 19;
@@ -58,8 +62,8 @@ let explainerShownThisSession = false;
 function askUserBeforeSystemPrompt(): Promise<boolean> {
   return new Promise<boolean>((resolve) => {
     Alert.alert(
-      "Turn on workout reminders?",
-      "Fitfo sends local reminders the day before and the morning of each workout you schedule. No marketing, no ads. You can turn them off anytime in iOS Settings.",
+      "Turn on Fitfo alerts?",
+      "Fitfo sends two kinds of local alerts: reminders the day before and morning of each workout you schedule, and a quick ping when an imported workout finishes building so you can keep scrolling while it processes. No marketing, no ads. You can turn them off anytime in iOS Settings.",
       [
         {
           text: "Not now",
@@ -418,3 +422,73 @@ Notifications.setNotificationHandler({
     shouldShowList: true,
   }),
 });
+
+// ─── Import-ready notifications ────────────────────────────────────────────
+// Fired when a long-running ingestion job finishes while the user is no
+// longer staring at the AddWorkoutModal. Reuses the same permission flow as
+// scheduled-workout reminders.
+
+export const INGESTION_READY_NOTIFICATION_KIND = "ingestion-ready";
+
+export interface NotifyWorkoutReadyArgs {
+  title: string;
+  creatorHandle: string | null;
+  jobId: string;
+}
+
+export async function notifyWorkoutReady(
+  args: NotifyWorkoutReadyArgs,
+): Promise<string | null> {
+  const granted = await requestNotificationPermission();
+  if (!granted) {
+    return null;
+  }
+
+  const cleanTitle = args.title.trim() || "Your workout";
+  const body = args.creatorHandle
+    ? `${args.creatorHandle}'s ${cleanTitle} is built. Tap to schedule or save it.`
+    : `${cleanTitle} is built. Tap to schedule or save it.`;
+
+  try {
+    return await Notifications.scheduleNotificationAsync({
+      content: {
+        title: "Your workout's ready.",
+        body,
+        sound: "default",
+        data: { kind: INGESTION_READY_NOTIFICATION_KIND, jobId: args.jobId },
+      },
+      // Fire immediately — `null` trigger on expo-notifications schedules now.
+      trigger: null,
+    });
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Reads the user's "always notify me when an import is slow" preference.
+ * Returns false on miss / parse error so the first long import still shows
+ * the opt-in card.
+ */
+export async function getAutoNotifyImportsPreference(): Promise<boolean> {
+  try {
+    const raw = await AsyncStorage.getItem(AUTO_NOTIFY_IMPORTS_STORAGE_KEY);
+    return raw === "true";
+  } catch {
+    return false;
+  }
+}
+
+export async function setAutoNotifyImportsPreference(
+  value: boolean,
+): Promise<void> {
+  try {
+    if (value) {
+      await AsyncStorage.setItem(AUTO_NOTIFY_IMPORTS_STORAGE_KEY, "true");
+    } else {
+      await AsyncStorage.removeItem(AUTO_NOTIFY_IMPORTS_STORAGE_KEY);
+    }
+  } catch {
+    // Best-effort — failing to persist just means we'll re-ask next time.
+  }
+}
