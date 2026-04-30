@@ -61,7 +61,6 @@ export function LoginScreen({
             resizeMode="contain"
           />
           <View style={styles.textContent}>
-            <Text style={styles.eyebrow}>Figure it the f*ck out</Text>
             <Text
               style={styles.title}
               numberOfLines={2}
