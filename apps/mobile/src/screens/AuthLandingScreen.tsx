@@ -265,7 +265,7 @@ export function AuthLandingScreen({
                 <View style={F1.card}>
                   <PreviewRibbon />
                   <Text style={F1.cardTitle}>Import Workout</Text>
-                  <Text style={F1.cardSub}>Paste a link and let Fitfo do the rest.</Text>
+                  <Text style={F1.cardSub}>Share any TikTok or Reel to our app.</Text>
                   <View style={F1.cardInput}>
                     <Ionicons color="#666" name="link-outline" size={15} />
                     <Text style={F1.cardInputText}>tiktok.com/@creator/legday...</Text>
@@ -280,7 +280,7 @@ export function AuthLandingScreen({
             body={
               <>
                 <Text style={S.fTitle}>Import{"\n"}Any{"\n"}<Text style={S.fAccent}>Workout.</Text></Text>
-                <Text style={S.fDesc}>Paste a TikTok or Instagram link. Fitfo pulls out every exercise, set, and rep, no typing required.</Text>
+                <Text style={S.fDesc}>Share any TikTok or Reel to our app, just like you were sending it to a friend.</Text>
                 <View style={S.pillRow}>
                   <Pill label="TikTok videos"   />
                   <Pill label="Instagram Reels" />
