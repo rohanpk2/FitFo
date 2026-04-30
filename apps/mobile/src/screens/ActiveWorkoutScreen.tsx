@@ -1295,6 +1295,11 @@ export function ActiveWorkoutScreen({
           accessibilityLabel="Open coach chat"
           accessibilityRole="button"
         >
+          <Image
+            resizeMode="contain"
+            source={require("../../assets/coach.png")}
+            style={styles.coachButtonIcon}
+          />
           <Text style={styles.coachButtonText}>Coach</Text>
         </Pressable>
       </View>
@@ -1587,8 +1592,9 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
       flexDirection: "row",
       alignItems: "center",
       gap: 6,
-      paddingHorizontal: 12,
-      paddingVertical: 8,
+      paddingLeft: 6,
+      paddingRight: 14,
+      paddingVertical: 6,
       borderRadius: 999,
       backgroundColor: theme.colors.primary,
       shadowColor: theme.colors.primary,
@@ -1600,6 +1606,11 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
     coachButtonPressed: {
       opacity: 0.85,
       transform: [{ scale: 0.97 }],
+    },
+    coachButtonIcon: {
+      width: 26,
+      height: 26,
+      tintColor: "#FFFFFF",
     },
     coachButtonText: {
       color: "#FFFFFF",

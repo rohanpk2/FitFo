@@ -1,7 +1,6 @@
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
-import { LinearGradient } from "expo-linear-gradient";
 
 import { getTheme, type ThemeMode } from "../theme";
 import type { AppTab } from "../types";
@@ -19,8 +18,18 @@ const tabs: Array<{
   icon: keyof typeof Ionicons.glyphMap;
   activeIcon: keyof typeof Ionicons.glyphMap;
 }> = [
-  { key: "saved", label: "Workouts", icon: "barbell-outline", activeIcon: "barbell" },
-  { key: "logs", label: "Logs", icon: "bar-chart-outline", activeIcon: "bar-chart" },
+  {
+    key: "saved",
+    label: "Workouts",
+    icon: "barbell-outline",
+    activeIcon: "barbell",
+  },
+  {
+    key: "logs",
+    label: "Logs",
+    icon: "bar-chart-outline",
+    activeIcon: "bar-chart",
+  },
 ];
 
 export function BottomNav({
@@ -32,6 +41,13 @@ export function BottomNav({
   const theme = getTheme(themeMode);
   const styles = createStyles(theme);
   const isDark = theme.mode === "dark";
+
+  const inactiveColor = isDark
+    ? "rgba(255, 255, 255, 0.55)"
+    : "rgba(20, 25, 45, 0.55)";
+  const activeLabelColor = isDark
+    ? "#FFFFFF"
+    : theme.colors.textPrimary;
 
   const renderTab = (tab: (typeof tabs)[number]) => {
     const isActive = tab.key === activeTab;
@@ -52,20 +68,15 @@ export function BottomNav({
           ]}
         >
           <Ionicons
-            color={
-              isActive
-                ? "#FFFFFF"
-                : isDark
-                  ? "rgba(255, 255, 255, 0.55)"
-                  : "rgba(255, 255, 255, 0.65)"
-            }
+            color={isActive ? "#FFFFFF" : inactiveColor}
             name={isActive ? tab.activeIcon : tab.icon}
-            size={19}
+            size={17}
           />
         </View>
         <Text
           style={[
             styles.label,
+            { color: isActive ? activeLabelColor : inactiveColor },
             isActive ? styles.labelActive : null,
           ]}
           numberOfLines={1}
@@ -76,24 +87,14 @@ export function BottomNav({
     );
   };
 
-  const gradientColors = isDark
-    ? (["#3A3A3A", "#2C2C2C"] as const)
-    : (["#1B2E6E", "#142055"] as const);
-
   return (
     <View style={styles.shell} pointerEvents="box-none">
       <BlurView
-        intensity={Platform.OS === "ios" ? 50 : 80}
+        intensity={Platform.OS === "ios" ? 70 : 90}
         tint={isDark ? "dark" : "light"}
         style={styles.blurContainer}
       >
-        <LinearGradient
-          colors={gradientColors}
-          start={{ x: 0.5, y: 0 }}
-          end={{ x: 0.5, y: 1 }}
-          style={StyleSheet.absoluteFill}
-          pointerEvents="none"
-        />
+        <View style={styles.glassTint} pointerEvents="none" />
         <View style={styles.row}>
           {renderTab(tabs[0])}
 
@@ -105,7 +106,7 @@ export function BottomNav({
             ]}
             hitSlop={6}
           >
-            <Ionicons color="#FFFFFF" name="add" size={30} />
+            <Ionicons color="#FFFFFF" name="add" size={24} />
           </Pressable>
 
           {renderTab(tabs[1])}
@@ -120,41 +121,47 @@ const createStyles = (theme: ReturnType<typeof getTheme>) => {
   return StyleSheet.create({
     shell: {
       position: "absolute",
-      left: 16,
-      right: 16,
+      left: 20,
+      right: 20,
       bottom: 18,
-      borderRadius: 32,
+      borderRadius: 999,
       overflow: "hidden",
       backgroundColor: "transparent",
       shadowColor: "#000000",
-      shadowOpacity: isDark ? 0.5 : 0.32,
-      shadowRadius: 24,
-      shadowOffset: { width: 0, height: 14 },
-      elevation: 14,
+      shadowOpacity: isDark ? 0.4 : 0.16,
+      shadowRadius: 22,
+      shadowOffset: { width: 0, height: 12 },
+      elevation: 12,
     },
     blurContainer: {
-      borderRadius: 32,
+      borderRadius: 999,
       overflow: "hidden",
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: isDark
-        ? "rgba(255, 255, 255, 0.06)"
-        : "rgba(255, 255, 255, 0.10)",
+        ? "rgba(255, 255, 255, 0.10)"
+        : "rgba(255, 255, 255, 0.55)",
+    },
+    glassTint: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: isDark
+        ? "rgba(16, 16, 16, 0.32)"
+        : "rgba(255, 255, 255, 0.28)",
     },
     row: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
       paddingHorizontal: 10,
-      paddingTop: 10,
-      paddingBottom: 12,
+      paddingTop: 8,
+      paddingBottom: 10,
     },
     item: {
       flex: 1,
       alignItems: "center",
       justifyContent: "center",
-      gap: 4,
+      gap: 3,
       borderRadius: 999,
-      paddingVertical: 6,
+      paddingVertical: 4,
       marginHorizontal: 2,
     },
     itemPressed: {
@@ -162,8 +169,8 @@ const createStyles = (theme: ReturnType<typeof getTheme>) => {
       transform: [{ scale: 0.97 }],
     },
     iconWrap: {
-      width: 40,
-      height: 40,
+      width: 36,
+      height: 36,
       borderRadius: 999,
       alignItems: "center",
       justifyContent: "center",
@@ -172,41 +179,37 @@ const createStyles = (theme: ReturnType<typeof getTheme>) => {
     iconWrapActive: {
       backgroundColor: theme.colors.primaryBright,
       shadowColor: theme.colors.primaryBright,
-      shadowOpacity: 0.7,
-      shadowRadius: 14,
-      shadowOffset: { width: 0, height: 6 },
-      elevation: 8,
+      shadowOpacity: 0.55,
+      shadowRadius: 10,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 6,
     },
     importButton: {
-      width: 58,
-      height: 58,
-      borderRadius: 29,
+      width: 50,
+      height: 50,
+      borderRadius: 25,
       alignItems: "center",
       justifyContent: "center",
       backgroundColor: theme.colors.primaryBright,
-      marginHorizontal: 10,
+      marginHorizontal: 8,
       shadowColor: theme.colors.primaryBright,
-      shadowOpacity: 0.75,
-      shadowRadius: 16,
-      shadowOffset: { width: 0, height: 8 },
-      elevation: 12,
+      shadowOpacity: 0.6,
+      shadowRadius: 12,
+      shadowOffset: { width: 0, height: 6 },
+      elevation: 10,
     },
     importButtonPressed: {
       opacity: 0.85,
       transform: [{ scale: 0.96 }],
     },
     label: {
-      color: isDark
-        ? "rgba(255, 255, 255, 0.55)"
-        : "rgba(255, 255, 255, 0.65)",
-      fontSize: 10,
+      fontSize: 9,
       fontFamily: "Satoshi-Bold",
       fontWeight: "700",
-      letterSpacing: 0.8,
+      letterSpacing: 0.7,
       textTransform: "uppercase",
     },
     labelActive: {
-      color: "#FFFFFF",
       fontFamily: "Satoshi-Bold",
       fontWeight: "800",
     },
