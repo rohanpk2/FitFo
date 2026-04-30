@@ -121,8 +121,8 @@ const createStyles = (theme: ReturnType<typeof getTheme>) => {
   return StyleSheet.create({
     shell: {
       position: "absolute",
-      left: 20,
-      right: 20,
+      left: 26,
+      right: 26,
       bottom: 18,
       borderRadius: 999,
       overflow: "hidden",
@@ -138,14 +138,14 @@ const createStyles = (theme: ReturnType<typeof getTheme>) => {
       overflow: "hidden",
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: isDark
-        ? "rgba(255, 255, 255, 0.10)"
-        : "rgba(255, 255, 255, 0.55)",
+        ? "rgba(255, 154, 102, 0.22)"
+        : "rgba(255, 144, 88, 0.45)",
     },
     glassTint: {
       ...StyleSheet.absoluteFillObject,
       backgroundColor: isDark
-        ? "rgba(16, 16, 16, 0.32)"
-        : "rgba(255, 255, 255, 0.28)",
+        ? "rgba(255, 122, 69, 0.14)"
+        : "rgba(255, 154, 102, 0.16)",
     },
     row: {
       flexDirection: "row",

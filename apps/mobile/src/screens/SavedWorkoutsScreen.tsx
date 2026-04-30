@@ -754,14 +754,14 @@ export function SavedWorkoutsScreen({
               onPress={onAddWorkout}
               style={({ pressed }) => [
                 styles.scheduledEmptyCta,
-                { borderColor: accent },
+                { backgroundColor: accent },
                 pressed ? styles.bentoPressed : null,
               ]}
               accessibilityRole="button"
               accessibilityLabel="Schedule a workout"
             >
-              <Ionicons color={accent} name="add-circle-outline" size={16} />
-              <Text style={[styles.scheduledEmptyCtaText, { color: accent }]}>
+              <Ionicons color="#FFFFFF" name="add" size={16} />
+              <Text style={styles.scheduledEmptyCtaText}>
                 Schedule a Workout
               </Text>
             </Pressable>
@@ -1249,16 +1249,17 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       justifyContent: "center",
     },
     scheduledEmptyCta: {
+      alignSelf: "center",
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "center",
-      gap: 8,
+      gap: 5,
       borderRadius: 999,
-      borderWidth: 1.5,
-      paddingVertical: 12,
-      backgroundColor: "transparent",
+      paddingVertical: 10,
+      paddingHorizontal: 16,
     },
     scheduledEmptyCtaText: {
+      color: "#FFFFFF",
       fontSize: 14,
       fontFamily: "Satoshi-Bold",
       fontWeight: "800",

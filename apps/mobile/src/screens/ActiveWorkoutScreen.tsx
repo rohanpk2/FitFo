@@ -369,8 +369,9 @@ function SetRow({
             <Text style={styles.inputLabel}>Time</Text>
             <TextInput
               keyboardType="number-pad"
-              onEndEditing={() => onMaybeComplete(exerciseId, set.id)}
-              onChangeText={(value) => onRepsChange(exerciseId, set.id, sanitizeReps(value))}
+              onChangeText={(value) =>
+                onRepsChange(exerciseId, set.id, sanitizeReps(value))
+              }
               placeholder="Secs"
               placeholderTextColor={theme.colors.textMuted}
               style={styles.input}
@@ -383,8 +384,9 @@ function SetRow({
               <Text style={styles.inputLabel}>Weight</Text>
               <TextInput
                 keyboardType="decimal-pad"
-                onEndEditing={() => onMaybeComplete(exerciseId, set.id)}
-                onChangeText={(value) => onWeightChange(exerciseId, set.id, sanitizeWeight(value))}
+                onChangeText={(value) =>
+                  onWeightChange(exerciseId, set.id, sanitizeWeight(value))
+                }
                 placeholder="0"
                 placeholderTextColor={theme.colors.textMuted}
                 style={styles.input}
@@ -396,8 +398,9 @@ function SetRow({
               <Text style={styles.inputLabel}>Reps</Text>
               <TextInput
                 keyboardType="number-pad"
-                onEndEditing={() => onMaybeComplete(exerciseId, set.id)}
-                onChangeText={(value) => onRepsChange(exerciseId, set.id, sanitizeReps(value))}
+                onChangeText={(value) =>
+                  onRepsChange(exerciseId, set.id, sanitizeReps(value))
+                }
                 placeholder="0"
                 placeholderTextColor={theme.colors.textMuted}
                 style={styles.input}
@@ -408,13 +411,51 @@ function SetRow({
         )}
       </View>
 
-      <Text style={styles.autoAdvanceText}>
-        {set.completed
-          ? "Adjust the numbers here any time and this set will stay saved."
-          : set.targetDurationSec != null
-          ? "Enter your completed seconds and the next interval will open."
-          : "Enter weight and reps, then the next set will open automatically."}
-      </Text>
+      {set.completed ? (
+        <Text style={styles.autoAdvanceText}>
+          Adjust the numbers here any time and this set will stay saved.
+        </Text>
+      ) : (
+        <Pressable
+          onPress={() => onMaybeComplete(exerciseId, set.id)}
+          disabled={!isSetReadyToComplete(set)}
+          style={({ pressed }) => [
+            styles.confirmSetButton,
+            !isSetReadyToComplete(set)
+              ? styles.confirmSetButtonDisabled
+              : null,
+            pressed && isSetReadyToComplete(set)
+              ? styles.confirmSetButtonPressed
+              : null,
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel={`Confirm ${set.label}`}
+        >
+          <Ionicons
+            color={
+              isSetReadyToComplete(set)
+                ? "#FFFFFF"
+                : theme.colors.textMuted
+            }
+            name="checkmark"
+            size={16}
+          />
+          <Text
+            style={[
+              styles.confirmSetButtonText,
+              !isSetReadyToComplete(set)
+                ? styles.confirmSetButtonTextDisabled
+                : null,
+            ]}
+          >
+            {isSetReadyToComplete(set)
+              ? "Confirm Set"
+              : set.targetDurationSec != null
+                ? "Enter time to confirm"
+                : "Enter weight & reps to confirm"}
+          </Text>
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -892,85 +933,18 @@ export function ActiveWorkoutScreen({
     setId: string,
     updater: (set: ActiveSetPreview) => ActiveSetPreview,
   ) => {
-    let nextExpandedExerciseId: string | null | undefined;
-    let nextRestCountdownSeconds: number | null | undefined;
-    let nextSelectedSet: SelectedSetState | null | undefined;
-
-    setExercises((current) => {
-      const exerciseIndex = current.findIndex((exercise) => exercise.id === exerciseId);
-      const matchingExercise =
-        exerciseIndex >= 0 ? current[exerciseIndex] : undefined;
-      if (!matchingExercise) {
-        return current;
-      }
-
-      const activeSetId =
-        selectedSet?.exerciseId === exerciseId &&
-        matchingExercise.sets.some((set) => set.id === selectedSet.setId)
-          ? selectedSet.setId
-          : matchingExercise.sets.find((set) => !set.completed)?.id ??
-            matchingExercise.sets[0]?.id ??
-            null;
-      let setWasCompleted = false;
-
-      const nextSets = matchingExercise.sets.map((set) => {
-        if (set.id !== setId) {
-          return set;
-        }
-
-        const updatedSet = updater(set);
-        if (
-          activeSetId === setId &&
-          !updatedSet.completed &&
-          isSetReadyToComplete(updatedSet)
-        ) {
-          setWasCompleted = true;
-          return { ...updatedSet, completed: true };
-        }
-
-        return updatedSet;
-      });
-
-      if (setWasCompleted) {
-        nextRestCountdownSeconds =
-          matchingExercise.restSeconds != null && matchingExercise.restSeconds > 0
-            ? matchingExercise.restSeconds
-            : null;
-
-        const nextIncompleteSet = nextSets.find((set) => !set.completed);
-        if (nextIncompleteSet) {
-          nextExpandedExerciseId = exerciseId;
-          nextSelectedSet = { exerciseId, setId: nextIncompleteSet.id };
-        } else {
-          nextExpandedExerciseId = current
-            .slice(exerciseIndex + 1)
-            .find((exercise) => exercise.sets.some((set) => !set.completed))
-            ?.id;
-          nextSelectedSet = null;
-        }
-      }
-
-      return current.map((exercise, index) =>
-        index !== exerciseIndex
+    setExercises((current) =>
+      current.map((exercise) =>
+        exercise.id !== exerciseId
           ? exercise
           : {
               ...exercise,
-              sets: nextSets,
+              sets: exercise.sets.map((set) =>
+                set.id === setId ? updater(set) : set,
+              ),
             },
-      );
-    });
-
-    if (nextRestCountdownSeconds !== undefined) {
-      setRestCountdownSeconds(nextRestCountdownSeconds);
-    }
-
-    if (nextExpandedExerciseId !== undefined) {
-      setExpandedExerciseId(nextExpandedExerciseId);
-    }
-
-    if (nextSelectedSet !== undefined) {
-      setSelectedSet(nextSelectedSet);
-    }
+      ),
+    );
   };
 
   const handleWeightChange = (exerciseId: string, setId: string, value: string) => {
@@ -1300,7 +1274,6 @@ export function ActiveWorkoutScreen({
             source={require("../../assets/coach.png")}
             style={styles.coachButtonIcon}
           />
-          <Text style={styles.coachButtonText}>Coach</Text>
         </Pressable>
       </View>
 
@@ -1591,8 +1564,8 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
     coachButton: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 6,
-      paddingLeft: 6,
+      gap: 0,
+      paddingLeft: 8,
       paddingRight: 14,
       paddingVertical: 6,
       borderRadius: 999,
@@ -1610,13 +1583,13 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
     coachButtonIcon: {
       width: 26,
       height: 26,
+      marginRight: -4,
       tintColor: "#FFFFFF",
     },
     coachButtonText: {
       color: "#FFFFFF",
       fontSize: 13,
       fontFamily: F.bold,
-      letterSpacing: -0.1,
     },
     brandLogo: {
       width: 72,
@@ -2194,6 +2167,32 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
       color: theme.colors.textMuted,
       fontSize: 12,
       lineHeight: 17,
+    },
+    confirmSetButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+      borderRadius: 999,
+      paddingVertical: 12,
+      backgroundColor: theme.colors.primary,
+    },
+    confirmSetButtonPressed: {
+      opacity: 0.85,
+      transform: [{ scale: 0.98 }],
+    },
+    confirmSetButtonDisabled: {
+      backgroundColor: theme.colors.surfaceMuted,
+    },
+    confirmSetButtonText: {
+      color: "#FFFFFF",
+      fontSize: 13,
+      fontFamily: "Satoshi-Bold",
+      fontWeight: "800",
+      letterSpacing: 0.2,
+    },
+    confirmSetButtonTextDisabled: {
+      color: theme.colors.textMuted,
     },
     editModeHint: {
       color: theme.colors.primary,

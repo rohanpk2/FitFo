@@ -446,6 +446,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     },
     activeWorkoutBody: {
       color: theme.colors.surface,
+      fontFamily: "satoshi",
       fontSize: 14,
       lineHeight: 21,
     },
