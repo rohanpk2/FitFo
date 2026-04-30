@@ -76,13 +76,83 @@ def _extract_video_duration_sec(provider_meta: Any) -> float | None:
     return None
 
 
+def _first_http_url(*candidates: Any) -> str | None:
+    """Return the first candidate that is a non-empty http(s) URL."""
+    for value in candidates:
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped.startswith("http"):
+                return stripped
+    return None
+
+
+def _extract_thumbnail_url(provider_meta: Any) -> str | None:
+    """Pull a video thumbnail (cover) URL out of the provider-specific
+    metadata. Returns None when the metadata is missing or no usable image
+    URL is present.
+
+    TikTok / TikWM exposes covers under ``data.cover`` with ``origin_cover``,
+    ``dynamic_cover``, and ``ai_dynamic_cover`` as fallbacks. The static
+    ``cover`` is the most stable JPEG; the dynamic variants are short
+    animated webp clips that we accept as a last resort.
+
+    Apify's Instagram reel scraper exposes ``displayUrl`` as the canonical
+    thumbnail; older actor versions sometimes put it under ``thumbnailUrl``
+    or nest it under ``image``.
+
+    Note: provider CDN URLs are signed and can rotate after a few hours,
+    which is fine for the import preview but means callers shouldn't rely
+    on these URLs for long-term display without re-hosting.
+    """
+    if not isinstance(provider_meta, dict):
+        return None
+
+    # TikTok / TikWM
+    tikwm = provider_meta.get("tikwm")
+    if isinstance(tikwm, dict):
+        data = tikwm.get("data")
+        if isinstance(data, dict):
+            url = _first_http_url(
+                data.get("cover"),
+                data.get("origin_cover"),
+                data.get("dynamic_cover"),
+                data.get("ai_dynamic_cover"),
+            )
+            if url is not None:
+                return url
+
+    # Apify Instagram Reel scraper
+    apify = provider_meta.get("apify")
+    if isinstance(apify, dict):
+        url = _first_http_url(
+            apify.get("displayUrl"),
+            apify.get("thumbnailUrl"),
+            apify.get("thumbnail_url"),
+            apify.get("thumbnailSrc"),
+        )
+        if url is not None:
+            return url
+        image = apify.get("image")
+        if isinstance(image, dict):
+            url = _first_http_url(image.get("url"), image.get("src"))
+            if url is not None:
+                return url
+
+    return None
+
+
 def _augment_job_payload(row: dict) -> dict:
-    """Add derived fields (video_duration_sec, etc.) to the raw job row so
-    clients can use them without having to dig through `provider_meta`."""
+    """Add derived fields (video_duration_sec, thumbnail_url, etc.) to the
+    raw job row so clients can use them without having to dig through
+    `provider_meta`."""
     if not isinstance(row, dict):
         return row
-    duration = _extract_video_duration_sec(row.get("provider_meta"))
-    return {**row, "video_duration_sec": duration}
+    provider_meta = row.get("provider_meta")
+    return {
+        **row,
+        "video_duration_sec": _extract_video_duration_sec(provider_meta),
+        "thumbnail_url": _extract_thumbnail_url(provider_meta),
+    }
 
 
 @router.get("/{job_id}")

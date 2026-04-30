@@ -33,6 +33,12 @@ export interface JobResponse {
   // didn't include duration in its payload. Surfaced by the backend so
   // clients don't have to dig through provider-specific shapes.
   video_duration_sec: number | null;
+  // Best-effort thumbnail (cover) URL from the source platform — TikWM
+  // `data.cover` for TikTok or Apify `displayUrl` for Instagram. Available
+  // as soon as the fetch phase resolves; null when the provider doesn't
+  // ship a cover. CDN URLs are signed and rotate after a few hours, so
+  // treat this as a short-lived preview asset, not a long-term reference.
+  thumbnail_url: string | null;
   created_at: string;
   updated_at: string;
 }

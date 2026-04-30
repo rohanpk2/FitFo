@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Image,
   Modal,
   Pressable,
   ScrollView,
@@ -497,6 +498,16 @@ export function AddWorkoutModal({
 
             {hasImportedWorkout ? (
               <View style={styles.previewCard}>
+                {job?.thumbnail_url ? (
+                  <View style={styles.previewThumbnailWrap}>
+                    <Image
+                      accessibilityIgnoresInvertColors
+                      source={{ uri: job.thumbnail_url }}
+                      style={styles.previewThumbnail}
+                      resizeMode="cover"
+                    />
+                  </View>
+                ) : null}
                 <View style={styles.previewHeader}>
                   <Text style={styles.previewEyebrow}>AI-Parsed</Text>
                 </View>
@@ -1009,6 +1020,25 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       backgroundColor: theme.colors.surfaceMuted,
       padding: 16,
       gap: 8,
+    },
+    // Wrap the thumbnail in its own clipped container so we can keep the
+    // outer card's padding while the image bleeds to the rounded edge.
+    // Negative margins on the wrap pull it flush to the card's inner walls
+    // and the explicit aspect ratio keeps portrait reels from squishing
+    // landscape thumbnails.
+    previewThumbnailWrap: {
+      marginTop: -4,
+      marginHorizontal: -4,
+      marginBottom: 4,
+      borderRadius: 18,
+      overflow: "hidden",
+      backgroundColor: theme.colors.surface,
+      aspectRatio: 16 / 9,
+      maxHeight: 220,
+    },
+    previewThumbnail: {
+      width: "100%",
+      height: "100%",
     },
     previewHeader: {
       flexDirection: "row",
