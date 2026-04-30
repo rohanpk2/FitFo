@@ -1,9 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   LayoutAnimation,
   type LayoutChangeEvent,
-  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -12,24 +10,32 @@ import {
   UIManager,
   View,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 
-import { getCreatorHandle } from "../lib/fitfo";
 import {
-  MUSCLE_GROUPS,
-  MUSCLE_GROUP_LABELS,
-  getMuscleGroupsForPlan,
-} from "../lib/muscleGroups";
+  BRAND_ORANGE,
+  FeedbackCard,
+  WorkoutCard,
+  getBrandAccent,
+} from "../components/WorkoutCard";
+import {
+  getLastHitRoutinePreview,
+  getStreakDays,
+  getThisWeekStats,
+} from "../lib/stats";
 import { getTheme, type ThemeMode } from "../theme";
-import type { MuscleGroup, SavedRoutinePreview } from "../types";
+import type {
+  CompletedWorkoutRecord,
+  SavedRoutinePreview,
+} from "../types";
 
 interface SavedWorkoutsScreenProps {
-  error: string | null;
+  completedWorkouts: CompletedWorkoutRecord[];
   importedWorkouts: SavedRoutinePreview[];
-  isLoading: boolean;
   isScheduleLoading: boolean;
   onAddWorkout: () => void;
   onOpenProfile: () => void;
+  onOpenSavedList: () => void;
   onOpenWorkout: (routine: SavedRoutinePreview) => void;
   onRemoveWorkout: (savedWorkoutId: string) => void;
   onRetry: () => void;
@@ -64,8 +70,9 @@ function toIsoDate(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-const CALENDAR_PAGE_SIZE = 4;
+const CALENDAR_PAGE_SIZE = 5;
 const INITIAL_CALENDAR_START_OFFSET = -1;
+const UPCOMING_PREVIEW_LIMIT = 4;
 
 function addDays(date: Date, offset: number): Date {
   const next = new Date(date);
@@ -91,254 +98,244 @@ function formatReadableDate(date: Date): string {
   return `${DAY_LABELS[reference.getDay()]}, ${MONTH_LABELS[reference.getMonth()]} ${reference.getDate()}`;
 }
 
-type MuscleGroupFilter = "all" | MuscleGroup;
-
-function formatMuscleGroupLabel(group: MuscleGroupFilter): string {
-  if (group === "all") {
-    return "All";
-  }
-  return MUSCLE_GROUP_LABELS[group];
-}
-
-function FeedbackCard({
-  actionLabel,
-  body,
-  icon,
-  isLoading = false,
-  onAction,
-  theme,
-  title,
-}: {
-  actionLabel?: string;
-  body: string;
-  icon?: keyof typeof Ionicons.glyphMap;
-  isLoading?: boolean;
-  onAction?: () => void;
-  theme: ReturnType<typeof getTheme>;
-  title: string;
-}) {
-  const styles = createStyles(theme);
-
-  return (
-    <View style={styles.feedbackCard}>
-      {isLoading ? (
-        <ActivityIndicator color={theme.colors.primary} size="small" />
-      ) : icon ? (
-        <Ionicons color={theme.colors.primary} name={icon} size={20} />
-      ) : null}
-      <Text style={styles.feedbackTitle}>{title}</Text>
-      <Text style={styles.feedbackBody}>{body}</Text>
-      {actionLabel && onAction ? (
-        <Pressable onPress={onAction} style={styles.retryButton}>
-          <Text style={styles.retryButtonText}>{actionLabel}</Text>
-        </Pressable>
-      ) : null}
-    </View>
-  );
-}
-
-function getSourcePlatform(
-  sourceUrl: string | null | undefined,
-): "tiktok" | "instagram" | "other" | null {
-  if (!sourceUrl) {
-    return null;
-  }
-  try {
-    const host = new URL(sourceUrl).host.toLowerCase();
-    if (host.includes("tiktok.com")) {
-      return "tiktok";
-    }
-    if (host.includes("instagram.com")) {
-      return "instagram";
-    }
-    return "other";
-  } catch {
-    return null;
-  }
-}
-
-function getSourceIconName(
-  platform: ReturnType<typeof getSourcePlatform>,
-): keyof typeof Ionicons.glyphMap {
-  if (platform === "tiktok") {
-    return "logo-tiktok";
-  }
-  if (platform === "instagram") {
-    return "logo-instagram";
-  }
-  return "link-outline";
-}
-
-function getSourceLabel(
-  platform: ReturnType<typeof getSourcePlatform>,
-): string {
-  if (platform === "tiktok") {
-    return "View on TikTok";
-  }
-  if (platform === "instagram") {
-    return "View on Instagram";
-  }
-  return "Open source";
-}
-
-function WorkoutCard({
-  accent,
-  onOpen,
-  onRemove,
-  onSchedule,
-  onStart,
-  removeLabel = "Unsave",
-  routine,
+function SavedLibraryBento({
+  onPress,
   theme,
 }: {
-  accent: "saved" | "scheduled";
-  onOpen: () => void;
-  onRemove?: () => void;
-  onSchedule?: () => void;
-  onStart: () => void;
-  removeLabel?: string;
-  routine: SavedRoutinePreview;
+  onPress: () => void;
   theme: ReturnType<typeof getTheme>;
 }) {
   const styles = createStyles(theme);
-  const isScheduled = accent === "scheduled";
-  const creatorHandle = getCreatorHandle(routine.sourceUrl);
-  const sourceUrl = routine.sourceUrl || null;
-  const platform = getSourcePlatform(sourceUrl);
-
+  const accent = getBrandAccent(theme);
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`Open workout: ${routine.title}`}
-      onPress={onOpen}
+      accessibilityLabel="Open saved workouts library"
+      onPress={onPress}
       style={({ pressed }) => [
-        styles.workoutCard,
-        isScheduled ? styles.scheduledWorkoutCard : null,
-        pressed ? styles.workoutCardPressed : null,
+        styles.libraryBento,
+        pressed ? styles.bentoPressed : null,
       ]}
     >
-      <View style={styles.workoutHeader}>
-        <View
-          style={[
-            styles.workoutBadge,
-            isScheduled ? styles.scheduledWorkoutBadge : null,
-          ]}
-        >
-          <Text
-            style={[
-              styles.workoutBadgeText,
-              isScheduled ? styles.scheduledWorkoutBadgeText : null,
-            ]}
-          >
-            {routine.badgeLabel || (isScheduled ? "Scheduled" : "Saved")}
-          </Text>
-        </View>
-        <Ionicons
-          color={theme.colors.textMuted}
-          name="chevron-forward"
-          size={18}
-        />
+      <View style={[styles.libraryBentoIcon, { borderColor: accent }]}>
+        <Ionicons color={accent} name="folder-open" size={18} />
       </View>
-
-      <Text style={styles.workoutTitle}>{routine.title}</Text>
-      {routine.description ? (
-        <Text style={styles.workoutDescription}>{routine.description}</Text>
-      ) : null}
-
-      {creatorHandle || sourceUrl ? (
-        <View style={styles.sourceRow}>
-          {creatorHandle ? (
-            <View style={styles.creatorChip}>
-              <Ionicons
-                color={theme.colors.primary}
-                name="person-circle-outline"
-                size={13}
-              />
-              <Text style={styles.creatorChipText}>{creatorHandle}</Text>
-            </View>
-          ) : null}
-          {sourceUrl ? (
-            <Pressable
-              onPress={() => void Linking.openURL(sourceUrl)}
-              style={({ pressed }) => [
-                styles.sourceButton,
-                pressed ? styles.sourceButtonPressed : null,
-              ]}
-            >
-              <Ionicons
-                color={theme.colors.primary}
-                name={getSourceIconName(platform)}
-                size={13}
-              />
-              <Text style={styles.sourceButtonText}>{getSourceLabel(platform)}</Text>
-              <Ionicons
-                color={theme.colors.primary}
-                name="open-outline"
-                size={12}
-              />
-            </Pressable>
-          ) : null}
-        </View>
-      ) : null}
-
-      <View style={styles.workoutMetaRow}>
-        <Text style={styles.workoutMeta}>{routine.metaLeft}</Text>
-        <Text style={styles.workoutMeta}>{routine.metaRight}</Text>
+      <View style={styles.libraryBentoTextBlock}>
+        <Text style={[styles.libraryBentoEyebrow, { color: accent }]}>
+          Library
+        </Text>
+        <Text numberOfLines={1} style={styles.libraryBentoTitle}>
+          Saved Workouts
+        </Text>
+        <Text numberOfLines={1} style={styles.libraryBentoBody}>
+          Imported programs and drafts you want to keep around.
+        </Text>
       </View>
-      <View style={styles.actionRow}>
-        <Pressable onPress={onStart} style={styles.primaryButton}>
-          <Text style={styles.primaryButtonText}>Start Session</Text>
-        </Pressable>
-        {onSchedule ? (
-          <Pressable
-            onPress={onSchedule}
-            style={({ pressed }) => [
-              styles.iconButton,
-              styles.scheduleIconButton,
-              pressed ? styles.iconButtonPressed : null,
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel={`Schedule ${routine.title}`}
-            hitSlop={6}
-          >
-            <Ionicons
-              color={theme.colors.primary}
-              name="calendar-outline"
-              size={20}
-            />
-          </Pressable>
-        ) : null}
-        {onRemove ? (
-          <Pressable
-            onPress={onRemove}
-            style={({ pressed }) => [
-              styles.iconButton,
-              styles.removeIconButton,
-              pressed ? styles.iconButtonPressed : null,
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel={removeLabel}
-            hitSlop={6}
-          >
-            <Ionicons
-              color={theme.colors.error}
-              name="trash-outline"
-              size={20}
-            />
-          </Pressable>
-        ) : null}
+      <View style={styles.libraryBentoArrow}>
+        <Ionicons color="#FFFFFF" name="chevron-forward" size={14} />
       </View>
     </Pressable>
   );
 }
 
+function StatTile({
+  caption,
+  iconColor,
+  iconName,
+  isMaterial = false,
+  label,
+  theme,
+  value,
+}: {
+  caption: string;
+  iconColor: string;
+  iconName: string;
+  isMaterial?: boolean;
+  label: string;
+  theme: ReturnType<typeof getTheme>;
+  value: string;
+}) {
+  const styles = createStyles(theme);
+  return (
+    <View style={styles.statTile}>
+      <View style={styles.statTileHeader}>
+        <Text style={styles.statTileLabel}>{label}</Text>
+        {isMaterial ? (
+          <MaterialCommunityIcons
+            color={iconColor}
+            name={iconName as keyof typeof MaterialCommunityIcons.glyphMap}
+            size={18}
+          />
+        ) : (
+          <Ionicons
+            color={iconColor}
+            name={iconName as keyof typeof Ionicons.glyphMap}
+            size={18}
+          />
+        )}
+      </View>
+      <Text style={styles.statTileValue}>{value}</Text>
+      <Text style={styles.statTileUnit}>
+        {label === "Streak" ? "Days" : "Workouts"}
+      </Text>
+      <Text style={[styles.statTileCaption, { color: iconColor }]}>
+        {caption}
+      </Text>
+    </View>
+  );
+}
+
+function UpcomingWorkoutRow({
+  onMore,
+  onOpen,
+  onStart,
+  routine,
+  theme,
+}: {
+  onMore: () => void;
+  onOpen: () => void;
+  onStart: () => void;
+  routine: SavedRoutinePreview;
+  theme: ReturnType<typeof getTheme>;
+}) {
+  const styles = createStyles(theme);
+  const accent = getBrandAccent(theme);
+
+  const scheduledTime = routine.scheduledFor
+    ? new Date(routine.scheduledFor)
+    : null;
+  const dayLabel = scheduledTime
+    ? DAY_LABELS[scheduledTime.getDay()].toUpperCase()
+    : "—";
+  const dayNumber = scheduledTime ? `${scheduledTime.getDate()}` : "—";
+  const monthLabel = scheduledTime
+    ? MONTH_LABELS[scheduledTime.getMonth()]
+    : "";
+  const timeLabel = scheduledTime
+    ? scheduledTime.toLocaleTimeString(undefined, {
+        hour: "numeric",
+        minute: "2-digit",
+      })
+    : null;
+
+  return (
+    <Pressable
+      onPress={onOpen}
+      accessibilityRole="button"
+      accessibilityLabel={`Open scheduled workout: ${routine.title}`}
+      style={({ pressed }) => [
+        styles.upcomingRow,
+        pressed ? styles.upcomingRowPressed : null,
+      ]}
+    >
+      <View style={styles.upcomingDatePill}>
+        <Text style={styles.upcomingDateLabel}>{dayLabel}</Text>
+        <Text style={styles.upcomingDateNumber}>{dayNumber}</Text>
+        <Text style={styles.upcomingDateMonth}>{monthLabel}</Text>
+      </View>
+      <View style={styles.upcomingContent}>
+        <Text numberOfLines={1} style={styles.upcomingTitle}>
+          {routine.title}
+        </Text>
+        <View style={styles.upcomingMetaRow}>
+          <Text style={styles.upcomingMetaText}>{routine.metaLeft}</Text>
+          <View style={styles.upcomingMetaDot} />
+          <Text style={styles.upcomingMetaText}>{routine.metaRight}</Text>
+        </View>
+        {timeLabel ? (
+          <View style={styles.upcomingTimeRow}>
+            <Ionicons
+              color={theme.colors.textMuted}
+              name="time-outline"
+              size={12}
+            />
+            <Text style={styles.upcomingTimeText}>{timeLabel}</Text>
+          </View>
+        ) : null}
+      </View>
+      <View style={styles.upcomingActionRow}>
+        <Pressable
+          onPress={onMore}
+          hitSlop={6}
+          style={({ pressed }) => [
+            styles.upcomingMoreButton,
+            pressed ? styles.bentoPressed : null,
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel="More actions"
+        >
+          <Ionicons
+            color={theme.colors.textMuted}
+            name="ellipsis-horizontal"
+            size={16}
+          />
+        </Pressable>
+        <Pressable
+          onPress={onStart}
+          style={({ pressed }) => [
+            styles.upcomingStartButton,
+            { backgroundColor: accent },
+            pressed ? styles.bentoPressed : null,
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel={`Start ${routine.title}`}
+        >
+          <Text style={styles.upcomingStartButtonText}>Start Session</Text>
+          <Ionicons color="#FFFFFF" name="chevron-forward" size={12} />
+        </Pressable>
+      </View>
+    </Pressable>
+  );
+}
+
+function QuickAddRow({
+  onPress,
+  theme,
+}: {
+  onPress: () => void;
+  theme: ReturnType<typeof getTheme>;
+}) {
+  const styles = createStyles(theme);
+  const accent = getBrandAccent(theme);
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel="Quick add a new workout"
+      style={({ pressed }) => [
+        styles.quickAddRow,
+        pressed ? styles.bentoPressed : null,
+      ]}
+    >
+      <View
+        style={[
+          styles.quickAddCircle,
+          {
+            backgroundColor:
+              theme.mode === "dark"
+                ? "rgba(255, 90, 20, 0.16)"
+                : "rgba(255, 90, 20, 0.12)",
+          },
+        ]}
+      >
+        <Ionicons color={accent} name="add" size={20} />
+      </View>
+      <View style={styles.quickAddTextBlock}>
+        <Text style={styles.quickAddTitle}>Quick Add</Text>
+        <Text style={styles.quickAddBody}>Create a new workout</Text>
+      </View>
+      <Ionicons color={theme.colors.textMuted} name="chevron-forward" size={18} />
+    </Pressable>
+  );
+}
+
 export function SavedWorkoutsScreen({
-  error,
+  completedWorkouts,
   importedWorkouts,
-  isLoading,
   isScheduleLoading,
   onAddWorkout,
   onOpenProfile,
+  onOpenSavedList,
   onOpenWorkout,
   onRemoveWorkout,
   onRetry,
@@ -351,7 +348,7 @@ export function SavedWorkoutsScreen({
 }: SavedWorkoutsScreenProps) {
   const theme = getTheme(themeMode);
   const styles = createStyles(theme);
-  const hasSavedWorkouts = importedWorkouts.length > 0;
+  const accent = getBrandAccent(theme);
   const scrollViewRef = useRef<ScrollView | null>(null);
   const [scheduledSectionY, setScheduledSectionY] = useState(0);
 
@@ -366,8 +363,6 @@ export function SavedWorkoutsScreen({
     return today;
   }, []);
   const [selectedDate, setSelectedDate] = useState<string>(todayIso);
-  const [selectedMuscleFilter, setSelectedMuscleFilter] =
-    useState<MuscleGroupFilter>("all");
   const [calendarStartOffset, setCalendarStartOffset] = useState<number>(
     INITIAL_CALENDAR_START_OFFSET,
   );
@@ -378,45 +373,42 @@ export function SavedWorkoutsScreen({
     }
   }, []);
 
-  const muscleGroupsByRoutineId = useMemo(() => {
-    const map = new Map<string, MuscleGroup[]>();
-    for (const routine of importedWorkouts) {
-      map.set(routine.id, getMuscleGroupsForPlan(routine.workoutPlan));
-    }
-    return map;
-  }, [importedWorkouts]);
+  const lastHitRoutine = useMemo(
+    () =>
+      getLastHitRoutinePreview(completedWorkouts, importedWorkouts[0] ?? null),
+    [completedWorkouts, importedWorkouts],
+  );
 
-  const availableMuscleGroups = useMemo(() => {
-    const set = new Set<MuscleGroup>();
-    for (const groups of muscleGroupsByRoutineId.values()) {
-      for (const group of groups) {
-        set.add(group);
-      }
-    }
-    return MUSCLE_GROUPS.filter((group) => set.has(group));
-  }, [muscleGroupsByRoutineId]);
+  const thisWeekStats = useMemo(
+    () => getThisWeekStats(completedWorkouts),
+    [completedWorkouts],
+  );
+  const streakDays = useMemo(
+    () => getStreakDays(completedWorkouts),
+    [completedWorkouts],
+  );
 
-  const filteredSavedWorkouts = useMemo(() => {
-    if (selectedMuscleFilter === "all") {
-      return importedWorkouts;
+  const thisWeekCaption = useMemo(() => {
+    if (completedWorkouts.length === 0) {
+      return "Log your first session";
     }
-    return importedWorkouts.filter((routine) =>
-      (muscleGroupsByRoutineId.get(routine.id) || []).includes(
-        selectedMuscleFilter,
-      ),
-    );
-  }, [importedWorkouts, muscleGroupsByRoutineId, selectedMuscleFilter]);
-
-  useEffect(() => {
-    if (
-      selectedMuscleFilter !== "all" &&
-      !availableMuscleGroups.includes(selectedMuscleFilter)
-    ) {
-      setSelectedMuscleFilter("all");
+    const delta = thisWeekStats.deltaFromLastWeek;
+    if (delta === 0) {
+      return "Same as last week";
     }
-  }, [availableMuscleGroups, selectedMuscleFilter]);
+    const sign = delta > 0 ? "+" : "";
+    return `${sign}${delta} from last week`;
+  }, [completedWorkouts.length, thisWeekStats.deltaFromLastWeek]);
 
-  const showTypeFilter = hasSavedWorkouts && availableMuscleGroups.length > 0;
+  const streakCaption = useMemo(() => {
+    if (streakDays === 0) {
+      return "Start a new streak";
+    }
+    if (streakDays >= 7) {
+      return "Keep it going!";
+    }
+    return "Stay consistent";
+  }, [streakDays]);
 
   const scheduledByDate = useMemo(() => {
     const map = new Map<string, SavedRoutinePreview[]>();
@@ -443,6 +435,26 @@ export function SavedWorkoutsScreen({
     return new Date(year, (month || 1) - 1, day || 1);
   }, [selectedDate]);
   const scheduledForSelected = scheduledByDate.get(selectedDate) || [];
+
+  const upcomingAfterSelected = useMemo(() => {
+    const selectedTime = selectedDateObject.getTime();
+    const sorted = [...scheduledWorkouts]
+      .filter((routine) => routine.scheduledFor)
+      .map((routine) => ({
+        routine,
+        time: new Date(routine.scheduledFor || "").getTime(),
+      }))
+      .filter((entry) => Number.isFinite(entry.time) && entry.time > selectedTime)
+      .sort((left, right) => left.time - right.time);
+    return sorted.map((entry) => entry.routine);
+  }, [scheduledWorkouts, selectedDateObject]);
+
+  const upcomingWorkouts = useMemo(
+    () => upcomingAfterSelected.slice(0, UPCOMING_PREVIEW_LIMIT),
+    [upcomingAfterSelected],
+  );
+  const hasMoreUpcoming =
+    upcomingAfterSelected.length > UPCOMING_PREVIEW_LIMIT;
 
   const canPageBackward = calendarStartOffset > INITIAL_CALENDAR_START_OFFSET;
 
@@ -480,11 +492,9 @@ export function SavedWorkoutsScreen({
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
-      
-
       <View style={styles.headerRow}>
         <View style={styles.titleBlock}>
-          <Text style={styles.eyebrow}>Your Hub</Text>
+          <Text style={[styles.eyebrow, { color: accent }]}>YOUR HUB</Text>
           <Text style={styles.title}>Workouts</Text>
         </View>
         <Pressable
@@ -503,150 +513,70 @@ export function SavedWorkoutsScreen({
         </Pressable>
       </View>
 
-      <View style={styles.section}>
-        <View style={styles.sectionDivider}>
-          <View style={styles.sectionDividerAccent} />
-          <View style={styles.sectionDividerLine} />
-        </View>
-        <Text style={styles.sectionEyebrow}>Library</Text>
-        <View style={styles.sectionTitleRow}>
-          <Text style={styles.sectionTitle}>Saved Workouts</Text>
-          {scheduledWorkouts.length > 0 ? (
-            <Pressable
-              onPress={scrollToScheduledWorkouts}
-              style={({ pressed }) => [
-                styles.scheduledShortcut,
-                pressed ? styles.scheduledShortcutPressed : null,
-              ]}
-              accessibilityRole="button"
-              accessibilityLabel="Scroll to scheduled workouts"
-            >
-              <Ionicons
-                color={theme.colors.primaryBright}
-                name="calendar-clear-outline"
-                size={13}
-              />
-              
-              <Ionicons
-                color={theme.colors.primaryBright}
-                name="chevron-down"
-                size={12}
-              />
-            </Pressable>
-          ) : null}
-        </View>
-        <Text style={styles.sectionBody}>
-          Imported programs and drafts you want to keep around.
-        </Text>
+      <SavedLibraryBento onPress={onOpenSavedList} theme={theme} />
 
-        {showTypeFilter ? (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.filterStripContent}
-          >
-            {(["all", ...availableMuscleGroups] as MuscleGroupFilter[]).map(
-              (filterValue) => {
-                const isSelected = selectedMuscleFilter === filterValue;
-                const label = formatMuscleGroupLabel(filterValue);
-                return (
-                  <Pressable
-                    key={filterValue}
-                    onPress={() => setSelectedMuscleFilter(filterValue)}
-                    style={[
-                      styles.filterChip,
-                      isSelected ? styles.filterChipSelected : null,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.filterChipText,
-                        isSelected ? styles.filterChipTextSelected : null,
-                      ]}
-                    >
-                      {label}
-                    </Text>
-                  </Pressable>
-                );
-              },
-            )}
-          </ScrollView>
-        ) : null}
-
-        {isLoading ? (
-          <FeedbackCard
-            body="Pulling your saved routines from your Fitfo account."
-            isLoading
-            theme={theme}
-            title="Loading workouts"
-          />
-        ) : error ? (
-          <FeedbackCard
-            actionLabel="Try Again"
-            body={error}
-            icon="alert-circle-outline"
-            onAction={onRetry}
-            theme={theme}
-            title="Couldn't load saved workouts"
-          />
-        ) : hasSavedWorkouts ? (
-          filteredSavedWorkouts.length > 0 ? (
-            filteredSavedWorkouts.map((routine) => (
-              <WorkoutCard
-                key={routine.id}
-                accent="saved"
-                onOpen={() => onOpenWorkout(routine)}
-                onRemove={
-                  routine.savedWorkoutId
-                    ? () => onRemoveWorkout(routine.savedWorkoutId || routine.id)
-                    : undefined
-                }
-                onSchedule={() => onScheduleWorkout(routine)}
-                onStart={() => onStartSession(routine)}
-                routine={routine}
-                theme={theme}
-              />
-            ))
-          ) : (
-            <View style={styles.emptyStateCard}>
-              <View style={styles.emptyStateIcon}>
-                <Ionicons
-                  color={theme.colors.primary}
-                  name="funnel-outline"
-                  size={20}
-                />
-              </View>
-              <Text style={styles.emptyStateTitle}>
-                No {formatMuscleGroupLabel(selectedMuscleFilter)} workouts
-              </Text>
-              <Text style={styles.emptyStateBody}>
-                Try a different muscle group to see your other saved routines.
-              </Text>
-            </View>
-          )
-        ) : (
-          <View style={styles.emptyStateCard}>
-            <View style={styles.emptyStateIcon}>
-              <Ionicons color={theme.colors.primary} name="barbell-outline" size={20} />
-            </View>
-            <Text style={styles.emptyStateTitle}>No saved workouts yet</Text>
-            <Text style={styles.emptyStateBody}>
-              Your imported routines and manual drafts will live here once you save them.
-            </Text>
-          </View>
-        )}
+      <View style={styles.statsRow}>
+        <StatTile
+          caption={thisWeekCaption}
+          iconColor={accent}
+          iconName="trending-up-outline"
+          label="This Week"
+          theme={theme}
+          value={`${thisWeekStats.count}`}
+        />
+        <StatTile
+          caption={streakCaption}
+          iconColor={accent}
+          iconName="fire"
+          isMaterial
+          label="Streak"
+          theme={theme}
+          value={`${streakDays}`}
+        />
       </View>
 
+      <QuickAddRow onPress={onAddWorkout} theme={theme} />
+
+      {lastHitRoutine ? (
+        <WorkoutCard
+          accent="lastHit"
+          onOpen={() => onOpenWorkout(lastHitRoutine)}
+          onRemove={
+            lastHitRoutine.savedWorkoutId
+              ? () =>
+                  onRemoveWorkout(
+                    lastHitRoutine.savedWorkoutId || lastHitRoutine.id,
+                  )
+              : undefined
+          }
+          onSchedule={() => onScheduleWorkout(lastHitRoutine)}
+          onStart={() => onStartSession(lastHitRoutine)}
+          routine={lastHitRoutine}
+          theme={theme}
+        />
+      ) : null}
+
       <View style={styles.section} onLayout={handleScheduledSectionLayout}>
-        <View style={styles.sectionDivider}>
-          <View style={styles.sectionDividerAccent} />
-          <View style={styles.sectionDividerLine} />
+        <Text style={[styles.sectionEyebrow, { color: accent }]}>CALENDAR</Text>
+        <View style={styles.sectionTitleRow}>
+          <Text style={styles.sectionTitle}>Scheduled Workouts</Text>
+          <View
+            style={[
+              styles.scheduledChip,
+              {
+                borderColor:
+                  theme.mode === "dark"
+                    ? "rgba(255, 90, 20, 0.32)"
+                    : "rgba(255, 90, 20, 0.22)",
+              },
+            ]}
+          >
+            <Ionicons color={accent} name="calendar-outline" size={14} />
+            <Ionicons color={accent} name="chevron-down" size={12} />
+          </View>
         </View>
-        <Text style={styles.sectionEyebrow}>Calendar</Text>
-        <Text style={styles.sectionTitle}>Scheduled Workouts</Text>
         <Text style={styles.sectionBody}>
-          Tap a day to see what you have planned. Schedule new ones from the import
-          screen.
+          See what you have planned and stay on track.
         </Text>
 
         <View style={styles.calendarPagerRow}>
@@ -680,7 +610,9 @@ export function SavedWorkoutsScreen({
                 onPress={() => setSelectedDate(iso)}
                 style={[
                   styles.calendarPill,
-                  isSelected ? styles.calendarPillSelected : null,
+                  isSelected
+                    ? { backgroundColor: accent, borderColor: accent }
+                    : null,
                 ]}
               >
                 <Text
@@ -711,6 +643,7 @@ export function SavedWorkoutsScreen({
                   <View
                     style={[
                       styles.calendarPillDot,
+                      { backgroundColor: accent },
                       isSelected ? styles.calendarPillDotSelected : null,
                     ]}
                   />
@@ -732,9 +665,26 @@ export function SavedWorkoutsScreen({
           </Pressable>
         </View>
 
-        <Text style={styles.calendarSelectedLabel}>
-          {formatReadableDate(selectedDateObject)}
-        </Text>
+        <View style={styles.scheduledSubHeader}>
+          <Text style={styles.calendarSelectedLabel}>
+            {formatReadableDate(selectedDateObject)}
+          </Text>
+          <Pressable
+            onPress={onAddWorkout}
+            style={({ pressed }) => [
+              styles.scheduleWorkoutButton,
+              { borderColor: accent },
+              pressed ? styles.bentoPressed : null,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Schedule a workout"
+          >
+            <Ionicons color={accent} name="add" size={14} />
+            <Text style={[styles.scheduleWorkoutButtonText, { color: accent }]}>
+              Schedule Workout
+            </Text>
+          </Pressable>
+        </View>
 
         {isScheduleLoading ? (
           <FeedbackCard
@@ -770,20 +720,88 @@ export function SavedWorkoutsScreen({
             />
           ))
         ) : (
-          <View style={styles.emptyStateCard}>
-            <View style={styles.emptyStateIcon}>
-              <Ionicons
-                color={theme.colors.primary}
-                name="calendar-outline"
-                size={20}
-              />
+          <View style={styles.scheduledEmptyCard}>
+            <View style={styles.scheduledEmptyTopRow}>
+              <View
+                style={[
+                  styles.scheduledEmptyIcon,
+                  {
+                    backgroundColor:
+                      theme.mode === "dark"
+                        ? "rgba(255, 90, 20, 0.14)"
+                        : "rgba(255, 90, 20, 0.10)",
+                  },
+                ]}
+              >
+                <Ionicons color={accent} name="calendar-outline" size={22} />
+              </View>
+              <View style={styles.scheduledEmptyTextBlock}>
+                <Text style={styles.scheduledEmptyTitle}>Nothing scheduled</Text>
+                <Text style={styles.scheduledEmptyBody}>
+                  You don&apos;t have any workouts planned for this day.
+                </Text>
+              </View>
+              <View style={styles.scheduledEmptyDecor}>
+                <Ionicons
+                  color={theme.colors.textMuted}
+                  name="calendar"
+                  size={56}
+                  style={{ opacity: 0.2 }}
+                />
+              </View>
             </View>
-            <Text style={styles.emptyStateTitle}>Nothing scheduled</Text>
-            <Text style={styles.emptyStateBody}>
-              Import a workout and tap Schedule Workout to plan it for this day.
-            </Text>
+            <Pressable
+              onPress={onAddWorkout}
+              style={({ pressed }) => [
+                styles.scheduledEmptyCta,
+                { borderColor: accent },
+                pressed ? styles.bentoPressed : null,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Schedule a workout"
+            >
+              <Ionicons color={accent} name="add-circle-outline" size={16} />
+              <Text style={[styles.scheduledEmptyCtaText, { color: accent }]}>
+                Schedule a Workout
+              </Text>
+            </Pressable>
           </View>
         )}
+
+        {upcomingWorkouts.length > 0 ? (
+          <>
+            <View style={styles.scheduledSubHeader}>
+              <Text style={styles.scheduledSubHeaderTitle}>Upcoming</Text>
+              {hasMoreUpcoming ? (
+                <Pressable
+                  onPress={onAddWorkout}
+                  hitSlop={6}
+                  style={({ pressed }) => [
+                    styles.viewAllButton,
+                    pressed ? styles.bentoPressed : null,
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel="View all scheduled workouts"
+                >
+                  <Text style={[styles.viewAllButtonText, { color: accent }]}>
+                    View all
+                  </Text>
+                  <Ionicons color={accent} name="chevron-forward" size={12} />
+                </Pressable>
+              ) : null}
+            </View>
+            {upcomingWorkouts.map((routine) => (
+              <UpcomingWorkoutRow
+                key={`upcoming-${routine.id}`}
+                onMore={() => onScheduleWorkout(routine)}
+                onOpen={() => onOpenWorkout(routine)}
+                onStart={() => onStartSession(routine)}
+                routine={routine}
+                theme={theme}
+              />
+            ))}
+          </>
+        ) : null}
       </View>
     </ScrollView>
   );
@@ -799,39 +817,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       paddingHorizontal: 20,
       paddingTop: 24,
       paddingBottom: 140,
-      gap: 24,
-    },
-    header: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      paddingHorizontal: 2,
-    },
-    brandRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 10,
-    },
-    brandBadge: {
-      width: 22,
-      height: 22,
-      borderRadius: 999,
-      backgroundColor: theme.colors.primary,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    brandBadgeText: {
-      color: theme.colors.surface,
-      fontSize: 10,
-      fontFamily: "Satoshi-Bold",
-      fontWeight: "800",
-    },
-    brandText: {
-      color: theme.colors.primary,
-      fontSize: 22,
-      fontFamily: "Satoshi-Bold",
-      fontWeight: "800",
-      letterSpacing: -0.5,
+      gap: 16,
     },
     headerRow: {
       flexDirection: "row",
@@ -839,6 +825,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       alignItems: "flex-start",
       paddingHorizontal: 2,
       marginTop: 4,
+      marginBottom: 4,
     },
     titleBlock: {
       gap: 8,
@@ -850,10 +837,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       borderRadius: 999,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor:
-        theme.mode === "dark"
-          ? "rgba(255, 255, 255, 0.06)"
-          : "rgba(20, 32, 85, 0.06)",
+      backgroundColor: theme.colors.surface,
       borderWidth: StyleSheet.hairlineWidth,
       borderColor:
         theme.mode === "dark"
@@ -866,7 +850,6 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       transform: [{ scale: 0.96 }],
     },
     eyebrow: {
-      color: theme.colors.primary,
       fontSize: 11,
       fontFamily: "Satoshi-Bold",
       fontWeight: "800",
@@ -881,37 +864,156 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       fontWeight: "800",
       letterSpacing: -1.6,
     },
-    addCard: {
-      minHeight: 124,
-      borderRadius: theme.radii.large,
-      borderWidth: 1.5,
-      borderStyle: "dashed",
-      borderColor: theme.mode === "dark" ? "rgba(255, 90, 20, 0.4)" : "rgba(41, 86, 215, 0.3)",
-      backgroundColor: theme.colors.surfaceMuted,
+
+    bentoPressed: {
+      opacity: 0.92,
+      transform: [{ scale: 0.99 }],
+    },
+
+    libraryBento: {
+      borderRadius: 20,
+      backgroundColor: theme.mode === "dark" ? "#161616" : "#101010",
+      paddingVertical: 12,
+      paddingHorizontal: 14,
+      flexDirection: "row",
       alignItems: "center",
-      justifyContent: "center",
       gap: 12,
-      paddingVertical: 26,
-      paddingHorizontal: 24,
+      overflow: "hidden",
+      ...theme.shadows.softCard,
     },
-    addCircle: {
-      width: 42,
-      height: 42,
-      borderRadius: 999,
-      backgroundColor:
-        theme.mode === "dark" ? "rgba(255, 90, 20, 0.14)" : "rgba(79, 117, 231, 0.16)",
+    libraryBentoIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: 12,
+      borderWidth: 1,
       alignItems: "center",
       justifyContent: "center",
     },
-    addText: {
-      color: theme.colors.primary,
+    libraryBentoTextBlock: {
+      flex: 1,
+      gap: 1,
+    },
+    libraryBentoEyebrow: {
+      fontSize: 10,
+      fontFamily: "Satoshi-Bold",
+      fontWeight: "800",
+      letterSpacing: 1.2,
+      textTransform: "uppercase",
+    },
+    libraryBentoTitle: {
+      color: "#FFFFFF",
+      fontSize: 17,
+      lineHeight: 21,
+      fontFamily: "Satoshi-Bold",
+      fontWeight: "800",
+      letterSpacing: -0.4,
+      marginTop: 1,
+    },
+    libraryBentoBody: {
+      color: "rgba(255, 255, 255, 0.62)",
+      fontSize: 11,
+      lineHeight: 15,
+      marginTop: 2,
+      fontFamily: "Satoshi-Medium",
+      fontWeight: "500",
+    },
+    libraryBentoArrow: {
+      width: 28,
+      height: 28,
+      borderRadius: 999,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: "rgba(255, 255, 255, 0.12)",
+    },
+
+    statsRow: {
+      flexDirection: "row",
+      gap: 12,
+      marginTop: 4,
+    },
+    statTile: {
+      flex: 1,
+      borderRadius: 22,
+      backgroundColor: theme.colors.surface,
+      padding: 16,
+      borderWidth: theme.mode === "dark" ? 1 : 0,
+      borderColor: theme.colors.borderSoft,
+      ...theme.shadows.softCard,
+    },
+    statTileHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+    },
+    statTileLabel: {
+      color: theme.colors.textPrimary,
+      fontSize: 13,
+      fontFamily: "Satoshi-Bold",
+      fontWeight: "800",
+    },
+    statTileValue: {
+      marginTop: 8,
+      color: theme.colors.textPrimary,
+      fontSize: 32,
+      lineHeight: 36,
+      fontFamily: "Satoshi-Bold",
+      fontWeight: "800",
+      letterSpacing: -1,
+    },
+    statTileUnit: {
+      color: theme.colors.textSecondary,
       fontSize: 13,
       fontFamily: "Satoshi-Bold",
       fontWeight: "700",
+      marginTop: -2,
     },
+    statTileCaption: {
+      marginTop: 8,
+      fontSize: 12,
+      fontFamily: "Satoshi-Bold",
+      fontWeight: "700",
+    },
+
+    quickAddRow: {
+      borderRadius: 22,
+      backgroundColor: theme.colors.surface,
+      paddingVertical: 14,
+      paddingHorizontal: 16,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      borderWidth: theme.mode === "dark" ? 1 : 0,
+      borderColor: theme.colors.borderSoft,
+      ...theme.shadows.softCard,
+    },
+    quickAddCircle: {
+      width: 38,
+      height: 38,
+      borderRadius: 999,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    quickAddTextBlock: {
+      flex: 1,
+    },
+    quickAddTitle: {
+      color: theme.colors.textPrimary,
+      fontSize: 14,
+      fontFamily: "Satoshi-Bold",
+      fontWeight: "800",
+    },
+    quickAddBody: {
+      color: theme.colors.textSecondary,
+      fontFamily: "Satoshi-Medium",
+      fontWeight: "500",
+      fontSize: 12,
+      marginTop: 1,
+    },
+
     section: {
       gap: 12,
       paddingHorizontal: 2,
+      marginTop: 8,
     },
     sectionDivider: {
       flexDirection: "row",
@@ -922,7 +1024,6 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       width: 36,
       height: 2,
       borderRadius: 999,
-      backgroundColor: theme.colors.primaryBright,
     },
     sectionDividerLine: {
       flex: 1,
@@ -933,7 +1034,6 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
           : "rgba(15, 23, 42, 0.08)",
     },
     sectionEyebrow: {
-      color: theme.colors.primary,
       fontSize: 11,
       fontFamily: "Satoshi-Bold",
       fontWeight: "800",
@@ -955,7 +1055,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       justifyContent: "space-between",
       gap: 12,
     },
-    scheduledShortcut: {
+    scheduledChip: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "center",
@@ -963,20 +1063,10 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       borderRadius: 999,
       backgroundColor: theme.colors.surface,
       borderWidth: 1,
-      borderColor:
-        theme.mode === "dark"
-          ? "rgba(255, 90, 20, 0.26)"
-          : "rgba(41, 86, 215, 0.16)",
       paddingHorizontal: 12,
       paddingVertical: 8,
-      ...theme.shadows.softCard,
     },
-    scheduledShortcutPressed: {
-      opacity: 0.86,
-      transform: [{ scale: 0.97 }],
-    },
-    scheduledShortcutText: {
-      color: theme.colors.primaryBright,
+    scheduledChipText: {
       fontSize: 12,
       fontFamily: "Satoshi-Bold",
       fontWeight: "800",
@@ -987,92 +1077,20 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       lineHeight: 20,
       marginTop: -4,
       marginBottom: 0,
+      fontFamily: "Satoshi-Medium",
+      fontWeight: "500",
     },
-    feedbackCard: {
-      borderRadius: 24,
-      backgroundColor: theme.colors.surface,
-      padding: 24,
-      alignItems: "center",
-      gap: 10,
-      borderWidth: 1,
-      borderColor: theme.mode === "dark" ? theme.colors.borderSoft : "transparent",
-      ...theme.shadows.card,
-    },
-    feedbackTitle: {
-      color: theme.colors.textPrimary,
-      fontSize: 20,
-      fontFamily: "Satoshi-Bold",
-      fontWeight: "800",
-      textAlign: "center",
-    },
-    feedbackBody: {
-      color: theme.colors.textSecondary,
-      fontSize: 14,
-      lineHeight: 21,
-      textAlign: "center",
-    },
-    retryButton: {
-      marginTop: 4,
-      borderRadius: 999,
-      backgroundColor: theme.colors.primary,
-      paddingHorizontal: 16,
-      paddingVertical: 10,
-    },
-    retryButtonText: {
-      color: theme.colors.surface,
-      fontSize: 13,
-      fontFamily: "Satoshi-Bold",
-      fontWeight: "700",
-    },
-    workoutCard: {
-      borderRadius: 24,
-      backgroundColor: theme.colors.surface,
-      paddingVertical: 22,
-      paddingHorizontal: 22,
-      gap: 12,
-      borderWidth: 1,
-      borderColor: theme.mode === "dark" ? theme.colors.borderSoft : "transparent",
-      ...theme.shadows.card,
-    },
-    scheduledWorkoutCard: {
-      borderColor: theme.mode === "dark" ? "rgba(255, 90, 20, 0.24)" : "rgba(41, 86, 215, 0.14)",
-    },
-    filterStripContent: {
-      gap: 8,
-      paddingVertical: 6,
-      paddingRight: 8,
-    },
-    filterChip: {
-      borderRadius: 999,
-      paddingHorizontal: 14,
-      paddingVertical: 8,
-      backgroundColor: theme.colors.surface,
-      borderWidth: 1,
-      borderColor: theme.colors.borderSoft,
-    },
-    filterChipSelected: {
-      backgroundColor: theme.colors.primary,
-      borderColor: theme.colors.primary,
-    },
-    filterChipText: {
-      color: theme.colors.textMuted,
-      fontSize: 13,
-      fontFamily: "Satoshi-Bold",
-      fontWeight: "800",
-    },
-    filterChipTextSelected: {
-      color: theme.colors.surface,
-    },
+
     calendarPagerRow: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 8,
-      paddingVertical: 8,
+      gap: 6,
+      paddingVertical: 6,
     },
     calendarArrowButton: {
-      width: 38,
-      height: 72,
-      borderRadius: 18,
+      width: 36,
+      height: 84,
+      borderRadius: 16,
       alignItems: "center",
       justifyContent: "center",
       backgroundColor: theme.colors.surface,
@@ -1084,225 +1102,282 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     },
     calendarPill: {
       flex: 1,
-      borderRadius: 18,
-      paddingVertical: 10,
-      paddingHorizontal: 6,
+      borderRadius: 16,
+      paddingVertical: 12,
+      paddingHorizontal: 4,
       alignItems: "center",
       backgroundColor: theme.colors.surface,
       borderWidth: 1,
       borderColor: theme.colors.borderSoft,
-    },
-    calendarPillSelected: {
-      backgroundColor: theme.colors.primary,
-      borderColor: theme.colors.primary,
     },
     calendarPillLabel: {
       color: theme.colors.textMuted,
       fontSize: 10,
       fontFamily: "Satoshi-Black",
       fontWeight: "900",
-      letterSpacing: 1.1,
+      letterSpacing: 1.2,
     },
     calendarPillLabelSelected: {
-      color: theme.colors.surface,
+      color: "#FFFFFF",
     },
     calendarPillNumber: {
-      marginTop: 2,
+      marginTop: 4,
       color: theme.colors.textPrimary,
-      fontSize: 20,
+      fontSize: 22,
+      lineHeight: 24,
       fontFamily: "Satoshi-Bold",
       fontWeight: "800",
     },
     calendarPillNumberSelected: {
-      color: theme.colors.surface,
+      color: "#FFFFFF",
     },
     calendarPillMonth: {
-      marginTop: 2,
+      marginTop: 4,
       color: theme.colors.textMuted,
       fontSize: 11,
       fontFamily: "Satoshi-Bold",
       fontWeight: "700",
     },
     calendarPillMonthSelected: {
-      color: theme.colors.surface,
+      color: "#FFFFFF",
     },
     calendarPillDot: {
       marginTop: 6,
-      width: 6,
-      height: 6,
+      width: 5,
+      height: 5,
       borderRadius: 999,
-      backgroundColor: theme.colors.primary,
     },
     calendarPillDotSelected: {
-      backgroundColor: theme.colors.surface,
+      backgroundColor: "#FFFFFF",
     },
     calendarSelectedLabel: {
+      color: theme.colors.textPrimary,
+      fontSize: 22,
+      lineHeight: 26,
+      fontFamily: "Satoshi-Bold",
+      fontWeight: "800",
+      letterSpacing: -0.6,
+    },
+
+    scheduledSubHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginTop: 8,
+      gap: 12,
+    },
+    scheduledSubHeaderTitle: {
+      flex: 1,
       color: theme.colors.textPrimary,
       fontSize: 18,
       fontFamily: "Satoshi-Bold",
       fontWeight: "800",
-      marginTop: 4,
-      marginBottom: 4,
+      letterSpacing: -0.4,
     },
-    workoutHeader: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      gap: 12,
-    },
-    workoutBadge: {
-      borderRadius: 999,
-      backgroundColor: theme.colors.surfaceMuted,
-      paddingHorizontal: 14,
-      paddingVertical: 8,
-    },
-    scheduledWorkoutBadge: {
-      backgroundColor:
-        theme.mode === "dark" ? "rgba(255, 90, 20, 0.14)" : "rgba(79, 117, 231, 0.16)",
-    },
-    workoutBadgeText: {
-      color: theme.colors.primary,
-      fontSize: 11,
-      fontFamily: "Satoshi-Black",
-      fontWeight: "900",
-      letterSpacing: 1.3,
-      textTransform: "uppercase",
-    },
-    scheduledWorkoutBadgeText: {
-      color: theme.colors.primaryBright,
-    },
-    removeButton: {
-      width: 42,
-      height: 42,
-      borderRadius: 999,
-      backgroundColor: theme.colors.errorSoft,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    workoutTitle: {
-      marginTop: 4,
-      color: theme.colors.textPrimary,
-      fontSize: 24,
-      lineHeight: 28,
-      fontFamily: "Satoshi-Bold",
-      fontWeight: "800",
-      letterSpacing: -0.8,
-    },
-    workoutDescription: {
-      color: theme.colors.textSecondary,
-      fontSize: 14,
-      lineHeight: 21,
-    },
-    sourceRow: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-      gap: 8,
-      marginTop: 4,
-    },
-    creatorChip: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 5,
-      paddingHorizontal: 10,
-      paddingVertical: 6,
-      borderRadius: 999,
-      backgroundColor: theme.colors.surfaceMuted,
-      borderWidth: 1,
-      borderColor: theme.colors.borderSoft,
-    },
-    creatorChipText: {
-      color: theme.colors.primary,
-      fontSize: 12,
-      fontFamily: "Satoshi-Bold",
-      fontWeight: "800",
-    },
-    sourceButton: {
+    scheduleWorkoutButton: {
       flexDirection: "row",
       alignItems: "center",
       gap: 6,
-      paddingHorizontal: 10,
-      paddingVertical: 6,
       borderRadius: 999,
-      backgroundColor: theme.colors.surfaceMuted,
-      borderWidth: 1,
-      borderColor: theme.colors.borderSoft,
+      borderWidth: 1.5,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      backgroundColor: "transparent",
     },
-    sourceButtonPressed: {
-      opacity: 0.85,
-    },
-    sourceButtonText: {
-      color: theme.colors.primary,
+    scheduleWorkoutButtonText: {
       fontSize: 12,
       fontFamily: "Satoshi-Bold",
       fontWeight: "800",
     },
-    workoutMetaRow: {
+    viewAllButton: {
       flexDirection: "row",
-      gap: 24,
-      flexWrap: "wrap",
-      marginTop: 2,
+      alignItems: "center",
+      gap: 4,
     },
-    workoutMeta: {
-      color: theme.colors.textMuted,
-      fontSize: 13,
+    viewAllButtonText: {
+      fontSize: 12,
       fontFamily: "Satoshi-Bold",
       fontWeight: "800",
     },
-    workoutCardPressed: {
-      opacity: 0.88,
-      transform: [{ scale: 0.995 }],
-    },
-    workoutHeaderRight: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 8,
-    },
-    actionRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 10,
-      marginTop: 16,
-    },
-    primaryButton: {
-      flex: 1,
-      borderRadius: 999,
-      backgroundColor: theme.colors.primaryBright,
+
+    scheduledEmptyCard: {
+      borderRadius: 22,
+      backgroundColor: theme.colors.surface,
+      paddingVertical: 18,
       paddingHorizontal: 18,
-      paddingVertical: 14,
+      gap: 14,
+      borderWidth: theme.mode === "dark" ? 1 : 0,
+      borderColor: theme.colors.borderSoft,
+      ...theme.shadows.softCard,
+      overflow: "hidden",
+    },
+    scheduledEmptyTopRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+    },
+    scheduledEmptyIcon: {
+      width: 44,
+      height: 44,
+      borderRadius: 14,
       alignItems: "center",
       justifyContent: "center",
     },
-    primaryButtonText: {
-      color: theme.colors.surface,
-      fontSize: 15,
+    scheduledEmptyTextBlock: {
+      flex: 1,
+      gap: 4,
+    },
+    scheduledEmptyTitle: {
+      color: theme.colors.textPrimary,
+      fontSize: 17,
+      lineHeight: 21,
+      fontFamily: "Satoshi-Bold",
+      fontWeight: "800",
+      letterSpacing: -0.3,
+    },
+    scheduledEmptyBody: {
+      color: theme.colors.textSecondary,
+      fontSize: 13,
+      lineHeight: 18,
+      fontFamily: "Satoshi-Medium",
+      fontWeight: "500",
+    },
+    scheduledEmptyDecor: {
+      width: 60,
+      height: 60,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    scheduledEmptyCta: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+      borderRadius: 999,
+      borderWidth: 1.5,
+      paddingVertical: 12,
+      backgroundColor: "transparent",
+    },
+    scheduledEmptyCtaText: {
+      fontSize: 14,
       fontFamily: "Satoshi-Bold",
       fontWeight: "800",
     },
-    iconButton: {
-      width: 46,
-      height: 46,
-      borderRadius: 23,
+
+    upcomingRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      borderRadius: 18,
+      backgroundColor: theme.colors.surface,
+      paddingVertical: 12,
+      paddingHorizontal: 12,
+      borderWidth: theme.mode === "dark" ? 1 : 0,
+      borderColor: theme.colors.borderSoft,
+      ...theme.shadows.softCard,
+    },
+    upcomingRowPressed: {
+      opacity: 0.92,
+    },
+    upcomingDatePill: {
+      width: 56,
+      paddingVertical: 8,
+      paddingHorizontal: 4,
+      alignItems: "center",
+      borderRadius: 12,
+      backgroundColor: theme.colors.surfaceMuted,
+    },
+    upcomingDateLabel: {
+      color: theme.colors.textMuted,
+      fontSize: 9,
+      fontFamily: "Satoshi-Black",
+      fontWeight: "900",
+      letterSpacing: 1.1,
+    },
+    upcomingDateNumber: {
+      marginTop: 2,
+      color: theme.colors.textPrimary,
+      fontSize: 18,
+      lineHeight: 20,
+      fontFamily: "Satoshi-Bold",
+      fontWeight: "800",
+    },
+    upcomingDateMonth: {
+      marginTop: 2,
+      color: theme.colors.textMuted,
+      fontSize: 9,
+      fontFamily: "Satoshi-Bold",
+      fontWeight: "700",
+    },
+    upcomingContent: {
+      flex: 1,
+      gap: 4,
+      minWidth: 0,
+    },
+    upcomingTitle: {
+      color: theme.colors.textPrimary,
+      fontSize: 14,
+      lineHeight: 18,
+      fontFamily: "Satoshi-Bold",
+      fontWeight: "800",
+      letterSpacing: -0.2,
+    },
+    upcomingMetaRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+    },
+    upcomingMetaText: {
+      color: theme.colors.textSecondary,
+      fontSize: 11,
+      fontFamily: "Satoshi-Medium",
+      fontWeight: "500",
+    },
+    upcomingMetaDot: {
+      width: 3,
+      height: 3,
+      borderRadius: 999,
+      backgroundColor: theme.colors.textMuted,
+    },
+    upcomingTimeRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+    },
+    upcomingTimeText: {
+      color: theme.colors.textMuted,
+      fontSize: 11,
+      fontFamily: "Satoshi-Medium",
+      fontWeight: "500",
+    },
+    upcomingActionRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+    },
+    upcomingMoreButton: {
+      width: 30,
+      height: 30,
+      borderRadius: 999,
       alignItems: "center",
       justifyContent: "center",
       backgroundColor: theme.colors.surfaceMuted,
-      borderWidth: 1,
     },
-    iconButtonPressed: {
-      opacity: 0.85,
-      transform: [{ scale: 0.96 }],
+    upcomingStartButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      borderRadius: 999,
+      paddingHorizontal: 12,
+      paddingVertical: 9,
     },
-    scheduleIconButton: {
-      borderColor:
-        theme.mode === "dark"
-          ? "rgba(255, 90, 20, 0.32)"
-          : "rgba(41, 86, 215, 0.18)",
+    upcomingStartButtonText: {
+      color: "#FFFFFF",
+      fontSize: 12,
+      fontFamily: "Satoshi-Bold",
+      fontWeight: "800",
     },
-    removeIconButton: {
-      borderColor:
-        theme.mode === "dark"
-          ? "rgba(255, 101, 88, 0.32)"
-          : theme.colors.errorSoft,
-    },
+
     emptyStateCard: {
       borderRadius: 24,
       backgroundColor: theme.colors.surface,
@@ -1310,7 +1385,8 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       alignItems: "center",
       gap: 10,
       borderWidth: 1,
-      borderColor: theme.mode === "dark" ? theme.colors.borderSoft : "transparent",
+      borderColor:
+        theme.mode === "dark" ? theme.colors.borderSoft : "transparent",
       ...theme.shadows.card,
     },
     emptyStateIcon: {
@@ -1333,5 +1409,10 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       fontSize: 14,
       lineHeight: 21,
       textAlign: "center",
+      fontFamily: "Satoshi"
     },
   });
+
+// Re-exported so external files (App.tsx, etc.) that already imported BRAND_ORANGE
+// from this module keep working without churn.
+export { BRAND_ORANGE };

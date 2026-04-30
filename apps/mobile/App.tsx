@@ -88,6 +88,7 @@ import {
   SavedWorkoutDetailScreen,
   type SavedRoutineUpdate,
 } from "./src/screens/SavedWorkoutDetailScreen";
+import { SavedLibraryScreen } from "./src/screens/SavedLibraryScreen";
 import { SavedWorkoutsScreen } from "./src/screens/SavedWorkoutsScreen";
 import { ScheduledConfirmationScreen } from "./src/screens/ScheduledConfirmationScreen";
 import { WorkoutSummaryScreen } from "./src/screens/WorkoutSummaryScreen";
@@ -189,6 +190,7 @@ export default function App() {
   const [onboardingError, setOnboardingError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<AppTab>("saved");
   const [isProfileVisible, setIsProfileVisible] = useState(false);
+  const [isSavedLibraryVisible, setIsSavedLibraryVisible] = useState(false);
   const [activeSession, setActiveSession] = useState<ActiveSessionPreview | null>(
     null,
   );
@@ -1782,14 +1784,39 @@ export default function App() {
     }
 
     if (activeTab === "saved") {
+      if (isSavedLibraryVisible) {
+        return (
+          <SavedLibraryScreen
+            completedWorkouts={completedWorkouts}
+            error={savedWorkoutsError}
+            importedWorkouts={savedWorkouts}
+            isLoading={savedWorkoutsLoading}
+            onAddWorkout={handleOpenAddWorkout}
+            onBack={() => setIsSavedLibraryVisible(false)}
+            onOpenWorkout={(routine) => setSelectedSavedRoutine(routine)}
+            onRemoveWorkout={handleRemoveSavedWorkout}
+            onRetry={() => {
+              if (accessToken) {
+                void loadSavedWorkouts(accessToken);
+              }
+            }}
+            onScheduleWorkout={handleRequestScheduleSavedWorkout}
+            onStartSession={handleStartSession}
+            scheduledWorkouts={scheduledWorkouts.map(
+              createScheduledRoutinePreview,
+            )}
+            themeMode={themeMode}
+          />
+        );
+      }
       return (
         <SavedWorkoutsScreen
-          error={savedWorkoutsError}
+          completedWorkouts={completedWorkouts}
           importedWorkouts={savedWorkouts}
-          isLoading={savedWorkoutsLoading}
           isScheduleLoading={scheduledWorkoutsLoading}
           onAddWorkout={handleOpenAddWorkout}
           onOpenProfile={() => setIsProfileVisible(true)}
+          onOpenSavedList={() => setIsSavedLibraryVisible(true)}
           onOpenWorkout={(routine) => setSelectedSavedRoutine(routine)}
           onRemoveWorkout={handleRemoveSavedWorkout}
           onRetry={() => {
@@ -1919,6 +1946,7 @@ export default function App() {
                   setIsActiveWorkoutVisible(false);
                   setSelectedCompletedWorkout(null);
                   setIsProfileVisible(false);
+                  setIsSavedLibraryVisible(false);
                   setActiveTab(tab);
                 }}
                 onImportWorkout={() => {

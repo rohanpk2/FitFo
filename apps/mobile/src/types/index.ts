@@ -246,6 +246,10 @@ export interface SavedRoutinePreview {
   metaRight: string;
   badgeLabel?: string;
   workoutPlan?: WorkoutPlan;
+  // Best-effort cover image (e.g. TikTok cover from JobResponse.thumbnail_url).
+  // Not persisted on saved/scheduled/completed records yet, so it's only
+  // present for routines that ride along with an in-flight ingestion job.
+  thumbnailUrl?: string | null;
 }
 
 export interface ActiveSetPreview {

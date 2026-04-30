@@ -508,9 +508,7 @@ export function AddWorkoutModal({
                     />
                   </View>
                 ) : null}
-                <View style={styles.previewHeader}>
-                  <Text style={styles.previewEyebrow}>AI-Parsed</Text>
-                </View>
+                
                 <Text
                   ellipsizeMode="tail"
                   numberOfLines={2}
@@ -525,9 +523,7 @@ export function AddWorkoutModal({
                 >
                   {routine?.description}
                 </Text>
-                <Text ellipsizeMode="tail" numberOfLines={2} style={styles.previewAiNote}>
-                  Auto-extracted from the video. Verify before training.
-                </Text>
+                
                 {creatorHandle ? (
                   <View style={styles.previewTags}>
                     <View style={styles.previewChip}>
@@ -776,6 +772,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       marginTop: 4,
       color: theme.colors.textSecondary,
       fontSize: 17,
+      fontFamily: "satoshi",
       lineHeight: 24,
     },
     formBlock: {
@@ -810,6 +807,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       color: theme.colors.textSecondary,
       fontSize: 14,
       lineHeight: 21,
+      fontFamily: "satoshi"
     },
     primaryButton: {
       minHeight: 54,

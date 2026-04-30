@@ -109,28 +109,72 @@ export function LogsScreen({
       </View>
 
       <View style={styles.analysisCard}>
-        <View style={styles.avgCard}>
-          <View style={styles.avgIcon}>
-            <Ionicons color={theme.colors.primary} name="albums-outline" size={16} />
+        <View style={styles.statTile}>
+          <View style={styles.statTileIcon}>
+            <Ionicons
+              color={theme.colors.primary}
+              name="albums-outline"
+              size={16}
+            />
           </View>
-          <Text style={styles.avgLabel}>Completed</Text>
-          <Text style={styles.avgValue}>{workouts.length}</Text>
-          <Text style={styles.avgHint}>Every finished workout is tied to your account.</Text>
+          <Text
+            adjustsFontSizeToFit
+            minimumFontScale={0.6}
+            numberOfLines={1}
+            style={styles.statTileValue}
+          >
+            {workouts.length}
+          </Text>
+          <Text
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.85}
+            style={styles.statTileLabel}
+          >
+            Completed
+          </Text>
+          <Text
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.85}
+            style={styles.statTileCaption}
+          >
+            Total sessions
+          </Text>
         </View>
 
-        <View style={styles.streakCard}>
-          <Text style={styles.streakTitle}>This Month</Text>
-          <Text style={styles.streakDescription}>
-            {thisMonthCount} workouts and {totalSets} logged sets so far.
-          </Text>
-          <View style={styles.metricRow}>
-            <View style={styles.metricPill}>
-              <Text style={styles.metricPillText}>{thisMonthCount} sessions</Text>
-            </View>
-            <View style={styles.metricPill}>
-              <Text style={styles.metricPillText}>{totalSets} sets</Text>
-            </View>
+        <View style={styles.statTile}>
+          <View style={styles.statTileIcon}>
+            <Ionicons
+              color={theme.colors.primary}
+              name="calendar-outline"
+              size={16}
+            />
           </View>
+          <Text
+            adjustsFontSizeToFit
+            minimumFontScale={0.6}
+            numberOfLines={1}
+            style={styles.statTileValue}
+          >
+            {thisMonthCount}
+          </Text>
+          <Text
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.85}
+            style={styles.statTileLabel}
+          >
+            This Month
+          </Text>
+          <Text
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.85}
+            style={styles.statTileCaption}
+          >
+            {totalSets} sets logged
+          </Text>
         </View>
       </View>
 
@@ -359,7 +403,9 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     },
     analysisCard: {
       flexDirection: "row",
+      alignItems: "stretch",
       gap: 12,
+      width: "100%",
     },
     activeWorkoutCard: {
       borderRadius: theme.radii.large,
@@ -443,68 +489,54 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       fontFamily: "Satoshi-Bold",
       fontWeight: "800",
     },
-    avgCard: {
+    statTile: {
       flex: 1,
-      borderRadius: theme.radii.large,
+      flexBasis: 0,
+      minWidth: 0,
+      minHeight: 132,
+      borderRadius: 22,
       backgroundColor: theme.colors.surface,
-      padding: 16,
-      gap: 6,
-      borderWidth: 1,
-      borderColor: theme.mode === "dark" ? theme.colors.borderSoft : "transparent",
-      ...theme.shadows.card,
+      paddingVertical: 14,
+      paddingHorizontal: 14,
+      borderWidth: theme.mode === "dark" ? 1 : 0,
+      borderColor: theme.colors.borderSoft,
+      ...theme.shadows.softCard,
     },
-    avgIcon: {
-      width: 34,
-      height: 34,
-      borderRadius: 999,
+    statTileIcon: {
+      width: 28,
+      height: 28,
+      borderRadius: 10,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: theme.colors.surfaceMuted,
+      marginBottom: 10,
+      backgroundColor:
+        theme.mode === "dark"
+          ? "rgba(255, 90, 20, 0.18)"
+          : "rgba(255, 90, 20, 0.12)",
     },
-    avgLabel: {
-      color: theme.colors.textMuted,
-      fontSize: 10,
-      fontFamily: "Satoshi-Bold",
-      fontWeight: "800",
-      letterSpacing: 1,
-      textTransform: "uppercase",
-    },
-    avgValue: {
+    statTileValue: {
       color: theme.colors.textPrimary,
-      fontSize: 40,
-      fontFamily: "Satoshi-Bold",
-      fontWeight: "800",
-      letterSpacing: -1.1,
-    },
-    avgHint: {
-      color: theme.colors.textSecondary,
-      fontSize: 12,
-      lineHeight: 18,
-    },
-    streakCard: {
-      flex: 1,
-      borderRadius: theme.radii.large,
-      backgroundColor: theme.colors.surfaceMuted,
-      padding: 16,
-      justifyContent: "space-between",
-      gap: 10,
-    },
-    streakTitle: {
-      color: theme.colors.textPrimary,
-      fontSize: 24,
+      fontSize: 28,
+      lineHeight: 30,
       fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       letterSpacing: -0.8,
+      marginBottom: 4,
     },
-    streakDescription: {
-      color: theme.colors.textSecondary,
+    statTileLabel: {
+      color: theme.colors.textPrimary,
       fontSize: 13,
-      lineHeight: 18,
+      lineHeight: 16,
+      fontFamily: "Satoshi-Bold",
+      fontWeight: "800",
     },
-    metricRow: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-      gap: 8,
+    statTileCaption: {
+      color: theme.colors.textMuted,
+      fontSize: 11,
+      lineHeight: 14,
+      fontFamily: "Satoshi-Medium",
+      fontWeight: "500",
+      marginTop: 2,
     },
     metricPill: {
       borderRadius: 999,
@@ -613,6 +645,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     },
     sessionSummary: {
       color: theme.colors.textSecondary,
+      fontFamily: "satoshi",
       fontSize: 14,
       lineHeight: 20,
     },
@@ -639,8 +672,8 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       fontWeight: "800",
     },
     scheduleAgainButton: {
-      marginTop: 4,
-      alignSelf: "flex-start",
+      marginTop: 12,
+      alignSelf: "flex-end",
       flexDirection: "row",
       alignItems: "center",
       gap: 8,

@@ -386,6 +386,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     },
     infoBody: {
       color: theme.colors.textSecondary,
+      fontFamily: "satoshi",
       fontSize: 13,
       lineHeight: 19,
     },
@@ -444,6 +445,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     },
     dangerBody: {
       color: theme.colors.textMuted,
+      fontFamily: "satoshi",
       fontSize: 12,
       lineHeight: 17,
       paddingHorizontal: 4,
