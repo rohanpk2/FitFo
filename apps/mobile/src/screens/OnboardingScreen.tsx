@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   InputAccessoryView,
@@ -19,6 +19,7 @@ import { getTheme, type ThemeMode } from "../theme";
 import type {
   ExperienceLevel,
   OnboardingGoal,
+  OnboardingSex,
   SaveOnboardingRequest,
   TrainingSplit,
   UserProfile,
@@ -34,39 +35,135 @@ interface OnboardingScreenProps {
   themeMode?: ThemeMode;
 }
 
-const goalOptions: Array<{ icon: keyof typeof Ionicons.glyphMap; label: string; value: OnboardingGoal }> =
-  [
-    { icon: "barbell-outline", label: "Build Muscle", value: "build_muscle" },
-    { icon: "flame-outline", label: "Lose Fat", value: "lose_fat" },
-    { icon: "flash-outline", label: "Get Stronger", value: "get_stronger" },
-    { icon: "walk-outline", label: "Improve Cardio", value: "improve_cardio" },
-    { icon: "body-outline", label: "Stay Active", value: "stay_active" },
-    {
-      icon: "trophy-outline",
-      label: "Athletic Performance",
-      value: "athletic_performance",
-    },
-  ];
+type RequiredStepId =
+  | "welcome"
+  | "age"
+  | "sex"
+  | "experience"
+  | "demo"
+  | "goals"
+  | "split"
+  | "stats"
+  | "tryit"
+  | "calendar"
+  | "archive"
+  | "done";
 
-const splitOptions: Array<{ label: string; value: TrainingSplit }> = [
-  { label: "PPL", value: "ppl" },
-  { label: "Upper / Lower", value: "upper_lower" },
-  { label: "Bro Split", value: "bro_split" },
-  { label: "Full Body", value: "full_body" },
-  { label: "5/3/1", value: "five_three_one" },
-  { label: "Arnold Split", value: "arnold_split" },
-  { label: "Custom", value: "custom" },
+type EditStepId = "age" | "sex" | "experience" | "goals" | "split" | "stats" | "done";
+type StepId = RequiredStepId | EditStepId;
+
+interface StepConfig {
+  id: StepId;
+  label: string;
+}
+
+const requiredSteps: StepConfig[] = [
+  { id: "welcome", label: "Welcome" },
+  { id: "age", label: "Age" },
+  { id: "sex", label: "Sex" },
+  { id: "experience", label: "Experience" },
+  { id: "demo", label: "Demo" },
+  { id: "goals", label: "Goals" },
+  { id: "split", label: "Split" },
+  { id: "stats", label: "Stats" },
+  { id: "tryit", label: "Try it" },
+  { id: "calendar", label: "Calendar" },
+  { id: "archive", label: "Archive" },
+  { id: "done", label: "Done" },
+];
+
+const editSteps: StepConfig[] = [
+  { id: "age", label: "Age" },
+  { id: "sex", label: "Sex" },
+  { id: "experience", label: "Experience" },
+  { id: "goals", label: "Goals" },
+  { id: "split", label: "Split" },
+  { id: "stats", label: "Stats" },
+  { id: "done", label: "Done" },
+];
+
+const goalOptions: Array<{
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  shortLabel: string;
+  value: OnboardingGoal;
+}> = [
+  { icon: "barbell-outline", label: "Build Muscle", shortLabel: "Muscle", value: "build_muscle" },
+  { icon: "flame-outline", label: "Lose Fat", shortLabel: "Fat loss", value: "lose_fat" },
+  { icon: "flash-outline", label: "Get Stronger", shortLabel: "Strength", value: "get_stronger" },
+  { icon: "walk-outline", label: "Improve Cardio", shortLabel: "Cardio", value: "improve_cardio" },
+  { icon: "body-outline", label: "Stay Active", shortLabel: "Consistency", value: "stay_active" },
+  {
+    icon: "trophy-outline",
+    label: "Athletic Performance",
+    shortLabel: "Sport",
+    value: "athletic_performance",
+  },
+];
+
+const splitOptions: Array<{
+  label: string;
+  sublabel: string;
+  value: TrainingSplit;
+  days: number;
+}> = [
+  { label: "Push / Pull / Legs", sublabel: "Classic hypertrophy cadence", value: "ppl", days: 6 },
+  { label: "Upper / Lower", sublabel: "Balanced and repeatable", value: "upper_lower", days: 4 },
+  { label: "Bro Split", sublabel: "One body part each session", value: "bro_split", days: 5 },
+  { label: "Full Body", sublabel: "Time-efficient, 3 days", value: "full_body", days: 3 },
+  { label: "5/3/1", sublabel: "Strength progression", value: "five_three_one", days: 4 },
+  { label: "Arnold Split", sublabel: "High-volume classic", value: "arnold_split", days: 6 },
+  { label: "Custom", sublabel: "Tell Fitfo your rotation", value: "custom", days: 0 },
 ];
 
 const dayOptions = [3, 4, 5, 6];
-
+const ageOptions = Array.from({ length: 57 }, (_, index) => index + 14);
 const STATS_INPUT_ACCESSORY_ID = "fitfoOnboardingStatsAccessory";
 
-const experienceOptions: Array<{ label: string; value: ExperienceLevel }> = [
-  { label: "Beginner", value: "beginner" },
-  { label: "Intermediate", value: "intermediate" },
-  { label: "Advanced", value: "advanced" },
+const sexOptions: Array<{
+  label: string;
+  detail: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  value: OnboardingSex;
+}> = [
+  { label: "Male", detail: "He / him", icon: "male-outline", value: "male" },
+  { label: "Female", detail: "She / her", icon: "female-outline", value: "female" },
+  {
+    label: "Prefer not to say",
+    detail: "Skip creator matching",
+    icon: "person-outline",
+    value: "prefer_not_to_say",
+  },
 ];
+
+const experienceOptions: Array<{
+  label: string;
+  detail: string;
+  value: ExperienceLevel;
+  bars: number;
+}> = [
+  { label: "Beginner", detail: "New or rebuilding consistency", value: "beginner", bars: 1 },
+  { label: "Intermediate", detail: "Training regularly", value: "intermediate", bars: 2 },
+  { label: "Advanced", detail: "Structured programming", value: "advanced", bars: 3 },
+];
+
+const demoCopy: Record<OnboardingSex, { creator: string; caption: string; tag: string }> = {
+  male: {
+    creator: "@coach.daley",
+    caption: "Push day every push-day guy needs to try",
+    tag: "Chest focus",
+  },
+  female: {
+    creator: "@maya.lifts",
+    caption: "Lower body day that actually works",
+    tag: "Leg day",
+  },
+  prefer_not_to_say: {
+    creator: "@fitfo.daily",
+    caption: "Full body, 30 minutes, anywhere",
+    tag: "Full body",
+  },
+};
 
 const sanitizeWholeNumberInput = (value: string, maxLength = 3) =>
   value.replace(/\D/g, "").slice(0, maxLength);
@@ -82,6 +179,8 @@ const sanitizeDecimalInput = (value: string, maxLength = 5) => {
   return `${trimmedWhole}.${trimmedDecimal}`;
 };
 
+const formatStepNumber = (value: number) => String(value).padStart(2, "0");
+
 export function OnboardingScreen({
   error,
   isSubmitting = false,
@@ -92,7 +191,15 @@ export function OnboardingScreen({
   themeMode = "light",
 }: OnboardingScreenProps) {
   const existingOnboarding = profile.onboarding;
+  const isEditing = mode === "edit";
+  const steps = isEditing ? editSteps : requiredSteps;
+  const theme = getTheme(themeMode);
+  const styles = createStyles(theme);
   const [stepIndex, setStepIndex] = useState(0);
+  const currentStep = steps[stepIndex]?.id ?? "welcome";
+  const doneIndex = steps.findIndex((step) => step.id === "done");
+  const finalInputIndex = doneIndex > 0 ? doneIndex - 1 : steps.length - 2;
+
   const [goals, setGoals] = useState<OnboardingGoal[]>(existingOnboarding?.goals || []);
   const [trainingSplit, setTrainingSplit] = useState<TrainingSplit | null>(
     existingOnboarding?.training_split || "ppl",
@@ -104,22 +211,27 @@ export function OnboardingScreen({
     existingOnboarding?.days_per_week || 4,
   );
   const [weightLbsInput, setWeightLbsInput] = useState(
-    existingOnboarding ? String(existingOnboarding.weight_lbs) : "",
+    existingOnboarding ? String(existingOnboarding.weight_lbs) : "165",
   );
   const [heightFeetInput, setHeightFeetInput] = useState(
-    existingOnboarding ? String(Math.floor(existingOnboarding.height_inches / 12)) : "",
+    existingOnboarding ? String(Math.floor(existingOnboarding.height_inches / 12)) : "5",
   );
   const [heightInchesInput, setHeightInchesInput] = useState(
-    existingOnboarding ? String(existingOnboarding.height_inches % 12) : "",
+    existingOnboarding ? String(existingOnboarding.height_inches % 12) : "9",
   );
-  const [experienceLevel, setExperienceLevel] =
-    useState<ExperienceLevel | null>(existingOnboarding?.experience_level || "intermediate");
-  const [ageInput, setAgeInput] = useState(existingOnboarding ? String(existingOnboarding.age) : "");
-  const theme = getTheme(themeMode);
-  const styles = createStyles(theme);
-  const isEditing = mode === "edit";
+  const [experienceLevel, setExperienceLevel] = useState<ExperienceLevel | null>(
+    existingOnboarding?.experience_level || null,
+  );
+  const [ageInput, setAgeInput] = useState(existingOnboarding ? String(existingOnboarding.age) : "22");
+  const [sex, setSex] = useState<OnboardingSex | null>(
+    existingOnboarding?.sex || null,
+  );
+  const [demoStage, setDemoStage] = useState<"video" | "parsed">("video");
+  const [tryItStage, setTryItStage] = useState<"tiktok" | "share" | "import" | "workout">(
+    "tiktok",
+  );
 
-  const firstName = profile.full_name.trim().split(/\s+/)[0] || "You";
+  const firstName = profile.full_name.trim().split(/\s+/)[0] || "you";
   const weightLbs = Number.parseFloat(weightLbsInput);
   const heightFeet = Number.parseInt(heightFeetInput, 10);
   const heightInches = Number.parseInt(heightInchesInput, 10);
@@ -144,19 +256,30 @@ export function OnboardingScreen({
     Number.isFinite(heightInches) &&
     heightInches >= 0 &&
     heightInches <= 11 &&
-    Boolean(experienceLevel) &&
     Number.isFinite(age) &&
     age >= 13 &&
     age <= 120;
+  const demo = demoCopy[sex || "prefer_not_to_say"];
+
+  const selectedSplit = useMemo(
+    () => splitOptions.find((option) => option.value === trainingSplit),
+    [trainingSplit],
+  );
 
   const canAdvance =
-    stepIndex === 0
-      ? isGoalStepValid
-      : stepIndex === 1
-        ? isSplitStepValid
-        : stepIndex === 2
-          ? isStatsStepValid && !isSubmitting
-          : true;
+    currentStep === "age"
+      ? Number.isFinite(age) && age >= 13 && age <= 120
+      : currentStep === "sex"
+        ? Boolean(sex)
+        : currentStep === "experience"
+          ? Boolean(experienceLevel)
+          : currentStep === "goals"
+            ? isGoalStepValid
+            : currentStep === "split"
+              ? isSplitStepValid
+              : currentStep === "stats"
+                ? isStatsStepValid && !isSubmitting
+                : !isSubmitting;
 
   const toggleGoal = (value: OnboardingGoal) => {
     setGoals((current) =>
@@ -166,6 +289,25 @@ export function OnboardingScreen({
     );
   };
 
+  const submitOnboarding = async () => {
+    if (!trainingSplit || !daysPerWeek || !experienceLevel || !sex) {
+      return;
+    }
+
+    await onSubmit({
+      goals,
+      sex,
+      training_split: trainingSplit,
+      custom_split_notes:
+        trainingSplit === "custom" ? trimmedCustomSplitNotes : null,
+      days_per_week: daysPerWeek,
+      weight_lbs: weightLbs,
+      height_inches: totalHeightInches,
+      experience_level: experienceLevel,
+      age,
+    });
+  };
+
   const handlePrimaryPress = async () => {
     if (!canAdvance) {
       return;
@@ -173,231 +315,369 @@ export function OnboardingScreen({
 
     Keyboard.dismiss();
 
-    if (stepIndex < 2) {
-      setStepIndex((current) => current + 1);
+    if (currentStep === "done") {
+      onDismiss();
       return;
     }
 
-    if (stepIndex === 2 && trainingSplit && daysPerWeek && experienceLevel) {
-      await onSubmit({
-        goals,
-        training_split: trainingSplit,
-        custom_split_notes:
-          trainingSplit === "custom" ? trimmedCustomSplitNotes : null,
-        days_per_week: daysPerWeek,
-        weight_lbs: weightLbs,
-        height_inches: totalHeightInches,
-        experience_level: experienceLevel,
-        age,
-      });
-      setStepIndex(3);
+    if (stepIndex === finalInputIndex) {
+      await submitOnboarding();
+      setStepIndex(doneIndex);
       return;
     }
 
-    onDismiss();
+    setStepIndex((current) => Math.min(current + 1, steps.length - 1));
   };
 
   const handleBackPress = () => {
     Keyboard.dismiss();
 
-    if (stepIndex > 0 && stepIndex < 3) {
+    if (currentStep === "done") {
+      return;
+    }
+
+    if (stepIndex > 0) {
       setStepIndex((current) => current - 1);
       return;
     }
 
-    if (stepIndex === 0 && isEditing) {
+    if (isEditing) {
       onDismiss();
     }
   };
 
-  const renderGoalsStep = () => {
-    const gradientColors: readonly [string, string, string] =
-      theme.mode === "dark"
-        ? ["#FF5A14", "#FF4D0A", "#9B2D00"]
-        : ["#4F75E7", "#2F58D9", "#1E3FA8"];
+  const renderHeader = () => {
+    const progressDenominator = Math.max(steps.length - 1, 1);
+    const progress = currentStep === "done" ? 1 : stepIndex / progressDenominator;
 
     return (
-      <>
-        <View style={styles.heroGoals}>
-          <LinearGradient
-            colors={gradientColors}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.heroGradient}
-          >
-            <View style={styles.heroOrb1} />
-            <View style={styles.heroOrb2} />
-            <View style={styles.heroOrb3} />
-
-            <View style={styles.heroBadgeRow}>
-              <View style={styles.heroChip}>
-                <Text style={styles.heroChipText}>Step 01 · Goals</Text>
-              </View>
-              <View style={styles.heroCounter}>
-                <Text style={styles.heroCounterText}>
-                  {goals.length}
-                  <Text style={styles.heroCounterTextMuted}>/6</Text>
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.heroTitleBlock}>
-              <Text style={styles.heroTitleNew}>
-                What drives{"\n"}
-                <Text style={styles.heroTitleAccent}>you</Text>
-                <Text style={styles.heroTitleDotNew}>?</Text>
-              </Text>
-              <Text style={styles.heroCopyNew}>
-                {isEditing
-                  ? `${firstName}, update your goals whenever your training changes.`
-                  : `Hey ${firstName}, pick every goal that fires you up. We'll tune the rest around you.`}
-              </Text>
-            </View>
-          </LinearGradient>
+      <View style={styles.progressSection}>
+        <View style={styles.progressTopRow}>
+          <Text style={styles.stepCount}>
+            {currentStep === "done"
+              ? "Ready"
+              : `${formatStepNumber(stepIndex + 1)} · ${steps[stepIndex]?.label}`}
+          </Text>
+          <Text style={styles.stepPercent}>{Math.round(progress * 100)}%</Text>
         </View>
-
-        <View style={styles.goalsSection}>
-          <View style={styles.goalsHint}>
-            <Ionicons color={theme.colors.primary} name="hand-left-outline" size={14} />
-            <Text style={styles.goalsHintText}>
-              Tap all that apply · {goals.length === 0 ? "choose at least one" : `${goals.length} selected`}
-            </Text>
-          </View>
-
-          <View style={styles.goalGrid}>
-            {goalOptions.map((option) => {
-              const selected = goals.includes(option.value);
-
-              return (
-                <Pressable
-                  key={option.value}
-                  onPress={() => toggleGoal(option.value)}
-                  style={[
-                    styles.goalCard,
-                    selected ? styles.goalCardSelected : null,
-                  ]}
-                >
-                  {selected ? (
-                    <View style={styles.goalCheckBadge}>
-                      <Ionicons color="#FFFFFF" name="checkmark" size={14} />
-                    </View>
-                  ) : null}
-                  <View
-                    style={[
-                      styles.goalIconTile,
-                      selected ? styles.goalIconTileSelected : null,
-                    ]}
-                  >
-                    <Ionicons
-                      color={selected ? "#FFFFFF" : theme.colors.primary}
-                      name={option.icon}
-                      size={22}
-                    />
-                  </View>
-                  <Text
-                    style={[
-                      styles.goalCardText,
-                      selected ? styles.goalCardTextSelected : null,
-                    ]}
-                  >
-                    {option.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
+        <View style={styles.progressTrack}>
+          <View style={[styles.progressFill, { width: `${Math.max(progress * 100, 4)}%` }]} />
         </View>
-      </>
+      </View>
     );
   };
 
-  const renderSplitStep = () => (
-    <>
-      <View style={styles.hero}>
-        <Text style={styles.title}>
-          Your{"\n"}
-          Split
-          <Text style={styles.titleDot}>.</Text>
+  const renderScreenIntro = (eyebrow: string, title: string, body: string) => (
+    <View style={styles.screenIntro}>
+      <Text style={styles.eyebrow}>{eyebrow}</Text>
+      <Text style={styles.title}>{title}</Text>
+      <Text style={styles.heroCopy}>{body}</Text>
+    </View>
+  );
+
+  const renderWelcomeStep = () => (
+    <View style={styles.welcomeScreen}>
+      <View style={styles.logoStage}>
+        <View style={styles.logoRingOuter} />
+        <View style={styles.logoRingInner} />
+        <LinearGradient
+          colors={["#FF8A3D", "#FF5A14", "#C94E0D"]}
+          style={styles.logoMark}
+        >
+          <Ionicons color="#1A0A02" name="flash" size={54} />
+        </LinearGradient>
+      </View>
+      <View style={styles.welcomeCopy}>
+        <Text style={styles.wordmark}>
+          fit<Text style={styles.wordmarkAccent}>fo</Text>
         </Text>
-        <Text style={styles.wordmark}>Fitfo</Text>
+        <Text style={styles.welcomeTitle}>Turn any reel into your next workout.</Text>
         <Text style={styles.heroCopy}>
-          {isEditing
-            ? "Edit your split and schedule so your setup still matches how you train."
-            : "This helps us keep your account pointed at the way you actually train."}
+          Hey {firstName}, we will tune the app around how you train before you land in your library.
         </Text>
       </View>
+    </View>
+  );
 
-      <View style={styles.contentCard}>
-        <Text style={styles.sectionLabel}>How do you train?</Text>
-        <View style={styles.chipGroup}>
-          {splitOptions.map((option) => {
-            const selected = trainingSplit === option.value;
-
+  const renderAgeStep = () => (
+    <>
+      {renderScreenIntro(
+        "Step 01 · Demographics",
+        "How old are you?",
+        "This helps Fitfo keep intensity, defaults, and progress tracking grounded.",
+      )}
+      <View style={styles.agePicker}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.ageScrollContent}
+        >
+          {ageOptions.map((option) => {
+            const selected = age === option;
             return (
               <Pressable
-                key={option.value}
-                onPress={() => setTrainingSplit(option.value)}
-                style={[
-                  styles.choiceChip,
-                  selected ? styles.choiceChipSelected : null,
-                ]}
+                key={option}
+                onPress={() => setAgeInput(String(option))}
+                style={[styles.ageChip, selected ? styles.ageChipSelected : null]}
               >
-                <Text
-                  style={[
-                    styles.choiceChipText,
-                    selected ? styles.choiceChipTextSelected : null,
-                  ]}
-                >
-                  {option.label}
+                <Text style={[styles.ageChipText, selected ? styles.ageChipTextSelected : null]}>
+                  {option}
                 </Text>
               </Pressable>
             );
           })}
+        </ScrollView>
+        <View style={styles.ageReadout}>
+          <Text style={styles.statBig}>{Number.isFinite(age) ? age : "--"}</Text>
+          <Text style={styles.statUnit}>years old</Text>
         </View>
+      </View>
+    </>
+  );
 
-        {trainingSplit === "custom" ? (
-          <View style={styles.customSplitGroup}>
-            <Text style={styles.inputLabel}>Describe your split</Text>
-            <View style={styles.customSplitShell}>
-              <TextInput
-                multiline
-                maxLength={500}
-                onChangeText={setCustomSplitNotes}
-                placeholder="e.g. Push / Pull / Legs / Arms / Rest, rotating weekly"
-                placeholderTextColor={theme.colors.textMuted}
-                style={styles.customSplitInput}
-                value={customSplitNotes}
-                textAlignVertical="top"
-              />
-            </View>
-            <Text style={styles.customSplitHint}>
-              Tell us what each day looks like so we can tailor your plan.
-              {" "}
-              {customSplitNotes.length}/500
+  const renderSexStep = () => (
+    <>
+      {renderScreenIntro(
+        "Step 02 · Demographics",
+        "What should we personalize around?",
+        "Fitfo can use this to bias examples and creator-style previews. You can skip the signal.",
+      )}
+      <View style={styles.cardList}>
+        {sexOptions.map((option) => {
+          const selected = sex === option.value;
+          return (
+            <Pressable
+              key={option.value}
+              onPress={() => setSex(option.value)}
+              style={[styles.choiceCard, selected ? styles.choiceCardSelected : null]}
+            >
+              <View style={[styles.choiceIcon, selected ? styles.choiceIconSelected : null]}>
+                <Ionicons
+                  color={selected ? "#1A0A02" : theme.colors.primaryLight}
+                  name={option.icon}
+                  size={22}
+                />
+              </View>
+              <View style={styles.choiceCopy}>
+                <Text style={styles.choiceTitle}>{option.label}</Text>
+                <Text style={styles.choiceBody}>{option.detail}</Text>
+              </View>
+              <SelectionDot selected={selected} theme={theme} />
+            </Pressable>
+          );
+        })}
+      </View>
+    </>
+  );
+
+  const renderExperienceStep = () => (
+    <>
+      {renderScreenIntro(
+        "Step 03 · Training",
+        "How experienced are you?",
+        "This calibrates coaching language, rest defaults, and load suggestions.",
+      )}
+      <View style={styles.cardList}>
+        {experienceOptions.map((option) => {
+          const selected = experienceLevel === option.value;
+          return (
+            <Pressable
+              key={option.value}
+              onPress={() => setExperienceLevel(option.value)}
+              style={[styles.choiceCard, selected ? styles.choiceCardSelected : null]}
+            >
+              <View style={styles.barMeter}>
+                {[1, 2, 3].map((bar) => (
+                  <View
+                    key={bar}
+                    style={[
+                      styles.barMeterItem,
+                      { height: 9 + bar * 8 },
+                      bar <= option.bars ? styles.barMeterItemActive : null,
+                      selected && bar <= option.bars ? styles.barMeterItemSelected : null,
+                    ]}
+                  />
+                ))}
+              </View>
+              <View style={styles.choiceCopy}>
+                <Text style={styles.choiceTitle}>{option.label}</Text>
+                <Text style={styles.choiceBody}>{option.detail}</Text>
+              </View>
+              <SelectionDot selected={selected} theme={theme} />
+            </Pressable>
+          );
+        })}
+      </View>
+    </>
+  );
+
+  const renderDemoStep = () => (
+    <>
+      {renderScreenIntro(
+        "Step 04 · Preview",
+        "A reel becomes a routine.",
+        "This is the handoff Fitfo is built for: save the thing you already wanted to train.",
+      )}
+      <View style={styles.demoPhone}>
+        <LinearGradient
+          colors={["#FFB088", "#FF6A1A", "#24100A"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.demoVideo}
+        >
+          <View style={styles.demoTopRow}>
+            <Text style={styles.demoTopMuted}>Following</Text>
+            <Text style={styles.demoTopActive}>For You</Text>
+          </View>
+          <View style={styles.demoPerson}>
+            <Text style={styles.demoPersonText}>{sex === "female" ? "F" : sex === "male" ? "M" : "X"}</Text>
+          </View>
+          <View style={styles.demoCaption}>
+            <Text style={styles.demoCreator}>{demo.creator}</Text>
+            <Text style={styles.demoCaptionText}>{demo.caption}</Text>
+            <Text style={styles.demoTag}>{demo.tag}</Text>
+          </View>
+        </LinearGradient>
+        <Pressable
+          onPress={() => setDemoStage((current) => (current === "video" ? "parsed" : "video"))}
+          style={styles.parseOverlay}
+        >
+          <View style={styles.parseHeader}>
+            <Ionicons color={theme.colors.primaryLight} name="sparkles-outline" size={16} />
+            <Text style={styles.parseEyebrow}>
+              {demoStage === "video" ? "Tap to parse" : "Workout found"}
             </Text>
           </View>
-        ) : null}
+          {demoStage === "parsed" ? (
+            <View style={styles.parsedList}>
+              {["Incline press", "Cable fly", "Triceps pressdown"].map((item, index) => (
+                <View key={item} style={styles.parsedRow}>
+                  <Text style={styles.parsedIndex}>{index + 1}</Text>
+                  <Text style={styles.parsedText}>{item}</Text>
+                  <Text style={styles.parsedMeta}>3 sets</Text>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <Text style={styles.parseBody}>Fitfo reads the caption, transcript, and frames.</Text>
+          )}
+        </Pressable>
+      </View>
+    </>
+  );
 
-        <Text style={[styles.sectionLabel, styles.sectionOffset]}>Days per week</Text>
+  const renderGoalsStep = () => (
+    <>
+      {renderScreenIntro(
+        "Step 05 · Goals",
+        "What drives you?",
+        "Pick all that fit. We will bias saved workouts and coaching context around these.",
+      )}
+      <View style={styles.goalGrid}>
+        {goalOptions.map((option) => {
+          const selected = goals.includes(option.value);
+          return (
+            <Pressable
+              key={option.value}
+              onPress={() => toggleGoal(option.value)}
+              style={[styles.goalCard, selected ? styles.goalCardSelected : null]}
+            >
+              <View style={[styles.goalIconTile, selected ? styles.goalIconTileSelected : null]}>
+                <Ionicons
+                  color={selected ? "#1A0A02" : theme.colors.primaryLight}
+                  name={option.icon}
+                  size={21}
+                />
+              </View>
+              <Text style={styles.goalCardText}>{option.label}</Text>
+              <Text style={styles.goalCardMeta}>{option.shortLabel}</Text>
+              {selected ? (
+                <View style={styles.goalCheckBadge}>
+                  <Ionicons color="#1A0A02" name="checkmark" size={13} />
+                </View>
+              ) : null}
+            </Pressable>
+          );
+        })}
+      </View>
+    </>
+  );
+
+  const renderSplitStep = () => (
+    <>
+      {renderScreenIntro(
+        "Step 06 · Training",
+        "Pick your split.",
+        "This sets the cadence Fitfo uses when it helps you schedule and organize workouts.",
+      )}
+      <View style={styles.cardList}>
+        {splitOptions.map((option) => {
+          const selected = trainingSplit === option.value;
+          return (
+            <Pressable
+              key={option.value}
+              onPress={() => {
+                setTrainingSplit(option.value);
+                if (option.days > 0) {
+                  setDaysPerWeek(option.days);
+                }
+              }}
+              style={[styles.choiceCard, selected ? styles.choiceCardSelected : null]}
+            >
+              <View style={styles.choiceCopy}>
+                <Text style={styles.choiceTitle}>{option.label}</Text>
+                <Text style={styles.choiceBody}>{option.sublabel}</Text>
+              </View>
+              <View style={styles.weekDots}>
+                {Array.from({ length: 7 }, (_, index) => (
+                  <View
+                    key={`${option.value}-${index}`}
+                    style={[
+                      styles.weekDot,
+                      index < (option.days || daysPerWeek || 0) ? styles.weekDotActive : null,
+                      selected && index < (option.days || daysPerWeek || 0)
+                        ? styles.weekDotSelected
+                        : null,
+                    ]}
+                  />
+                ))}
+              </View>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {trainingSplit === "custom" ? (
+        <View style={styles.customSplitGroup}>
+          <Text style={styles.inputLabel}>Describe your split</Text>
+          <View style={styles.customSplitShell}>
+            <TextInput
+              multiline
+              maxLength={500}
+              onChangeText={setCustomSplitNotes}
+              placeholder="e.g. Push / Pull / Legs / Arms / Rest, rotating weekly"
+              placeholderTextColor={theme.colors.textMuted}
+              style={styles.customSplitInput}
+              value={customSplitNotes}
+              textAlignVertical="top"
+            />
+          </View>
+          <Text style={styles.customSplitHint}>{customSplitNotes.length}/500</Text>
+        </View>
+      ) : null}
+
+      <View style={styles.daysBlock}>
+        <Text style={styles.sectionLabel}>Days per week</Text>
         <View style={styles.dayRow}>
           {dayOptions.map((dayOption) => {
             const selected = daysPerWeek === dayOption;
-
             return (
               <Pressable
                 key={dayOption}
                 onPress={() => setDaysPerWeek(dayOption)}
-                style={[
-                  styles.dayChip,
-                  selected ? styles.dayChipSelected : null,
-                ]}
+                style={[styles.dayChip, selected ? styles.dayChipSelected : null]}
               >
-                <Text
-                  style={[
-                    styles.dayChipText,
-                    selected ? styles.dayChipTextSelected : null,
-                  ]}
-                >
+                <Text style={[styles.dayChipText, selected ? styles.dayChipTextSelected : null]}>
                   {dayOption}
                 </Text>
               </Pressable>
@@ -413,37 +693,19 @@ export function OnboardingScreen({
       {Platform.OS === "ios" ? (
         <InputAccessoryView nativeID={STATS_INPUT_ACCESSORY_ID}>
           <View style={styles.inputAccessoryBar}>
-            <Pressable
-              hitSlop={12}
-              onPress={() => Keyboard.dismiss()}
-              style={({ pressed }) => [
-                styles.inputAccessoryDone,
-                pressed ? styles.inputAccessoryDonePressed : null,
-              ]}
-            >
+            <Pressable hitSlop={12} onPress={() => Keyboard.dismiss()} style={styles.inputAccessoryDone}>
               <Text style={styles.inputAccessoryDoneText}>Done</Text>
             </Pressable>
           </View>
         </InputAccessoryView>
       ) : null}
 
-      <View style={styles.hero}>
-        <Text style={styles.title}>
-          Your 
-          Stats
-          <Text style={styles.titleDot}>.</Text>
-        </Text>
-        <Text style={styles.wordmark}>Fitfo</Text>
-        <Text style={styles.heroCopy}>
-          {isEditing
-            ? "Change your stats here anytime and we'll keep the latest version on your account."
-            : "A little setup now gives your account a baseline that belongs to you."}
-        </Text>
-      </View>
-
-      <View style={styles.contentCard}>
-        <Text style={styles.sectionLabel}>Body info</Text>
-
+      {renderScreenIntro(
+        "Step 07 · Body stats",
+        "How tall and heavy?",
+        "This gives progress charts a baseline and keeps workout suggestions more grounded.",
+      )}
+      <View style={styles.statsCard}>
         <View style={styles.row}>
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>Weight</Text>
@@ -452,12 +714,12 @@ export function OnboardingScreen({
                 inputAccessoryViewID={Platform.OS === "ios" ? STATS_INPUT_ACCESSORY_ID : undefined}
                 keyboardType="decimal-pad"
                 onChangeText={(value) => setWeightLbsInput(sanitizeDecimalInput(value))}
-                placeholder="175"
+                placeholder="165"
                 placeholderTextColor={theme.colors.textMuted}
                 style={styles.input}
                 value={weightLbsInput}
               />
-              <Text style={styles.inputUnit}>lbs</Text>
+              <Text style={styles.inputUnit}>lb</Text>
             </View>
           </View>
 
@@ -468,7 +730,7 @@ export function OnboardingScreen({
                 inputAccessoryViewID={Platform.OS === "ios" ? STATS_INPUT_ACCESSORY_ID : undefined}
                 keyboardType="number-pad"
                 onChangeText={(value) => setAgeInput(sanitizeWholeNumberInput(value))}
-                placeholder="20"
+                placeholder="22"
                 placeholderTextColor={theme.colors.textMuted}
                 style={styles.input}
                 value={ageInput}
@@ -478,7 +740,6 @@ export function OnboardingScreen({
           </View>
         </View>
 
-        <Text style={[styles.sectionLabel, styles.sectionOffset]}>Height</Text>
         <View style={styles.row}>
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>Feet</Text>
@@ -503,7 +764,7 @@ export function OnboardingScreen({
                 inputAccessoryViewID={Platform.OS === "ios" ? STATS_INPUT_ACCESSORY_ID : undefined}
                 keyboardType="number-pad"
                 onChangeText={(value) => setHeightInchesInput(sanitizeWholeNumberInput(value, 2))}
-                placeholder="11"
+                placeholder="9"
                 placeholderTextColor={theme.colors.textMuted}
                 style={styles.input}
                 value={heightInchesInput}
@@ -512,32 +773,164 @@ export function OnboardingScreen({
             </View>
           </View>
         </View>
+      </View>
+    </>
+  );
 
-        <Text style={[styles.sectionLabel, styles.sectionOffset]}>Experience level</Text>
-        <View style={styles.chipGroup}>
-          {experienceOptions.map((option) => {
-            const selected = experienceLevel === option.value;
+  const advanceTryIt = () => {
+    setTryItStage((current) =>
+      current === "tiktok"
+        ? "share"
+        : current === "share"
+          ? "import"
+          : current === "import"
+            ? "workout"
+            : "workout",
+    );
+  };
 
+  const renderTryItStep = () => (
+    <>
+      {renderScreenIntro(
+        "Step 08 · Try it",
+        "Take it for a spin.",
+        "Tap through the import path before you hit the real app.",
+      )}
+      <Pressable onPress={advanceTryIt} style={styles.tryItCard}>
+        {tryItStage === "tiktok" ? (
+          <>
+            <Ionicons color={theme.colors.primaryLight} name="share-outline" size={30} />
+            <Text style={styles.tryTitle}>You find a workout reel.</Text>
+            <Text style={styles.choiceBody}>Tap here to open the share sheet.</Text>
+          </>
+        ) : tryItStage === "share" ? (
+          <>
+            <View style={styles.shareSheet}>
+              {["Messages", "Fitfo", "Copy"].map((label) => (
+                <View key={label} style={[styles.shareItem, label === "Fitfo" ? styles.shareItemActive : null]}>
+                  <Ionicons
+                    color={label === "Fitfo" ? "#1A0A02" : theme.colors.textPrimary}
+                    name={label === "Fitfo" ? "flash" : "link-outline"}
+                    size={18}
+                  />
+                  <Text style={[styles.shareLabel, label === "Fitfo" ? styles.shareLabelActive : null]}>
+                    {label}
+                  </Text>
+                </View>
+              ))}
+            </View>
+            <Text style={styles.tryTitle}>Choose Fitfo.</Text>
+          </>
+        ) : tryItStage === "import" ? (
+          <>
+            <FitfoMiniSpinner theme={theme} />
+            <Text style={styles.tryTitle}>Importing workout...</Text>
+            <Text style={styles.choiceBody}>Caption, transcript, and visual cues are being parsed.</Text>
+          </>
+        ) : (
+          <>
+            <Ionicons color={theme.colors.primaryLight} name="checkmark-circle-outline" size={34} />
+            <Text style={styles.tryTitle}>Push Day · Chest Focus</Text>
+            <View style={styles.parsedList}>
+              {["Incline DB press", "Machine chest press", "Cable fly"].map((item, index) => (
+                <View key={item} style={styles.parsedRow}>
+                  <Text style={styles.parsedIndex}>{index + 1}</Text>
+                  <Text style={styles.parsedText}>{item}</Text>
+                  <Text style={styles.parsedMeta}>3x10</Text>
+                </View>
+              ))}
+            </View>
+          </>
+        )}
+      </Pressable>
+    </>
+  );
+
+  const renderCalendarStep = () => (
+    <>
+      {renderScreenIntro(
+        "Step 09 · Feature",
+        "Schedule it. Show up to it.",
+        "Drop any imported workout onto a day. Fitfo keeps the week clear and nudges you when it is time.",
+      )}
+      <View style={styles.featureCard}>
+        <Text style={styles.sectionLabel}>This week</Text>
+        <View style={styles.calendarRow}>
+          {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day, index) => {
+            const active = index === 2 || index === 4;
             return (
-              <Pressable
-                key={option.value}
-                onPress={() => setExperienceLevel(option.value)}
-                style={[
-                  styles.choiceChip,
-                  selected ? styles.choiceChipSelected : null,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.choiceChipText,
-                    selected ? styles.choiceChipTextSelected : null,
-                  ]}
-                >
-                  {option.label}
+              <View key={day} style={[styles.calendarDay, active ? styles.calendarDayActive : null]}>
+                <Text style={[styles.calendarDayText, active ? styles.calendarDayTextActive : null]}>
+                  {day}
                 </Text>
-              </Pressable>
+                <Text style={[styles.calendarDateText, active ? styles.calendarDayTextActive : null]}>
+                  {index + 1}
+                </Text>
+              </View>
             );
           })}
+        </View>
+        <View style={styles.eventCard}>
+          <Ionicons color={theme.colors.primaryLight} name="barbell-outline" size={20} />
+          <View style={styles.choiceCopy}>
+            <Text style={styles.choiceTitle}>{selectedSplit?.label || "Push / Pull / Legs"}</Text>
+            <Text style={styles.choiceBody}>{daysPerWeek || 4} sessions queued</Text>
+          </View>
+          <Text style={styles.eventBadge}>READY</Text>
+        </View>
+        {["Auto-fill from your split", "Reminder before lift time", "Skip or reschedule in one tap"].map((item) => (
+          <View key={item} style={styles.featureBullet}>
+            <Ionicons color={theme.colors.primaryLight} name="checkmark-circle" size={16} />
+            <Text style={styles.featureBulletText}>{item}</Text>
+          </View>
+        ))}
+      </View>
+    </>
+  );
+
+  const renderArchiveStep = () => (
+    <>
+      {renderScreenIntro(
+        "Step 10 · Feature",
+        "Every set. Every PR. Logged.",
+        "Your training archive and body-weight baseline are ready when you are.",
+      )}
+      <View style={styles.featureCard}>
+        <View style={styles.statGrid}>
+          <View style={styles.statCard}>
+            <Text style={styles.sectionLabel}>This month</Text>
+            <Text style={styles.statValue}>24</Text>
+            <Text style={styles.choiceBody}>sessions</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.sectionLabel}>Streak</Text>
+            <Text style={[styles.statValue, styles.statValueHot]}>11</Text>
+            <Text style={styles.choiceBody}>days</Text>
+          </View>
+        </View>
+        <View style={styles.chartCard}>
+          <View style={styles.chartHeader}>
+            <View>
+              <Text style={styles.sectionLabel}>Bench press · 8 weeks</Text>
+              <Text style={styles.chartValue}>205 <Text style={styles.chartUnit}>lb 1RM</Text></Text>
+            </View>
+            <View style={styles.chartBadge}>
+              <Ionicons color={theme.colors.primaryLight} name="trending-up-outline" size={14} />
+              <Text style={styles.chartBadgeText}>+18%</Text>
+            </View>
+          </View>
+          <View style={styles.chartBars}>
+            {[42, 58, 73, 65, 80, 92, 88, 95].map((height, index) => (
+              <View
+                key={`${height}-${index}`}
+                style={[
+                  styles.chartBar,
+                  { height },
+                  index === 7 ? styles.chartBarHot : null,
+                ]}
+              />
+            ))}
+          </View>
         </View>
       </View>
     </>
@@ -546,18 +939,60 @@ export function OnboardingScreen({
   const renderDoneStep = () => (
     <View style={styles.doneScreen}>
       <View style={styles.doneBadge}>
-        <Ionicons color={theme.colors.surface} name="checkmark" size={20} />
+        <Ionicons color="#1A0A02" name="checkmark" size={24} />
       </View>
       <Text style={styles.doneTitle}>
         You're set<Text style={styles.titleDot}>.</Text>
       </Text>
       <Text style={styles.doneBody}>
-        {isEditing
-          ? "Your updates are saved."
-          : "Ready to figure it the f*ck out."}
+        {isEditing ? "Your training setup is updated." : "Your Fitfo setup is saved and ready."}
       </Text>
     </View>
   );
+
+  const renderCurrentStep = () => {
+    switch (currentStep) {
+      case "welcome":
+        return renderWelcomeStep();
+      case "age":
+        return renderAgeStep();
+      case "sex":
+        return renderSexStep();
+      case "experience":
+        return renderExperienceStep();
+      case "demo":
+        return renderDemoStep();
+      case "goals":
+        return renderGoalsStep();
+      case "split":
+        return renderSplitStep();
+      case "stats":
+        return renderStatsStep();
+      case "tryit":
+        return renderTryItStep();
+      case "calendar":
+        return renderCalendarStep();
+      case "archive":
+        return renderArchiveStep();
+      case "done":
+        return renderDoneStep();
+      default:
+        return renderWelcomeStep();
+    }
+  };
+
+  const primaryLabel =
+    currentStep === "welcome"
+      ? "Get started"
+      : currentStep === "done"
+        ? isEditing
+          ? "Back to Profile"
+          : "Go to App"
+        : stepIndex === finalInputIndex
+          ? isEditing
+            ? "Save Changes"
+            : "Finish setup"
+          : "Continue";
 
   return (
     <KeyboardAvoidingView
@@ -570,45 +1005,18 @@ export function OnboardingScreen({
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.progressSection}>
-          <Text style={styles.stepCount}>
-            Step {Math.min(stepIndex + 1, 4)} of 4
-          </Text>
-          <View style={styles.progressRow}>
-            {Array.from({ length: 4 }, (_, index) => {
-              const done = index < stepIndex;
-              const active = index === stepIndex;
+        {currentStep !== "welcome" && currentStep !== "done" ? renderHeader() : null}
 
-              return (
-                <View
-                  key={`progress-${index}`}
-                  style={[
-                    styles.progressSegment,
-                    done ? styles.progressSegmentDone : null,
-                    active ? styles.progressSegmentActive : null,
-                  ]}
-                />
-              );
-            })}
-          </View>
-        </View>
+        {renderCurrentStep()}
 
-        {stepIndex === 0
-          ? renderGoalsStep()
-          : stepIndex === 1
-            ? renderSplitStep()
-            : stepIndex === 2
-              ? renderStatsStep()
-              : renderDoneStep()}
-
-        {error && stepIndex < 3 ? (
+        {error && currentStep !== "done" ? (
           <View style={styles.errorCard}>
             <Text style={styles.errorText}>{error}</Text>
           </View>
         ) : null}
 
         <View style={styles.navRow}>
-          {(stepIndex > 0 && stepIndex < 3) || (stepIndex === 0 && isEditing) ? (
+          {(stepIndex > 0 && currentStep !== "done") || (stepIndex === 0 && isEditing) ? (
             <Pressable onPress={handleBackPress} style={styles.backButton}>
               <Ionicons color={theme.colors.textPrimary} name="chevron-back" size={18} />
             </Pressable>
@@ -622,30 +1030,18 @@ export function OnboardingScreen({
             style={[
               styles.primaryButton,
               !canAdvance ? styles.primaryButtonDisabled : null,
-              stepIndex === 3 ? styles.primaryButtonFullWidth : null,
+              currentStep === "done" ? styles.primaryButtonFullWidth : null,
             ]}
           >
-            {isSubmitting && stepIndex === 2 ? (
+            {isSubmitting && stepIndex === finalInputIndex ? (
               <>
-                <ActivityIndicator color={theme.colors.surface} size="small" />
+                <ActivityIndicator color="#1A0A02" size="small" />
                 <Text style={styles.primaryButtonText}>Saving</Text>
               </>
             ) : (
               <>
-                <Text style={styles.primaryButtonText}>
-                  {stepIndex === 0
-                    ? "Next"
-                    : stepIndex === 1
-                      ? "Next"
-                      : stepIndex === 2
-                        ? isEditing
-                          ? "Save Changes"
-                          : "Let's Go"
-                        : isEditing
-                          ? "Back to Profile"
-                          : "Go to App"}
-                </Text>
-                <Ionicons color={theme.colors.surface} name="arrow-forward" size={18} />
+                <Text style={styles.primaryButtonText}>{primaryLabel}</Text>
+                <Ionicons color="#1A0A02" name="arrow-forward" size={18} />
               </>
             )}
           </Pressable>
@@ -654,6 +1050,62 @@ export function OnboardingScreen({
     </KeyboardAvoidingView>
   );
 }
+
+function SelectionDot({
+  selected,
+  theme,
+}: {
+  selected: boolean;
+  theme: ReturnType<typeof getTheme>;
+}) {
+  return (
+    <View
+      style={[
+        selectionDotStyles.dot,
+        { borderColor: selected ? theme.colors.primaryLight : theme.colors.border },
+        selected ? { backgroundColor: theme.colors.primaryLight } : null,
+      ]}
+    >
+      {selected ? <Ionicons color="#1A0A02" name="checkmark" size={13} /> : null}
+    </View>
+  );
+}
+
+function FitfoMiniSpinner({ theme }: { theme: ReturnType<typeof getTheme> }) {
+  return (
+    <View style={selectionDotStyles.spinnerShell}>
+      <View style={[selectionDotStyles.spinnerCore, { backgroundColor: theme.colors.primaryLight }]}>
+        <Ionicons color="#1A0A02" name="flash" size={22} />
+      </View>
+    </View>
+  );
+}
+
+const selectionDotStyles = StyleSheet.create({
+  dot: {
+    width: 24,
+    height: 24,
+    borderRadius: 999,
+    borderWidth: 2,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  spinnerShell: {
+    width: 68,
+    height: 68,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255, 106, 26, 0.12)",
+  },
+  spinnerCore: {
+    width: 48,
+    height: 48,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+});
 
 const createStyles = (theme: ReturnType<typeof getTheme>) =>
   StyleSheet.create({
@@ -671,169 +1123,396 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     progressSection: {
       gap: 10,
     },
+    progressTopRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+    },
     stepCount: {
       color: theme.colors.textMuted,
-      fontSize: 12,
+      fontSize: 11,
+      fontFamily: "Satoshi-Black",
+      fontWeight: "900",
+      letterSpacing: 1.4,
+      textTransform: "uppercase",
+    },
+    stepPercent: {
+      color: theme.colors.primaryLight,
+      fontSize: 11,
+      fontFamily: "Satoshi-Black",
+      fontWeight: "900",
+      letterSpacing: 1,
+    },
+    progressTrack: {
+      height: 5,
+      borderRadius: 999,
+      backgroundColor: theme.colors.track,
+      overflow: "hidden",
+    },
+    progressFill: {
+      height: "100%",
+      borderRadius: 999,
+      backgroundColor: theme.colors.primaryLight,
+    },
+    screenIntro: {
+      gap: 10,
+    },
+    eyebrow: {
+      color: theme.colors.primaryLight,
+      fontSize: 11,
+      fontFamily: "Satoshi-Black",
+      fontWeight: "900",
+      letterSpacing: 1.8,
+      textTransform: "uppercase",
+    },
+    title: {
+      color: theme.colors.textPrimary,
+      fontSize: 36,
+      lineHeight: 39,
+      fontFamily: "ClashDisplay-Bold",
+      fontWeight: "800",
+      letterSpacing: 0,
+    },
+    titleDot: {
+      color: theme.colors.primaryLight,
+    },
+    heroCopy: {
+      color: theme.colors.textSecondary,
+      fontSize: 15,
+      lineHeight: 22,
+    },
+    welcomeScreen: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 40,
+      paddingVertical: 34,
+    },
+    logoStage: {
+      width: 178,
+      height: 178,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    logoRingOuter: {
+      position: "absolute",
+      width: 176,
+      height: 176,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: "rgba(255, 106, 26, 0.28)",
+    },
+    logoRingInner: {
+      position: "absolute",
+      width: 132,
+      height: 132,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: "rgba(255, 106, 26, 0.5)",
+    },
+    logoMark: {
+      width: 104,
+      height: 104,
+      borderRadius: 28,
+      alignItems: "center",
+      justifyContent: "center",
+      transform: [{ rotate: "-8deg" }],
+      shadowColor: theme.colors.primary,
+      shadowOpacity: 0.45,
+      shadowRadius: 28,
+      shadowOffset: { width: 0, height: 16 },
+      elevation: 12,
+    },
+    welcomeCopy: {
+      alignItems: "center",
+      gap: 12,
+    },
+    wordmark: {
+      color: theme.colors.textPrimary,
+      fontSize: 56,
+      lineHeight: 62,
+      fontFamily: "Satoshi-Black",
+      fontWeight: "900",
+      letterSpacing: -2,
+    },
+    wordmarkAccent: {
+      color: theme.colors.primaryLight,
+    },
+    welcomeTitle: {
+      color: theme.colors.textPrimary,
+      fontSize: 22,
+      lineHeight: 28,
+      fontFamily: "Satoshi-Black",
+      fontWeight: "900",
+      textAlign: "center",
+      maxWidth: 300,
+    },
+    agePicker: {
+      gap: 18,
+    },
+    ageScrollContent: {
+      gap: 10,
+      paddingVertical: 4,
+      paddingRight: 18,
+    },
+    ageChip: {
+      minWidth: 58,
+      height: 58,
+      borderRadius: 18,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.colors.surface,
+      borderWidth: 1,
+      borderColor: theme.colors.borderSoft,
+    },
+    ageChipSelected: {
+      backgroundColor: theme.colors.primaryLight,
+      borderColor: theme.colors.primaryLight,
+    },
+    ageChipText: {
+      color: theme.colors.textPrimary,
+      fontSize: 18,
+      fontFamily: "Satoshi-Black",
+      fontWeight: "900",
+      fontVariant: ["tabular-nums"],
+    },
+    ageChipTextSelected: {
+      color: "#1A0A02",
+    },
+    ageReadout: {
+      minHeight: 170,
+      borderRadius: 26,
+      backgroundColor: theme.colors.surface,
+      borderWidth: 1,
+      borderColor: theme.colors.borderSoft,
+      alignItems: "center",
+      justifyContent: "center",
+      ...theme.shadows.card,
+    },
+    statBig: {
+      color: theme.colors.primaryLight,
+      fontSize: 72,
+      lineHeight: 78,
+      fontFamily: "Satoshi-Black",
+      fontWeight: "900",
+      fontVariant: ["tabular-nums"],
+    },
+    statUnit: {
+      color: theme.colors.textMuted,
+      fontSize: 13,
       fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       letterSpacing: 1.2,
       textTransform: "uppercase",
     },
-    progressRow: {
-      flexDirection: "row",
-      gap: 8,
-    },
-    progressSegment: {
-      flex: 1,
-      height: 4,
-      borderRadius: 999,
-      backgroundColor: theme.mode === "dark" ? theme.colors.track : theme.colors.surfaceStrong,
-    },
-    progressSegmentDone: {
-      backgroundColor: theme.colors.primary,
-    },
-    progressSegmentActive: {
-      backgroundColor: theme.colors.primaryLight,
-    },
-    hero: {
+    cardList: {
       gap: 10,
     },
-    heroGoals: {
-      borderRadius: 32,
-      overflow: "hidden",
-      shadowColor: theme.mode === "dark" ? "#FF4D0A" : "#2956D7",
-      shadowOpacity: theme.mode === "dark" ? 0.5 : 0.3,
-      shadowRadius: 24,
-      shadowOffset: { width: 0, height: 16 },
-      elevation: 12,
-    },
-    heroGradient: {
-      padding: 24,
-      paddingBottom: 28,
-      gap: 22,
-      overflow: "hidden",
-      borderRadius: 32,
-    },
-    heroOrb1: {
-      position: "absolute",
-      top: -80,
-      right: -60,
-      width: 240,
-      height: 240,
-      borderRadius: 999,
-      backgroundColor: "rgba(255, 255, 255, 0.18)",
-    },
-    heroOrb2: {
-      position: "absolute",
-      bottom: -100,
-      left: -70,
-      width: 220,
-      height: 220,
-      borderRadius: 999,
-      backgroundColor: "rgba(255, 255, 255, 0.12)",
-    },
-    heroOrb3: {
-      position: "absolute",
-      top: 40,
-      left: -30,
-      width: 90,
-      height: 90,
-      borderRadius: 999,
-      backgroundColor: "rgba(255, 255, 255, 0.08)",
-    },
-    heroBadgeRow: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-    },
-    heroChip: {
+    choiceCard: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 6,
-      paddingHorizontal: 12,
-      paddingVertical: 7,
-      borderRadius: 999,
-      backgroundColor: "rgba(255, 255, 255, 0.18)",
+      gap: 14,
+      minHeight: 78,
+      borderRadius: 20,
+      padding: 16,
+      backgroundColor: theme.colors.surface,
       borderWidth: 1,
-      borderColor: "rgba(255, 255, 255, 0.25)",
+      borderColor: theme.colors.borderSoft,
+      ...theme.shadows.softCard,
     },
-    heroChipText: {
-      color: "#FFFFFF",
-      fontSize: 11,
-      fontFamily: "Satoshi-Bold",
-      fontWeight: "800",
-      letterSpacing: 0.6,
+    choiceCardSelected: {
+      borderColor: theme.colors.primaryLight,
+      backgroundColor:
+        theme.mode === "dark" ? "rgba(255, 106, 26, 0.10)" : "rgba(41, 86, 215, 0.08)",
     },
-    heroCounter: {
+    choiceIcon: {
       width: 44,
       height: 44,
-      borderRadius: 999,
+      borderRadius: 15,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: "rgba(0, 0, 0, 0.22)",
-      borderWidth: 1,
-      borderColor: "rgba(255, 255, 255, 0.2)",
+      backgroundColor: "rgba(255, 106, 26, 0.12)",
     },
-    heroCounterText: {
-      color: "#FFFFFF",
+    choiceIconSelected: {
+      backgroundColor: theme.colors.primaryLight,
+    },
+    choiceCopy: {
+      flex: 1,
+      gap: 3,
+    },
+    choiceTitle: {
+      color: theme.colors.textPrimary,
       fontSize: 16,
+      lineHeight: 21,
       fontFamily: "Satoshi-Black",
       fontWeight: "900",
     },
-    heroCounterTextMuted: {
-      color: "rgba(255, 255, 255, 0.6)",
-      fontSize: 12,
+    choiceBody: {
+      color: theme.colors.textMuted,
+      fontSize: 13,
+      lineHeight: 18,
       fontFamily: "Satoshi-Bold",
-      fontWeight: "800",
+      fontWeight: "700",
     },
-    heroTitleBlock: {
-      gap: 10,
+    barMeter: {
+      width: 44,
+      height: 44,
+      flexDirection: "row",
+      alignItems: "flex-end",
+      justifyContent: "center",
+      gap: 4,
+      borderRadius: 15,
+      backgroundColor: "rgba(255, 255, 255, 0.04)",
     },
-    heroEyebrow: {
-      color: "rgba(255, 255, 255, 0.82)",
-      fontSize: 11,
-      fontFamily: "Satoshi-Bold",
-      fontWeight: "800",
-      letterSpacing: 1.8,
-      textTransform: "uppercase",
+    barMeterItem: {
+      width: 6,
+      borderRadius: 3,
+      backgroundColor: "rgba(255, 255, 255, 0.12)",
     },
-    heroTitleNew: {
-      color: "#FFFFFF",
-      fontSize: 46,
-      lineHeight: 48,
-      fontFamily: "Satoshi-Black",
-      fontWeight: "900",
-      letterSpacing: -2.2,
+    barMeterItemActive: {
+      backgroundColor: theme.colors.textPrimary,
     },
-    heroTitleAccent: {
-      color: "#FFFFFF",
-      fontStyle: "italic",
-      fontFamily: "Satoshi-Black",
-      fontWeight: "900",
+    barMeterItemSelected: {
+      backgroundColor: theme.colors.primaryLight,
     },
-    heroTitleDotNew: {
-      color: "#FFE59A",
+    demoPhone: {
+      borderRadius: 28,
+      overflow: "hidden",
+      backgroundColor: "#000",
+      borderWidth: 1,
+      borderColor: theme.colors.borderSoft,
+      ...theme.shadows.card,
     },
-    heroCopyNew: {
-      color: "rgba(255, 255, 255, 0.88)",
-      fontSize: 15,
-      lineHeight: 22,
-      maxWidth: 340,
+    demoVideo: {
+      minHeight: 360,
+      padding: 18,
+      justifyContent: "space-between",
     },
-    goalsSection: {
+    demoTopRow: {
+      flexDirection: "row",
+      alignSelf: "center",
       gap: 16,
     },
-    goalsHint: {
+    demoTopMuted: {
+      color: "rgba(255, 255, 255, 0.62)",
+      fontFamily: "Satoshi-Bold",
+      fontWeight: "800",
+    },
+    demoTopActive: {
+      color: "#FFFFFF",
+      fontFamily: "Satoshi-Black",
+      fontWeight: "900",
+      borderBottomWidth: 2,
+      borderBottomColor: "#FFFFFF",
+      paddingBottom: 4,
+    },
+    demoPerson: {
+      alignSelf: "center",
+      width: 160,
+      height: 190,
+      borderRadius: 80,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: "rgba(0, 0, 0, 0.18)",
+    },
+    demoPersonText: {
+      color: "rgba(0, 0, 0, 0.22)",
+      fontSize: 116,
+      fontFamily: "Satoshi-Black",
+      fontWeight: "900",
+    },
+    demoCaption: {
+      gap: 5,
+    },
+    demoCreator: {
+      color: "#FFFFFF",
+      fontSize: 15,
+      fontFamily: "Satoshi-Black",
+      fontWeight: "900",
+    },
+    demoCaptionText: {
+      color: "rgba(255, 255, 255, 0.88)",
+      fontSize: 14,
+      lineHeight: 20,
+      fontFamily: "Satoshi-Bold",
+      fontWeight: "800",
+    },
+    demoTag: {
+      color: "#1A0A02",
+      alignSelf: "flex-start",
+      overflow: "hidden",
+      borderRadius: 999,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      backgroundColor: "rgba(255, 255, 255, 0.72)",
+      fontSize: 11,
+      fontFamily: "Satoshi-Black",
+      fontWeight: "900",
+      textTransform: "uppercase",
+      letterSpacing: 1,
+    },
+    parseOverlay: {
+      padding: 16,
+      gap: 12,
+      backgroundColor: theme.colors.surface,
+    },
+    parseHeader: {
       flexDirection: "row",
       alignItems: "center",
       gap: 8,
-      paddingHorizontal: 4,
     },
-    goalsHintText: {
+    parseEyebrow: {
+      color: theme.colors.primaryLight,
+      fontSize: 11,
+      fontFamily: "Satoshi-Black",
+      fontWeight: "900",
+      letterSpacing: 1.2,
+      textTransform: "uppercase",
+    },
+    parseBody: {
       color: theme.colors.textSecondary,
-      fontSize: 13,
+      fontSize: 14,
+      lineHeight: 20,
       fontFamily: "Satoshi-Bold",
       fontWeight: "700",
+    },
+    parsedList: {
+      gap: 8,
+      alignSelf: "stretch",
+    },
+    parsedRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      padding: 10,
+      borderRadius: 12,
+      backgroundColor: theme.colors.surfaceMuted,
+    },
+    parsedIndex: {
+      width: 22,
+      height: 22,
+      borderRadius: 999,
+      overflow: "hidden",
+      textAlign: "center",
+      textAlignVertical: "center",
+      backgroundColor: "rgba(255, 106, 26, 0.18)",
+      color: theme.colors.primaryLight,
+      fontSize: 12,
+      fontFamily: "Satoshi-Black",
+      fontWeight: "900",
+    },
+    parsedText: {
+      flex: 1,
+      color: theme.colors.textPrimary,
+      fontSize: 13,
+      fontFamily: "Satoshi-Bold",
+      fontWeight: "800",
+    },
+    parsedMeta: {
+      color: theme.colors.textMuted,
+      fontSize: 11,
+      fontFamily: "Satoshi-Bold",
+      fontWeight: "800",
     },
     goalGrid: {
       flexDirection: "row",
@@ -842,24 +1521,45 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     },
     goalCard: {
       width: "47.5%",
-      minHeight: 124,
+      minHeight: 126,
       borderRadius: 22,
-      padding: 16,
+      padding: 15,
+      gap: 9,
       backgroundColor: theme.colors.surface,
-      borderWidth: 1.5,
-      borderColor: theme.mode === "dark" ? theme.colors.borderSoft : "rgba(41, 86, 215, 0.08)",
-      gap: 14,
-      justifyContent: "space-between",
+      borderWidth: 1,
+      borderColor: theme.colors.borderSoft,
       ...theme.shadows.softCard,
     },
     goalCardSelected: {
-      backgroundColor: theme.colors.primary,
-      borderColor: theme.colors.primary,
-      shadowColor: theme.colors.primary,
-      shadowOpacity: 0.35,
-      shadowRadius: 14,
-      shadowOffset: { width: 0, height: 8 },
-      elevation: 6,
+      borderColor: theme.colors.primaryLight,
+      backgroundColor:
+        theme.mode === "dark" ? "rgba(255, 106, 26, 0.12)" : "rgba(41, 86, 215, 0.08)",
+    },
+    goalIconTile: {
+      width: 42,
+      height: 42,
+      borderRadius: 14,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: "rgba(255, 106, 26, 0.12)",
+    },
+    goalIconTileSelected: {
+      backgroundColor: theme.colors.primaryLight,
+    },
+    goalCardText: {
+      color: theme.colors.textPrimary,
+      fontSize: 15,
+      lineHeight: 19,
+      fontFamily: "Satoshi-Black",
+      fontWeight: "900",
+    },
+    goalCardMeta: {
+      color: theme.colors.textMuted,
+      fontSize: 11,
+      fontFamily: "Satoshi-Bold",
+      fontWeight: "800",
+      textTransform: "uppercase",
+      letterSpacing: 0.7,
     },
     goalCheckBadge: {
       position: "absolute",
@@ -870,141 +1570,30 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       borderRadius: 999,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: "rgba(255, 255, 255, 0.22)",
-      borderWidth: 1,
-      borderColor: "rgba(255, 255, 255, 0.4)",
+      backgroundColor: theme.colors.primaryLight,
     },
-    goalIconTile: {
-      width: 44,
-      height: 44,
-      borderRadius: 14,
-      alignItems: "center",
-      justifyContent: "center",
-      backgroundColor:
-        theme.mode === "dark" ? "rgba(255, 90, 20, 0.14)" : "rgba(41, 86, 215, 0.10)",
-    },
-    goalIconTileSelected: {
-      backgroundColor: "rgba(255, 255, 255, 0.22)",
-    },
-    goalCardText: {
-      color: theme.colors.textPrimary,
-      fontSize: 15,
-      fontFamily: "Satoshi-Bold",
-      fontWeight: "800",
-      letterSpacing: -0.3,
-    },
-    goalCardTextSelected: {
-      color: "#FFFFFF",
-    },
-    eyebrow: {
-      color: theme.colors.primary,
-      fontSize: 12,
-      fontFamily: "Satoshi-Black",
-      fontWeight: "900",
-      letterSpacing: 2.6,
-      textTransform: "uppercase",
-    },
-    title: {
-      color: theme.colors.textPrimary,
-      fontSize: 58,
-      lineHeight: 55,
-      fontFamily: "Satoshi-Black",
-      fontWeight: "900",
-      letterSpacing: -2.8,
-    },
-    titleDot: {
-      color: theme.colors.heroDot,
-    },
-    wordmark: {
-      color: theme.colors.textMuted,
-      fontSize: 22,
-      fontFamily: "Satoshi-Black",
-      fontWeight: "900",
-      letterSpacing: 0,
-    },
-    heroCopy: {
-      color: theme.colors.textSecondary,
-      fontSize: 16,
-      lineHeight: 24,
-      maxWidth: 340,
-    },
-    contentCard: {
-      borderRadius: 30,
-      backgroundColor: theme.colors.surface,
-      padding: 20,
-      gap: 14,
-      borderWidth: 1,
-      borderColor: theme.mode === "dark" ? theme.colors.borderSoft : "transparent",
-      ...theme.shadows.card,
-    },
-    sectionLabel: {
-      color: theme.colors.textMuted,
-      fontSize: 12,
-      fontFamily: "Satoshi-Black",
-      fontWeight: "900",
-      letterSpacing: 1.8,
-      textTransform: "uppercase",
-    },
-    sectionOffset: {
-      marginTop: 6,
-    },
-    chipGroup: {
+    weekDots: {
       flexDirection: "row",
-      flexWrap: "wrap",
-      gap: 10,
+      gap: 4,
     },
-    optionChip: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 8,
-      paddingHorizontal: 14,
-      paddingVertical: 12,
-      borderRadius: 999,
-      backgroundColor: theme.colors.background,
-      borderWidth: 1,
-      borderColor: theme.colors.borderSoft,
+    weekDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 3,
+      backgroundColor: "rgba(255, 255, 255, 0.12)",
     },
-    optionChipSelected: {
-      backgroundColor: theme.colors.primary,
-      borderColor: theme.colors.primary,
+    weekDotActive: {
+      backgroundColor: theme.colors.textMuted,
     },
-    optionChipText: {
-      color: theme.colors.textPrimary,
-      fontSize: 14,
-      fontFamily: "Satoshi-Bold",
-      fontWeight: "800",
-    },
-    optionChipTextSelected: {
-      color: theme.colors.surface,
-    },
-    choiceChip: {
-      paddingHorizontal: 16,
-      paddingVertical: 12,
-      borderRadius: 999,
-      backgroundColor: theme.colors.background,
-      borderWidth: 1,
-      borderColor: theme.colors.borderSoft,
-    },
-    choiceChipSelected: {
-      backgroundColor: theme.colors.primary,
-      borderColor: theme.colors.primary,
-    },
-    choiceChipText: {
-      color: theme.colors.textPrimary,
-      fontSize: 14,
-      fontFamily: "Satoshi-Bold",
-      fontWeight: "800",
-    },
-    choiceChipTextSelected: {
-      color: theme.colors.surface,
+    weekDotSelected: {
+      backgroundColor: theme.colors.primaryLight,
     },
     customSplitGroup: {
       gap: 8,
-      marginTop: 4,
     },
     customSplitShell: {
       borderRadius: 16,
-      backgroundColor: theme.colors.background,
+      backgroundColor: theme.colors.surface,
       borderWidth: 1,
       borderColor: theme.colors.borderSoft,
       paddingHorizontal: 14,
@@ -1026,23 +1615,34 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       fontWeight: "700",
       letterSpacing: 0.2,
     },
+    daysBlock: {
+      gap: 10,
+    },
+    sectionLabel: {
+      color: theme.colors.textMuted,
+      fontSize: 11,
+      fontFamily: "Satoshi-Black",
+      fontWeight: "900",
+      letterSpacing: 1.5,
+      textTransform: "uppercase",
+    },
     dayRow: {
       flexDirection: "row",
       gap: 10,
     },
     dayChip: {
-      width: 56,
+      width: 58,
       height: 52,
       borderRadius: 16,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: theme.colors.background,
+      backgroundColor: theme.colors.surface,
       borderWidth: 1,
       borderColor: theme.colors.borderSoft,
     },
     dayChipSelected: {
-      backgroundColor: theme.colors.primary,
-      borderColor: theme.colors.primary,
+      backgroundColor: theme.colors.primaryLight,
+      borderColor: theme.colors.primaryLight,
     },
     dayChipText: {
       color: theme.colors.textPrimary,
@@ -1051,7 +1651,16 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       fontWeight: "900",
     },
     dayChipTextSelected: {
-      color: theme.colors.surface,
+      color: "#1A0A02",
+    },
+    statsCard: {
+      gap: 14,
+      borderRadius: 24,
+      backgroundColor: theme.colors.surface,
+      borderWidth: 1,
+      borderColor: theme.colors.borderSoft,
+      padding: 16,
+      ...theme.shadows.card,
     },
     row: {
       flexDirection: "row",
@@ -1111,14 +1720,212 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       paddingVertical: 6,
       borderRadius: 8,
     },
-    inputAccessoryDonePressed: {
-      opacity: 0.7,
-    },
     inputAccessoryDoneText: {
-      color: theme.colors.primary,
+      color: theme.colors.primaryLight,
       fontSize: 16,
       fontFamily: "Satoshi-Bold",
       fontWeight: "800",
+    },
+    tryItCard: {
+      minHeight: 350,
+      borderRadius: 26,
+      padding: 20,
+      gap: 14,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.colors.surface,
+      borderWidth: 1,
+      borderColor: theme.colors.borderSoft,
+      ...theme.shadows.card,
+    },
+    tryTitle: {
+      color: theme.colors.textPrimary,
+      fontSize: 20,
+      lineHeight: 25,
+      textAlign: "center",
+      fontFamily: "Satoshi-Black",
+      fontWeight: "900",
+    },
+    shareSheet: {
+      alignSelf: "stretch",
+      flexDirection: "row",
+      gap: 10,
+      justifyContent: "center",
+    },
+    shareItem: {
+      flex: 1,
+      alignItems: "center",
+      gap: 8,
+      borderRadius: 18,
+      paddingVertical: 14,
+      backgroundColor: theme.colors.surfaceMuted,
+      borderWidth: 1,
+      borderColor: theme.colors.borderSoft,
+    },
+    shareItemActive: {
+      backgroundColor: theme.colors.primaryLight,
+      borderColor: theme.colors.primaryLight,
+    },
+    shareLabel: {
+      color: theme.colors.textPrimary,
+      fontSize: 11,
+      fontFamily: "Satoshi-Bold",
+      fontWeight: "800",
+    },
+    shareLabelActive: {
+      color: "#1A0A02",
+    },
+    featureCard: {
+      gap: 14,
+      borderRadius: 24,
+      backgroundColor: theme.colors.surface,
+      borderWidth: 1,
+      borderColor: theme.colors.borderSoft,
+      padding: 16,
+      ...theme.shadows.card,
+    },
+    calendarRow: {
+      flexDirection: "row",
+      gap: 6,
+    },
+    calendarDay: {
+      flex: 1,
+      minHeight: 62,
+      borderRadius: 14,
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 3,
+      backgroundColor: theme.colors.surfaceMuted,
+      borderWidth: 1,
+      borderColor: theme.colors.borderSoft,
+    },
+    calendarDayActive: {
+      backgroundColor: theme.colors.primaryLight,
+      borderColor: theme.colors.primaryLight,
+    },
+    calendarDayText: {
+      color: theme.colors.textMuted,
+      fontSize: 10,
+      fontFamily: "Satoshi-Black",
+      fontWeight: "900",
+      textTransform: "uppercase",
+    },
+    calendarDateText: {
+      color: theme.colors.textPrimary,
+      fontSize: 17,
+      fontFamily: "Satoshi-Black",
+      fontWeight: "900",
+    },
+    calendarDayTextActive: {
+      color: "#1A0A02",
+    },
+    eventCard: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      borderRadius: 18,
+      padding: 14,
+      backgroundColor: "rgba(255, 106, 26, 0.10)",
+      borderWidth: 1,
+      borderColor: "rgba(255, 106, 26, 0.22)",
+    },
+    eventBadge: {
+      color: theme.colors.primaryLight,
+      fontSize: 10,
+      fontFamily: "Satoshi-Black",
+      fontWeight: "900",
+      letterSpacing: 1,
+    },
+    featureBullet: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 9,
+    },
+    featureBulletText: {
+      color: theme.colors.textSecondary,
+      fontSize: 13,
+      fontFamily: "Satoshi-Bold",
+      fontWeight: "800",
+    },
+    statGrid: {
+      flexDirection: "row",
+      gap: 10,
+    },
+    statCard: {
+      flex: 1,
+      borderRadius: 18,
+      padding: 16,
+      backgroundColor: theme.colors.surfaceMuted,
+      borderWidth: 1,
+      borderColor: theme.colors.borderSoft,
+    },
+    statValue: {
+      color: theme.colors.textPrimary,
+      fontSize: 34,
+      lineHeight: 40,
+      fontFamily: "Satoshi-Black",
+      fontWeight: "900",
+      marginTop: 6,
+    },
+    statValueHot: {
+      color: theme.colors.primaryLight,
+    },
+    chartCard: {
+      borderRadius: 18,
+      padding: 16,
+      backgroundColor: theme.colors.surfaceMuted,
+      borderWidth: 1,
+      borderColor: theme.colors.borderSoft,
+    },
+    chartHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "flex-start",
+      gap: 10,
+    },
+    chartValue: {
+      color: theme.colors.textPrimary,
+      fontSize: 28,
+      lineHeight: 34,
+      fontFamily: "Satoshi-Black",
+      fontWeight: "900",
+      marginTop: 4,
+    },
+    chartUnit: {
+      color: theme.colors.textMuted,
+      fontSize: 12,
+      fontFamily: "Satoshi-Bold",
+      fontWeight: "800",
+    },
+    chartBadge: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      borderRadius: 999,
+      paddingHorizontal: 9,
+      paddingVertical: 5,
+      backgroundColor: "rgba(255, 106, 26, 0.12)",
+    },
+    chartBadgeText: {
+      color: theme.colors.primaryLight,
+      fontSize: 11,
+      fontFamily: "Satoshi-Black",
+      fontWeight: "900",
+    },
+    chartBars: {
+      marginTop: 16,
+      height: 104,
+      flexDirection: "row",
+      alignItems: "flex-end",
+      gap: 7,
+    },
+    chartBar: {
+      flex: 1,
+      borderRadius: 5,
+      backgroundColor: "rgba(255, 255, 255, 0.12)",
+    },
+    chartBarHot: {
+      backgroundColor: theme.colors.primaryLight,
     },
     errorCard: {
       borderRadius: 18,
@@ -1140,22 +1947,22 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       alignItems: "center",
       justifyContent: "center",
       gap: 16,
+      paddingVertical: 80,
     },
     doneBadge: {
-      width: 48,
-      height: 48,
-      borderRadius: 999,
+      width: 62,
+      height: 62,
+      borderRadius: 24,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: theme.colors.primary,
+      backgroundColor: theme.colors.primaryLight,
     },
     doneTitle: {
       color: theme.colors.textPrimary,
-      fontSize: 32,
-      lineHeight: 36,
-      fontFamily: "Satoshi-Bold",
+      fontSize: 36,
+      lineHeight: 40,
+      fontFamily: "ClashDisplay-Bold",
       fontWeight: "800",
-      letterSpacing: -1.2,
       textAlign: "center",
     },
     doneBody: {
@@ -1163,7 +1970,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       fontSize: 16,
       lineHeight: 22,
       textAlign: "center",
-      maxWidth: 240,
+      maxWidth: 260,
     },
     navRow: {
       flexDirection: "row",
@@ -1173,13 +1980,13 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     },
     backButton: {
       width: 50,
-      height: 50,
+      height: 52,
       borderRadius: 16,
       alignItems: "center",
       justifyContent: "center",
       backgroundColor: theme.colors.surface,
       borderWidth: 1,
-      borderColor: theme.mode === "dark" ? theme.colors.borderSoft : "transparent",
+      borderColor: theme.colors.borderSoft,
       ...theme.shadows.softCard,
     },
     primaryButton: {
@@ -1190,7 +1997,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       justifyContent: "center",
       flexDirection: "row",
       gap: 8,
-      backgroundColor: theme.colors.primary,
+      backgroundColor: theme.colors.primaryLight,
       ...theme.shadows.primary,
     },
     primaryButtonDisabled: {
@@ -1202,7 +2009,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       flex: 1,
     },
     primaryButtonText: {
-      color: theme.colors.surface,
+      color: "#1A0A02",
       fontSize: 15,
       fontFamily: "Satoshi-Black",
       fontWeight: "900",

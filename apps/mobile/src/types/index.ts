@@ -107,8 +107,11 @@ export type TrainingSplit =
 
 export type ExperienceLevel = "beginner" | "intermediate" | "advanced";
 
+export type OnboardingSex = "male" | "female" | "prefer_not_to_say";
+
 export interface UserOnboarding {
   goals: OnboardingGoal[];
+  sex: OnboardingSex | null;
   training_split: TrainingSplit;
   custom_split_notes: string | null;
   days_per_week: number;
@@ -190,6 +193,7 @@ export interface MeResponse {
 
 export interface SaveOnboardingRequest {
   goals: OnboardingGoal[];
+  sex: OnboardingSex;
   training_split: TrainingSplit;
   custom_split_notes?: string | null;
   days_per_week: number;

@@ -141,7 +141,7 @@ interface ScheduledConfirmationState {
   origin: "share" | "manual";
 }
 
-const AUTH_LANDING_AUTH_INDEX = 4;
+const AUTH_LANDING_AUTH_INDEX = 11;
 const TRIAL_LENGTH_MS = 7 * 24 * 60 * 60 * 1000;
 
 function isWithinInitialTrial(createdAt: string | null | undefined) {
@@ -180,6 +180,8 @@ export default function App() {
     useState<AuthSubmitMode | null>(null);
   const [authPrefillPhone, setAuthPrefillPhone] = useState("");
   const [authPrefillFullName, setAuthPrefillFullName] = useState("");
+  const [authLandingOnboardingPayload, setAuthLandingOnboardingPayload] =
+    useState<SaveOnboardingRequest | null>(null);
   const [pendingOtpChallenge, setPendingOtpChallenge] =
     useState<PendingOtpChallenge | null>(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
@@ -543,6 +545,23 @@ export default function App() {
       setBodyWeightEntriesLoading(false);
     }
   }, []);
+
+  const applyAuthLandingOnboarding = useCallback(
+    async (profile: UserProfile, token: string) => {
+      if (!authLandingOnboardingPayload || profile.onboarding) {
+        return profile;
+      }
+
+      const response = await saveOnboarding(token, authLandingOnboardingPayload);
+      setAuthLandingOnboardingPayload(null);
+      await loadBodyWeightEntries(token);
+      setTimeout(() => {
+        void requestNotificationPermissionForOnboarding();
+      }, 400);
+      return response.profile;
+    },
+    [authLandingOnboardingPayload, loadBodyWeightEntries],
+  );
 
   useEffect(() => {
     if (!currentUser || !accessToken) {
@@ -1361,6 +1380,7 @@ export default function App() {
     setPendingOtpChallenge(null);
     setAuthError(null);
     setAuthNotice(notice || null);
+    setAuthLandingOnboardingPayload(null);
     setAuthPrefillFullName("");
     if (phone) {
       setAuthPrefillPhone(phone);
@@ -1414,8 +1434,12 @@ export default function App() {
         email: credential.email ?? undefined,
       });
 
-      await storeAuthSession(response.access_token, response.profile);
-      applyAuthenticatedSession(response.profile, response.access_token);
+      const profile = await applyAuthLandingOnboarding(
+        response.profile,
+        response.access_token,
+      );
+      await storeAuthSession(response.access_token, profile);
+      applyAuthenticatedSession(profile, response.access_token);
     } catch (error) {
       setAuthError(
         error instanceof Error
@@ -1425,7 +1449,7 @@ export default function App() {
     } finally {
       setAuthSubmittingMode(null);
     }
-  }, [applyAuthenticatedSession]);
+  }, [applyAuthLandingOnboarding, applyAuthenticatedSession]);
 
   const handleLogin = useCallback(
     async (phone: string) => {
@@ -1515,8 +1539,12 @@ export default function App() {
             : {}),
         });
 
-        await storeAuthSession(response.access_token, response.profile);
-        applyAuthenticatedSession(response.profile, response.access_token);
+        const profile = await applyAuthLandingOnboarding(
+          response.profile,
+          response.access_token,
+        );
+        await storeAuthSession(response.access_token, profile);
+        applyAuthenticatedSession(profile, response.access_token);
       } catch (error) {
         setAuthError(
           error instanceof Error ? error.message : "Unable to verify that code.",
@@ -1525,7 +1553,7 @@ export default function App() {
         setAuthSubmittingMode(null);
       }
     },
-    [applyAuthenticatedSession, pendingOtpChallenge],
+    [applyAuthLandingOnboarding, applyAuthenticatedSession, pendingOtpChallenge],
   );
 
   const handleResendOtp = useCallback(async () => {
@@ -2136,11 +2164,15 @@ export default function App() {
             onChangeIndex={setAuthLandingIndex}
             onCreateAccount={handleCreateAccount}
             onLogin={handleLogin}
+            onOnboardingPayloadChange={setAuthLandingOnboardingPayload}
             onSelectMode={(mode) => {
               setAuthLandingIndex(AUTH_LANDING_AUTH_INDEX);
               setPendingOtpChallenge(null);
               setAuthError(null);
               setAuthNotice(null);
+              if (mode === "login") {
+                setAuthLandingOnboardingPayload(null);
+              }
               setAuthMode(mode);
             }}
             authMode={authMode === "signup" ? "signup" : "login"}

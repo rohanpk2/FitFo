@@ -73,7 +73,7 @@ PROFILE_SELECT_FIELDS = (
     "id, full_name, phone, email, apple_user_id, created_at, updated_at"
 )
 PROFILE_ONBOARDING_SELECT_FIELDS = (
-    "user_id, goals, training_split, custom_split_notes, days_per_week, weight_lbs, "
+    "user_id, goals, sex, training_split, custom_split_notes, days_per_week, weight_lbs, "
     "height_inches, experience_level, age, completed_at, created_at, updated_at"
 )
 BODY_WEIGHT_ENTRY_SELECT_FIELDS = (
@@ -779,6 +779,7 @@ def upsert_profile_onboarding(
     user_id: str,
     *,
     goals: List[str],
+    sex: str,
     training_split: str,
     days_per_week: int,
     weight_lbs: float,
@@ -804,6 +805,7 @@ def upsert_profile_onboarding(
 
     payload: Dict[str, Any] = {
         "goals": cleaned_goals,
+        "sex": sex,
         "training_split": training_split,
         "custom_split_notes": cleaned_notes,
         "days_per_week": days_per_week,

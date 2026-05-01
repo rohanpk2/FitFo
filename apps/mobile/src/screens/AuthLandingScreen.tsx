@@ -1,8 +1,6 @@
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Animated,
-  Easing,
   KeyboardAvoidingView,
   NativeScrollEvent,
   NativeSyntheticEvent,
@@ -23,15 +21,21 @@ import { AppleSignInButton } from "../components/AppleSignInButton";
 import { isAppleSignInAvailable } from "../lib/appleAuth";
 import { F } from "../lib/fonts";
 import type { ThemeMode } from "../theme";
-import type { AuthMode } from "../types";
-
-// ─── Constants ────────────────────────────────────────────────────────────────
+import type {
+  AuthMode,
+  ExperienceLevel,
+  OnboardingGoal,
+  OnboardingSex,
+  SaveOnboardingRequest,
+  TrainingSplit,
+} from "../types";
 
 const ORANGE = "#FF5A1F";
-const LAST_SLIDE_INDEX = 4;
+const AUTH_SLIDE_INDEX = 11;
+const AGE_ITEM_WIDTH = 64;
+const AGE_ITEM_GAP = 10;
+const AGE_SNAP_INTERVAL = AGE_ITEM_WIDTH + AGE_ITEM_GAP;
 const WORKOUT_VIDEO = require("../../assets/my-workout.mp4");
-
-// ─── Types ─────────────────────────────────────────────────────────────────────
 
 interface AuthLandingScreenProps {
   activeIndex: number;
@@ -46,11 +50,56 @@ interface AuthLandingScreenProps {
   onChangeIndex: (index: number) => void;
   onCreateAccount: (fullName: string, phone: string) => void;
   onLogin: (phone: string) => void;
+  onOnboardingPayloadChange?: (payload: SaveOnboardingRequest | null) => void;
   onSelectMode: (mode: Exclude<AuthMode, "otp">) => void;
   themeMode?: ThemeMode;
 }
 
-// ─── Main component ────────────────────────────────────────────────────────────
+const goals: Array<{
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  value: OnboardingGoal;
+}> = [
+  { icon: "barbell-outline", label: "Build strength", value: "get_stronger" },
+  { icon: "body-outline", label: "Gain muscle", value: "build_muscle" },
+  { icon: "flame-outline", label: "Lose body fat", value: "lose_fat" },
+  { icon: "walk-outline", label: "Improve cardio", value: "improve_cardio" },
+  { icon: "trophy-outline", label: "Sport performance", value: "athletic_performance" },
+  { icon: "checkmark-circle-outline", label: "Stay consistent", value: "stay_active" },
+];
+
+const sexOptions: Array<{ label: string; sub: string; value: OnboardingSex }> = [
+  { label: "Male", sub: "He / him", value: "male" },
+  { label: "Female", sub: "She / her", value: "female" },
+  { label: "Prefer not to say", sub: "Skip creator matching", value: "prefer_not_to_say" },
+];
+
+const experienceOptions: Array<{
+  label: string;
+  sub: string;
+  value: ExperienceLevel;
+  bars: number;
+}> = [
+  { label: "Beginner", sub: "New or rebuilding consistency", value: "beginner", bars: 1 },
+  { label: "Intermediate", sub: "Training regularly", value: "intermediate", bars: 2 },
+  { label: "Advanced", sub: "Structured programming", value: "advanced", bars: 3 },
+];
+
+const splitOptions: Array<{
+  label: string;
+  sub: string;
+  value: TrainingSplit;
+  days: number;
+}> = [
+  { label: "Push / Pull / Legs", sub: "Classic hypertrophy cadence", value: "ppl", days: 6 },
+  { label: "Upper / Lower", sub: "Balanced and repeatable", value: "upper_lower", days: 4 },
+  { label: "Bro Split", sub: "One body part each session", value: "bro_split", days: 5 },
+  { label: "Full Body", sub: "Time-efficient, 3 days", value: "full_body", days: 3 },
+  { label: "5/3/1", sub: "Strength progression", value: "five_three_one", days: 4 },
+  { label: "Custom", sub: "I will tune this later", value: "custom", days: 4 },
+];
+
+const ageOptions = Array.from({ length: 57 }, (_, index) => index + 14);
 
 export function AuthLandingScreen({
   activeIndex,
@@ -65,80 +114,175 @@ export function AuthLandingScreen({
   onChangeIndex,
   onCreateAccount,
   onLogin,
+  onOnboardingPayloadChange,
   onSelectMode,
   themeMode = "dark",
 }: AuthLandingScreenProps) {
-  const { height, width } = useWindowDimensions();
+  const { width } = useWindowDimensions();
   const scrollRef = useRef<ScrollView>(null);
-  const pulseAnim = useRef(new Animated.Value(0)).current;
+  const ageScrollRef = useRef<ScrollView>(null);
   const workoutVideoPlayer = useVideoPlayer(WORKOUT_VIDEO, (player) => {
     player.loop = true;
     player.muted = true;
     player.play();
   });
-
   const [fullName, setFullName] = useState(initialFullName ?? "");
   const [phoneNumber, setPhoneNumber] = useState(initialPhoneNumber ?? "");
   const [isAppleAvailable, setIsAppleAvailable] = useState(false);
+  const [age, setAge] = useState(22);
+  const [sex, setSex] = useState<OnboardingSex | null>(null);
+  const [experience, setExperience] = useState<ExperienceLevel | null>(null);
+  const [selectedGoals, setSelectedGoals] = useState<OnboardingGoal[]>([]);
+  const [split, setSplit] = useState<TrainingSplit | null>(null);
+  const [daysPerWeek, setDaysPerWeek] = useState(4);
+  const [weightLbs, setWeightLbs] = useState("165");
+  const [heightFeet, setHeightFeet] = useState("5");
+  const [heightInches, setHeightInches] = useState("9");
+  const [tryStage, setTryStage] = useState<"tiktok" | "share" | "import" | "workout">("tiktok");
 
-  // Sync controlled inputs
   useEffect(() => { setFullName(initialFullName ?? ""); }, [initialFullName]);
   useEffect(() => { setPhoneNumber(initialPhoneNumber ?? ""); }, [initialPhoneNumber]);
 
-  // Apple availability
   useEffect(() => {
     let alive = true;
-    isAppleSignInAvailable().then((v) => { if (alive) setIsAppleAvailable(v); });
-    return () => { alive = false; };
+    isAppleSignInAvailable().then((value) => {
+      if (alive) {
+        setIsAppleAvailable(value);
+      }
+    });
+    return () => {
+      alive = false;
+    };
   }, []);
 
-  // Splash glow pulse
   useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1, duration: 2600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 0, duration: 2600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [pulseAnim]);
-
-  // Scroll to slide
-  useEffect(() => {
-    if (!width) return;
+    if (!width) {
+      return;
+    }
     const id = setTimeout(() => {
       scrollRef.current?.scrollTo({ x: activeIndex * width, animated: true });
     }, 0);
     return () => clearTimeout(id);
   }, [activeIndex, width]);
 
-  const handleMomentumEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    if (!width) return;
-    const next = Math.round(e.nativeEvent.contentOffset.x / width);
-    if (next !== activeIndex) onChangeIndex(next);
+  useEffect(() => {
+    const id = setTimeout(() => {
+      ageScrollRef.current?.scrollTo({
+        animated: false,
+        x: Math.max(0, ageOptions.indexOf(age)) * AGE_SNAP_INTERVAL,
+      });
+    }, 0);
+    return () => clearTimeout(id);
+  }, []);
+
+  const totalHeightInches =
+    Number.parseInt(heightFeet, 10) * 12 + Number.parseInt(heightInches, 10);
+  const numericWeight = Number.parseFloat(weightLbs);
+
+  const onboardingPayload = useMemo<SaveOnboardingRequest | null>(() => {
+    if (
+      !sex ||
+      !experience ||
+      selectedGoals.length === 0 ||
+      !split ||
+      !Number.isFinite(numericWeight) ||
+      !Number.isFinite(totalHeightInches)
+    ) {
+      return null;
+    }
+
+    return {
+      age,
+      days_per_week: daysPerWeek,
+      experience_level: experience,
+      goals: selectedGoals,
+      height_inches: totalHeightInches,
+      sex,
+      training_split: split,
+      custom_split_notes: split === "custom" ? "Custom split selected during onboarding." : null,
+      weight_lbs: numericWeight,
+    };
+  }, [
+    age,
+    daysPerWeek,
+    experience,
+    numericWeight,
+    selectedGoals,
+    sex,
+    split,
+    totalHeightInches,
+  ]);
+
+  useEffect(() => {
+    onOnboardingPayloadChange?.(onboardingPayload);
+  }, [onOnboardingPayloadChange, onboardingPayload]);
+
+  const ageWheelSidePadding = Math.max(0, (width - 48 - AGE_ITEM_WIDTH) / 2);
+  const canSubmit =
+    authMode === "signup"
+      ? Boolean(fullName.trim() && phoneNumber.trim()) && !isSubmitting
+      : Boolean(phoneNumber.trim()) && !isSubmitting;
+
+  const handleMomentumEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (!width) {
+      return;
+    }
+    const next = Math.round(event.nativeEvent.contentOffset.x / width);
+    if (next !== activeIndex) {
+      onChangeIndex(next);
+    }
   };
+
+  const goTo = (index: number) => onChangeIndex(Math.max(0, Math.min(index, AUTH_SLIDE_INDEX)));
+  const next = () => goTo(activeIndex + 1);
+  const back = () => goTo(activeIndex - 1);
 
   const handleSubmit = () => {
     const phone = phoneNumber.trim();
-    const name  = fullName.trim();
-    if (authMode === "signup") { onCreateAccount(name, phone); return; }
+    const name = fullName.trim();
+    if (authMode === "signup") {
+      onCreateAccount(name, phone);
+      return;
+    }
     onLogin(phone);
   };
 
-  const canSubmit = authMode === "signup"
-    ? Boolean(fullName.trim() && phoneNumber.trim()) && !isSubmitting
-    : Boolean(phoneNumber.trim()) && !isSubmitting;
+  const toggleGoal = (goal: OnboardingGoal) => {
+    setSelectedGoals((current) =>
+      current.includes(goal) ? current.filter((value) => value !== goal) : [...current, goal],
+    );
+  };
 
-  const featureDot = Math.min(Math.max(activeIndex - 1, 0), 2);
-  const videoPreviewWidth = Math.min(Math.max(width * 0.62, 198), height * 0.31, 250);
-  const videoPreviewHeight = videoPreviewWidth * 1.82;
+  const handleAgeScrollEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const nextIndex = Math.max(
+      0,
+      Math.min(
+        ageOptions.length - 1,
+        Math.round(event.nativeEvent.contentOffset.x / AGE_SNAP_INTERVAL),
+      ),
+    );
+    setAge(ageOptions[nextIndex]);
+  };
 
-  // Glow animated values
-  const glowScale   = pulseAnim.interpolate({ inputRange: [0, 1], outputRange: [1,    1.14] });
-  const glowOpacity = pulseAnim.interpolate({ inputRange: [0, 1], outputRange: [0.65, 1]    });
-  const ctaGlowScale   = pulseAnim.interpolate({ inputRange: [0, 1], outputRange: [0.97, 1.08] });
-  const ctaGlowOpacity = pulseAnim.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0.7]  });
+  const selectAge = (value: number) => {
+    setAge(value);
+    ageScrollRef.current?.scrollTo({
+      animated: true,
+      x: Math.max(0, ageOptions.indexOf(value)) * AGE_SNAP_INTERVAL,
+    });
+  };
+
+  const updateTryStage = () => {
+    setTryStage((current) =>
+      current === "tiktok"
+        ? "share"
+        : current === "share"
+          ? "import"
+          : current === "import"
+            ? "workout"
+            : "workout",
+    );
+  };
 
   return (
     <KeyboardAvoidingView
@@ -156,266 +300,328 @@ export function AuthLandingScreen({
         showsHorizontalScrollIndicator={false}
         style={S.carousel}
       >
-
-        {/* ── SCREEN 0: SPLASH ───────────────────────────────────────────── */}
         <View style={[S.slide, { width }]}>
-          <LinearGradient
-            colors={["#050505", "#120907", "#1D0D07", "#090909"]}
-            locations={[0, 0.38, 0.78, 1]}
-            style={S.splashSlide}
-          >
-            {/* Glow blob */}
-            <Animated.View
-              pointerEvents="none"
-              style={[S.glowBlob, { opacity: glowOpacity, transform: [{ scale: glowScale }] }]}
-            />
-
-            {/* Hero — left-aligned editorial stack anchored to the top */}
-            <View style={S.splashHero}>
-              {/* Brand bar */}
-              <View style={S.brandRow}>
-                <Text style={S.brandWordmark}>Fitfo</Text>
-              </View>
-
-              {/* Primary value headline — the promise, not the slogan */}
-              <Text style={S.splashHeadline}>
-                Turn fitness videos into <Text style={S.splashHeadlineAccent}>real workouts.</Text>
-                
-              </Text>
-
-             
-
-              <View style={S.videoPreviewWrap}>
-                <View
-                  style={[
-                    S.videoPhoneShadow,
-                    {
-                      height: videoPreviewHeight + 18,
-                      width: videoPreviewWidth + 18,
-                    },
-                  ]}
-                />
-                <View
-                  style={[
-                    S.videoPhoneShell,
-                    {
-                      height: videoPreviewHeight,
-                      width: videoPreviewWidth,
-                    },
-                  ]}
-                >
-                  <View style={S.videoPhoneNotch} />
-                  <VideoView
-                    allowsPictureInPicture={false}
-                    contentFit="cover"
-                    fullscreenOptions={{ enable: false }}
-                    nativeControls={false}
-                    player={workoutVideoPlayer}
-                    playsInline
-                    surfaceType="textureView"
-                    style={S.workoutVideo}
-                  />
-                  <LinearGradient
-                    colors={["rgba(0,0,0,0.48)", "transparent", "rgba(0,0,0,0.72)"]}
-                    pointerEvents="none"
-                    style={S.workoutVideoScrim}
-                  />
-                  <View style={S.videoHomeBar} />
-                </View>
+          <LinearGradient colors={["#050505", "#130906", "#080808"]} style={S.welcome}>
+            <View style={S.logoStack}>
+              <View style={S.logoRing} />
+              <View style={S.logoTile}>
+                <Ionicons color="#150803" name="flash" size={54} />
               </View>
             </View>
-
-            {/* Footer — CTA + trust hook + centered legal pinned to bottom */}
-            <View style={S.splashFooter}>
-              <View style={S.ctaWrap}>
-                <Animated.View
-                  pointerEvents="none"
-                  style={[S.ctaGlow, { opacity: ctaGlowOpacity, transform: [{ scale: ctaGlowScale }] }]}
-                />
-                <Pressable
-                  onPress={() => onChangeIndex(1)}
-                  style={({ pressed }) => [S.ctaBtn, pressed && S.pressed]}
-                >
-                  <Text style={S.ctaBtnText}>Build your first workout</Text>
-                  <Ionicons color="#050505" name="arrow-forward" size={18} />
-                </Pressable>
-              </View>
-
-              <Text style={S.splashTrust}>
-                Takes 10 seconds. Works with TikTok &amp; Instagram.
-              </Text>
-
-              <Text style={S.splashCaption}>
-                By continuing you agree to our Terms &amp; Privacy.
-              </Text>
+            <View style={S.centerCopy}>
+              <Text style={S.wordmark}>fit<Text style={S.wordmarkAccent}>fo</Text></Text>
+              <Text style={S.welcomeTitle}>Turn any reel into your next workout.</Text>
+              <Text style={S.bodyText}>Build your setup first. Then Fitfo saves, schedules, and tracks the workouts you already want to try.</Text>
+            </View>
+            <View style={S.bottomStack}>
+              <PrimaryButton label="Get started" onPress={next} />
+              <Pressable onPress={() => onSelectMode("login")} style={S.ghostTextButton}>
+                <Text style={S.ghostText}>I already have an account</Text>
+              </Pressable>
             </View>
           </LinearGradient>
         </View>
 
-        {/* ── SCREEN 1: IMPORT ───────────────────────────────────────────── */}
-        <View style={[S.slide, { width }]}>
-          <FeatureSlide
-            heroColors={["#1A1008", "#121212", "#080808"]}
-            hero={
-              <>
-                <View style={F1.badgeRow}>
-                  <SocialBadge icon="logo-instagram" label="Instagram" />
-                  <SocialBadge icon="play-circle"    label="TikTok"    />
-                </View>
-                <View style={F1.card}>
-                  <PreviewRibbon />
-                  <Text style={F1.cardTitle}>Import Workout</Text>
-                  <Text style={F1.cardSub}>Share any TikTok or Reel to our app.</Text>
-                  <View style={F1.cardInput}>
-                    <Ionicons color="#666" name="link-outline" size={15} />
-                    <Text style={F1.cardInputText}>tiktok.com/@creator/legday...</Text>
-                  </View>
-                  <View style={F1.cardPrimary}>
-                    <Ionicons color="#070707" name="flash" size={14} />
-                    <Text style={F1.cardPrimaryText}>Import Workout</Text>
-                  </View>
-                </View>
-              </>
-            }
-            body={
-              <>
-                <Text style={S.fTitle}>Import{"\n"}Any{"\n"}<Text style={S.fAccent}>Workout.</Text></Text>
-                <Text style={S.fDesc}>Share any TikTok or Reel to our app, just like you were sending it to a friend.</Text>
-                <View style={S.pillRow}>
-                  <Pill label="TikTok videos"   />
-                  <Pill label="Instagram Reels" />
-                </View>
-              </>
-            }
-            footer={
-              <SlideFooter
-                activeDot={featureDot}
-                onBack={() => onChangeIndex(0)}
-                onNext={() => onChangeIndex(2)}
-                onSkip={() => onChangeIndex(LAST_SLIDE_INDEX)}
-                showBack={false}
-              />
-            }
-          />
-        </View>
+        <StepSlide
+          back={back}
+          canContinue
+          index={1}
+          next={next}
+          title="How old are you?"
+          subtitle="So we can keep intensity, examples, and progress defaults grounded."
+          width={width}
+        >
+          <View style={S.ageCard}>
+            <View style={S.ageWheelWindow}>
+              <View pointerEvents="none" style={S.ageWheelCenter} />
+              <ScrollView
+                ref={ageScrollRef}
+                contentContainerStyle={[
+                  S.ageRow,
+                  { paddingHorizontal: ageWheelSidePadding },
+                ]}
+                decelerationRate="fast"
+                horizontal
+                onMomentumScrollEnd={handleAgeScrollEnd}
+                onScrollEndDrag={handleAgeScrollEnd}
+                showsHorizontalScrollIndicator={false}
+                snapToInterval={AGE_SNAP_INTERVAL}
+                snapToAlignment="start"
+              >
+                {ageOptions.map((option) => {
+                  const selected = age === option;
+                  return (
+                    <Pressable
+                      key={option}
+                      onPress={() => selectAge(option)}
+                      style={[S.ageWheelItem, selected && S.ageWheelItemActive]}
+                    >
+                      <Text style={[S.ageWheelText, selected && S.ageWheelTextActive]}>
+                        {option}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            </View>
+            <Text style={S.ageReadout}>{age}</Text>
+            <Text style={S.mutedCaps}>years old</Text>
+          </View>
+        </StepSlide>
 
-        {/* ── SCREEN 2: TRACK ────────────────────────────────────────────── */}
-        <View style={[S.slide, { width }]}>
-          <FeatureSlide
-            heroColors={["#0C170C", "#111111", "#080808"]}
-            hero={
-              <View style={F2.card}>
-                <PreviewRibbon />
-                <View style={F2.timerBadge}>
-                  <Text style={F2.timerLabel}>Time Elapsed</Text>
-                  <Text style={F2.timerValue}>24:15</Text>
-                  <Text style={F2.timerSub}>6 of 10 sets logged</Text>
-                </View>
-                <ExRow name="Squats"    meta="3 sets · 8–10 reps" />
-                <ExRow name="Leg Press" meta="2 sets · 10–12 reps" />
-                <ExRow name="RDL"       meta="1 set · 8 reps" />
-              </View>
-            }
-            body={
-              <>
-                <Text style={S.fTitle}>Track{"\n"}Every{"\n"}<Text style={S.fAccent}>Set.</Text></Text>
-                <Text style={S.fDesc}>Live timer, auto-advancing sets, weight and rep logging. Everything you need, nothing you don't.</Text>
-                <View style={S.pillRow}>
-                  <Pill label="Live timer"         />
-                  <Pill label="Auto-advance sets"  />
-                </View>
-              </>
-            }
-            footer={
-              <SlideFooter
-                activeDot={featureDot}
-                onBack={() => onChangeIndex(1)}
-                onNext={() => onChangeIndex(3)}
-                showBack
+        <StepSlide
+          back={back}
+          canContinue={Boolean(sex)}
+          index={2}
+          next={next}
+          title="What's your sex?"
+          subtitle="Used for creator-style previews and personalization. You can skip the signal."
+          width={width}
+        >
+          <View style={S.optionList}>
+            {sexOptions.map((option) => (
+              <OptionRow
+                key={option.value}
+                active={sex === option.value}
+                label={option.label}
+                onPress={() => setSex(option.value)}
+                sub={option.sub}
               />
-            }
-          />
-        </View>
+            ))}
+          </View>
+        </StepSlide>
 
-        {/* ── SCREEN 3: HISTORY ──────────────────────────────────────────── */}
-        <View style={[S.slide, { width }]}>
-          <FeatureSlide
-            heroColors={["#11121C", "#101010", "#080808"]}
-            hero={
-              <View style={F3.card}>
-                <PreviewRibbon />
-                <View style={F3.statsGrid}>
-                  <View style={F3.statCard}>
-                    <Text style={F3.statVal}>24</Text>
-                    <Text style={F3.statLabel}>Sessions</Text>
-                  </View>
-                  <View style={[F3.statCard, F3.statAccent]}>
-                    <Text style={[F3.statVal, F3.statValOrange]}>312</Text>
-                    <Text style={F3.statLabel}>Sets Logged</Text>
-                  </View>
-                </View>
-                <View style={F3.sessionRow}>
-                  <View style={F3.sessionIcon}>
-                    <Ionicons color={ORANGE} name="barbell-outline" size={18} />
-                  </View>
-                  <View>
-                    <Text style={F3.sessionName}>Full Leg Day</Text>
-                    <Text style={F3.sessionMeta}>Apr 19 · 10 sets</Text>
-                  </View>
-                </View>
-              </View>
-            }
-            body={
-              <>
-                <Text style={S.fTitle}>Own Your{"\n"}<Text style={S.fAccent}>Archive.</Text></Text>
-                <Text style={S.fDesc}>Every session saved to your account. History, monthly stats, and quick rescheduling, all in one place.</Text>
-                <View style={S.pillRow}>
-                  <Pill label="Session history" />
-                  <Pill label="Monthly stats"   />
-                  <Pill label="Reschedule fast" />
-                </View>
-              </>
-            }
-            footer={
-              <SlideFooter
-                activeDot={featureDot}
-                nextLabel="Let's Go"
-                onBack={() => onChangeIndex(2)}
-                onNext={() => onChangeIndex(LAST_SLIDE_INDEX)}
-                showBack
+        <StepSlide
+          back={back}
+          canContinue={Boolean(experience)}
+          index={3}
+          next={next}
+          title="How experienced are you?"
+          subtitle="This calibrates workout language, rest defaults, and load suggestions."
+          width={width}
+        >
+          <View style={S.optionList}>
+            {experienceOptions.map((option) => (
+              <OptionRow
+                key={option.value}
+                active={experience === option.value}
+                label={option.label}
+                meter={option.bars}
+                onPress={() => setExperience(option.value)}
+                sub={option.sub}
               />
-            }
-          />
-        </View>
+            ))}
+          </View>
+        </StepSlide>
 
-        {/* ── SCREEN 4: AUTH ─────────────────────────────────────────────── */}
+        <StepSlide
+          back={back}
+          canContinue
+          index={4}
+          next={next}
+          title="See Fitfo in action."
+          subtitle="This looping walkthrough shows how to share a workout video into Fitfo and turn it into a routine."
+          width={width}
+        >
+          <View style={S.walkthroughShell}>
+            <VideoView
+              allowsPictureInPicture={false}
+              contentFit="cover"
+              fullscreenOptions={{ enable: false }}
+              nativeControls={false}
+              player={workoutVideoPlayer}
+              playsInline
+              style={S.walkthroughVideo}
+            />
+            <LinearGradient
+              colors={["rgba(0,0,0,0.08)", "transparent", "rgba(0,0,0,0.68)"]}
+              pointerEvents="none"
+              style={S.walkthroughScrim}
+            />
+            <View style={S.walkthroughBadge}>
+              <Ionicons color={ORANGE} name="play-circle-outline" size={15} />
+              <Text style={S.walkthroughBadgeText}>How it works</Text>
+            </View>
+            <View style={S.walkthroughCaption}>
+              <Text style={S.walkthroughTitle}>Share video. Get workout.</Text>
+              <Text style={S.walkthroughBody}>Watch the exact flow before you try it.</Text>
+            </View>
+          </View>
+        </StepSlide>
+
+        <StepSlide
+          back={back}
+          canContinue={selectedGoals.length > 0}
+          index={5}
+          next={next}
+          title="What drives you?"
+          subtitle="Pick all that fit. Fitfo will bias your setup around these goals."
+          width={width}
+        >
+          <View style={S.goalGrid}>
+            {goals.map((goal) => {
+              const active = selectedGoals.includes(goal.value);
+              return (
+                <Pressable
+                  key={goal.value}
+                  onPress={() => toggleGoal(goal.value)}
+                  style={[S.goalChip, active && S.goalChipActive]}
+                >
+                  <Ionicons color={active ? "#150803" : ORANGE} name={goal.icon} size={17} />
+                  <Text style={[S.goalText, active && S.goalTextActive]}>{goal.label}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </StepSlide>
+
+        <StepSlide
+          back={back}
+          canContinue={Boolean(split)}
+          index={6}
+          next={next}
+          title="Pick your split."
+          subtitle="Sets your weekly cadence. You can change this later."
+          width={width}
+        >
+          <View style={S.optionList}>
+            {splitOptions.map((option) => (
+              <OptionRow
+                key={option.value}
+                active={split === option.value}
+                label={option.label}
+                onPress={() => {
+                  setSplit(option.value);
+                  setDaysPerWeek(option.days);
+                }}
+                sub={option.sub}
+                weekDots={option.days}
+              />
+            ))}
+          </View>
+        </StepSlide>
+
+        <StepSlide
+          back={back}
+          canContinue={Number.isFinite(numericWeight) && Number.isFinite(totalHeightInches)}
+          index={7}
+          next={next}
+          title="How tall and heavy?"
+          subtitle="This gives progress charts a baseline. You can edit it any time."
+          width={width}
+        >
+          <View style={S.statsCard}>
+            <View style={S.fieldGrid}>
+              <StatInput label="Weight" onChange={setWeightLbs} suffix="lb" value={weightLbs} />
+              <StatInput label="Age" onChange={(value) => setAge(Number(value.replace(/\D/g, "") || 0))} suffix="yrs" value={String(age)} />
+            </View>
+            <View style={S.fieldGrid}>
+              <StatInput label="Feet" onChange={setHeightFeet} suffix="ft" value={heightFeet} />
+              <StatInput label="Inches" onChange={setHeightInches} suffix="in" value={heightInches} />
+            </View>
+          </View>
+        </StepSlide>
+
+        <StepSlide
+          back={back}
+          canContinue
+          index={8}
+          next={next}
+          title="Take it for a spin."
+          subtitle="Tap the card to walk through TikTok to Fitfo in a few seconds."
+          width={width}
+        >
+          <Pressable onPress={updateTryStage} style={S.tryCard}>
+            {tryStage === "tiktok" ? (
+              <>
+                <Ionicons color={ORANGE} name="share-outline" size={34} />
+                <Text style={S.tryTitle}>You find a workout reel.</Text>
+                <Text style={S.bodyText}>Tap to open the share sheet.</Text>
+              </>
+            ) : tryStage === "share" ? (
+              <>
+                <View style={S.shareRow}>
+                  {["Messages", "Fitfo", "Copy"].map((label) => (
+                    <View key={label} style={[S.shareItem, label === "Fitfo" && S.shareItemActive]}>
+                      <Ionicons color={label === "Fitfo" ? "#150803" : "#FFFFFF"} name={label === "Fitfo" ? "flash" : "link-outline"} size={18} />
+                      <Text style={[S.shareText, label === "Fitfo" && S.shareTextActive]}>{label}</Text>
+                    </View>
+                  ))}
+                </View>
+                <Text style={S.tryTitle}>Choose Fitfo.</Text>
+              </>
+            ) : tryStage === "import" ? (
+              <>
+                <View style={S.importBadge}>
+                  <Ionicons color="#150803" name="flash" size={28} />
+                </View>
+                <Text style={S.tryTitle}>Importing workout...</Text>
+                <Text style={S.bodyText}>Parsing the clip into exercises.</Text>
+              </>
+            ) : (
+              <>
+                <Ionicons color={ORANGE} name="checkmark-circle-outline" size={38} />
+                <Text style={S.tryTitle}>Push Day · Chest Focus</Text>
+                {["Incline DB press", "Machine chest press", "Cable fly"].map((name, itemIndex) => (
+                  <View key={name} style={S.exerciseRow}>
+                    <Text style={S.exerciseIndex}>{itemIndex + 1}</Text>
+                    <Text style={S.exerciseName}>{name}</Text>
+                    <Text style={S.exerciseMeta}>3x10</Text>
+                  </View>
+                ))}
+              </>
+            )}
+          </Pressable>
+        </StepSlide>
+
+        <StepSlide
+          back={back}
+          canContinue
+          index={9}
+          next={next}
+          title="Schedule it. Show up to it."
+          subtitle="Drop imported workouts into your week and get a nudge when it is time."
+          width={width}
+        >
+          <FeatureCard type="calendar" />
+        </StepSlide>
+
+        <StepSlide
+          back={back}
+          canContinue
+          index={10}
+          next={next}
+          title="Every set. Every PR. Logged."
+          subtitle="Your training archive shows up automatically. No spreadsheets."
+          width={width}
+        >
+          <FeatureCard type="archive" />
+        </StepSlide>
+
         <View style={[S.slide, { width }]}>
           <View style={S.authSlide}>
             <View>
               <Text style={S.authTitle}>
-                {authMode === "login" ? "Welcome\nBack" : "Create\nAccount"}
+                {authMode === "login" ? "Welcome\nBack" : "Save\nYour Setup"}
                 <Text style={S.authDot}>.</Text>
               </Text>
+              <Text style={S.authSub}>
+                {authMode === "login"
+                  ? "Log in to pick up where you left off."
+                  : "Create an account so your imports, split, and progress sync everywhere."}
+              </Text>
 
-              {/* Tabs */}
               <View style={S.tabs}>
-                <Pressable
-                  onPress={() => onSelectMode("signup")}
-                  style={[S.tab, authMode === "signup" && S.tabActive]}
-                >
+                <Pressable onPress={() => onSelectMode("signup")} style={[S.tab, authMode === "signup" && S.tabActive]}>
                   <Text style={[S.tabText, authMode === "signup" && S.tabTextActive]}>Sign Up</Text>
                 </Pressable>
-                <Pressable
-                  onPress={() => onSelectMode("login")}
-                  style={[S.tab, authMode === "login" && S.tabActive]}
-                >
+                <Pressable onPress={() => onSelectMode("login")} style={[S.tab, authMode === "login" && S.tabActive]}>
                   <Text style={[S.tabText, authMode === "login" && S.tabTextActive]}>Log In</Text>
                 </Pressable>
               </View>
 
-              {/* Card */}
               <View style={S.authCard}>
-                {isAppleAvailable && (
+                {isAppleAvailable ? (
                   <>
                     <AppleSignInButton
                       disabled={isSubmitting || isAppleSubmitting}
@@ -428,50 +634,37 @@ export function AuthLandingScreen({
                       <View style={S.orLine} />
                     </View>
                   </>
-                )}
+                ) : null}
 
-                {authMode === "signup" && (
-                  <View style={S.fieldGroup}>
-                    <Text style={S.fieldLabel}>Full Name</Text>
-                    <View style={S.fieldShell}>
-                      <Ionicons color={ORANGE} name="person-outline" size={18} />
-                      <TextInput
-                        autoCapitalize="words"
-                        onChangeText={setFullName}
-                        placeholder="Alex Rivera"
-                        placeholderTextColor="#4A4A4A"
-                        style={S.fieldInput}
-                        value={fullName}
-                      />
-                    </View>
-                  </View>
-                )}
+                {authMode === "signup" ? (
+                  <Field
+                    icon="person-outline"
+                    label="Full Name"
+                    onChangeText={setFullName}
+                    placeholder="Alex Rivera"
+                    value={fullName}
+                  />
+                ) : null}
 
-                <View style={S.fieldGroup}>
-                  <Text style={S.fieldLabel}>Phone Number</Text>
-                  <View style={S.fieldShell}>
-                    <Ionicons color={ORANGE} name="call-outline" size={18} />
-                    <TextInput
-                      keyboardType="phone-pad"
-                      onChangeText={setPhoneNumber}
-                      placeholder="+1 (555) 000-0000"
-                      placeholderTextColor="#4A4A4A"
-                      style={S.fieldInput}
-                      value={phoneNumber}
-                    />
-                  </View>
-                </View>
+                <Field
+                  icon="call-outline"
+                  keyboardType="phone-pad"
+                  label="Phone Number"
+                  onChangeText={setPhoneNumber}
+                  placeholder="+1 (555) 000-0000"
+                  value={phoneNumber}
+                />
 
-                {notice && (
+                {notice ? (
                   <View style={S.noticeCard}>
                     <Text style={S.noticeText}>{notice}</Text>
                   </View>
-                )}
-                {error && (
+                ) : null}
+                {error ? (
                   <View style={S.errorCard}>
                     <Text style={S.errorText}>{error}</Text>
                   </View>
-                )}
+                ) : null}
 
                 <Pressable
                   disabled={!canSubmit}
@@ -496,385 +689,844 @@ export function AuthLandingScreen({
                 </Pressable>
               </View>
             </View>
-
-            <Text style={S.legal}>Privacy Policy &amp; Terms</Text>
+            <Text style={S.legal}>Privacy Policy & Terms</Text>
           </View>
         </View>
-
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
-// ─── Sub-components ────────────────────────────────────────────────────────────
-
-function FeatureSlide({
-  body,
-  footer,
-  hero,
-  heroColors,
+function StepSlide({
+  back,
+  canContinue,
+  children,
+  index,
+  next,
+  subtitle,
+  title,
+  width,
 }: {
-  body: ReactNode;
-  footer: ReactNode;
-  hero: ReactNode;
-  heroColors: [string, string, string];
+  back: () => void;
+  canContinue: boolean;
+  children: ReactNode;
+  index: number;
+  next: () => void;
+  subtitle: string;
+  title: string;
+  width: number;
 }) {
   return (
-    <View style={FS.shell}>
-      <LinearGradient
-        colors={heroColors}
-        end={{ x: 1, y: 1 }}
-        start={{ x: 0, y: 0 }}
-        style={FS.hero}
-      >
-        {hero}
-      </LinearGradient>
-      <View style={FS.body}>
-        <View>{body}</View>
-        <View>{footer}</View>
+    <View style={[S.slide, { width }]}>
+      <View style={S.stepSlide}>
+        <View style={S.progressShell}>
+          <Text style={S.progressText}>{String(index).padStart(2, "0")} · Onboarding</Text>
+          <View style={S.progressTrack}>
+            <View style={[S.progressFill, { width: `${(index / AUTH_SLIDE_INDEX) * 100}%` }]} />
+          </View>
+        </View>
+        <View style={S.stepHeader}>
+          <Text style={S.stepTitle}>{title}</Text>
+          <Text style={S.bodyText}>{subtitle}</Text>
+        </View>
+        <View style={S.stepBody}>{children}</View>
+        <View style={S.footer}>
+          <Pressable onPress={back} style={S.backButton}>
+            <Ionicons color="#FFFFFF" name="arrow-back" size={18} />
+          </Pressable>
+          <PrimaryButton disabled={!canContinue} label="Continue" onPress={next} />
+        </View>
       </View>
     </View>
   );
 }
 
-function Pill({ label }: { label: string }) {
-  return (
-    <View style={FS.pill}>
-      <View style={FS.pillDot} />
-      <Text style={FS.pillText}>{label}</Text>
-    </View>
-  );
-}
-
-function SocialBadge({ icon, label }: { icon: keyof typeof Ionicons.glyphMap; label: string }) {
-  return (
-    <View style={FS.socialBadge}>
-      <Ionicons color="#FFFFFF" name={icon} size={16} />
-      <Text style={FS.socialBadgeText}>{label}</Text>
-    </View>
-  );
-}
-
-// "Example" ribbon shown on every fabricated preview/mock UI card in the
-// onboarding carousel. App Store Guideline 4.0 / 2.3.3: in-app mockups must
-// not mislead users into thinking the data shown is their real account data.
-function PreviewRibbon() {
-  return (
-    <View style={FS.previewRibbon}>
-      <Ionicons color={ORANGE} name="eye-outline" size={10} />
-      <Text style={FS.previewRibbonText}>Example</Text>
-    </View>
-  );
-}
-
-function ExRow({ meta, name }: { meta: string; name: string }) {
-  return (
-    <View style={FS.exRow}>
-      <View style={FS.exIcon}>
-        <Ionicons color={ORANGE} name="barbell-outline" size={16} />
-      </View>
-      <View>
-        <Text style={FS.exName}>{name}</Text>
-        <Text style={FS.exMeta}>{meta}</Text>
-      </View>
-    </View>
-  );
-}
-
-function SlideFooter({
-  activeDot,
-  nextLabel = "Next",
-  onBack,
-  onNext,
-  onSkip,
-  showBack,
+function PrimaryButton({
+  disabled,
+  label,
+  onPress,
 }: {
-  activeDot: number;
-  nextLabel?: string;
-  onBack: () => void;
-  onNext: () => void;
-  onSkip?: () => void;
-  showBack: boolean;
+  disabled?: boolean;
+  label: string;
+  onPress: () => void;
 }) {
   return (
-    <View style={FS.footer}>
-      {showBack ? (
-        <Pressable onPress={onBack} style={FS.ghostBtn}>
-          <Ionicons color="#FFFFFF" name="arrow-back" size={18} />
-        </Pressable>
-      ) : onSkip ? (
-        <Pressable onPress={onSkip}>
-          <Text style={FS.skipText}>Skip</Text>
-        </Pressable>
+    <Pressable
+      disabled={disabled}
+      onPress={onPress}
+      style={({ pressed }) => [S.primaryButton, disabled && S.primaryButtonDisabled, pressed && S.pressed]}
+    >
+      <Text style={S.primaryButtonText}>{label}</Text>
+      <Ionicons color="#080808" name="arrow-forward" size={18} />
+    </Pressable>
+  );
+}
+
+function OptionRow({
+  active,
+  label,
+  meter,
+  onPress,
+  sub,
+  weekDots,
+}: {
+  active: boolean;
+  label: string;
+  meter?: number;
+  onPress: () => void;
+  sub: string;
+  weekDots?: number;
+}) {
+  return (
+    <Pressable onPress={onPress} style={[S.optionRow, active && S.optionRowActive]}>
+      {meter ? (
+        <View style={S.meter}>
+          {[1, 2, 3].map((bar) => (
+            <View key={bar} style={[S.meterBar, { height: 9 + bar * 8 }, bar <= meter && S.meterBarActive]} />
+          ))}
+        </View>
+      ) : null}
+      <View style={S.optionCopy}>
+        <Text style={S.optionTitle}>{label}</Text>
+        <Text style={S.optionSub}>{sub}</Text>
+      </View>
+      {weekDots !== undefined ? (
+        <View style={S.weekDots}>
+          {Array.from({ length: 7 }, (_, index) => (
+            <View key={index} style={[S.weekDot, index < weekDots && S.weekDotActive]} />
+          ))}
+        </View>
       ) : (
-        <View style={FS.footerSpacer} />
+        <View style={[S.radio, active && S.radioActive]}>
+          {active ? <Ionicons color="#150803" name="checkmark" size={13} /> : null}
+        </View>
       )}
+    </Pressable>
+  );
+}
 
-      <View style={FS.dots}>
-        {[0, 1, 2].map((i) => (
-          <View key={i} style={[FS.dot, i === activeDot && FS.dotActive]} />
+function StatInput({
+  label,
+  onChange,
+  suffix,
+  value,
+}: {
+  label: string;
+  onChange: (value: string) => void;
+  suffix: string;
+  value: string;
+}) {
+  return (
+    <View style={S.statInputGroup}>
+      <Text style={S.fieldLabel}>{label}</Text>
+      <View style={S.statInputShell}>
+        <TextInput
+          keyboardType="number-pad"
+          onChangeText={(text) => onChange(text.replace(/[^0-9.]/g, "").slice(0, 5))}
+          placeholderTextColor="#555555"
+          style={S.statInput}
+          value={value}
+        />
+        <Text style={S.statSuffix}>{suffix}</Text>
+      </View>
+    </View>
+  );
+}
+
+function Field({
+  icon,
+  keyboardType,
+  label,
+  onChangeText,
+  placeholder,
+  value,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  keyboardType?: "phone-pad";
+  label: string;
+  onChangeText: (value: string) => void;
+  placeholder: string;
+  value: string;
+}) {
+  return (
+    <View style={S.fieldGroup}>
+      <Text style={S.fieldLabel}>{label}</Text>
+      <View style={S.fieldShell}>
+        <Ionicons color={ORANGE} name={icon} size={18} />
+        <TextInput
+          autoCapitalize={label === "Full Name" ? "words" : "none"}
+          keyboardType={keyboardType}
+          onChangeText={onChangeText}
+          placeholder={placeholder}
+          placeholderTextColor="#555555"
+          style={S.fieldInput}
+          value={value}
+        />
+      </View>
+    </View>
+  );
+}
+
+function FeatureCard({ type }: { type: "calendar" | "archive" }) {
+  if (type === "calendar") {
+    return (
+      <View style={S.featureCard}>
+        <Text style={S.mutedCaps}>This week</Text>
+        <View style={S.calendarRow}>
+          {["M", "T", "W", "T", "F", "S", "S"].map((day, index) => {
+            const active = index === 2 || index === 4;
+            return (
+              <View key={`${day}-${index}`} style={[S.calendarDay, active && S.calendarDayActive]}>
+                <Text style={[S.calendarText, active && S.calendarTextActive]}>{day}</Text>
+                <Text style={[S.calendarDate, active && S.calendarTextActive]}>{index + 1}</Text>
+              </View>
+            );
+          })}
+        </View>
+        <View style={S.eventCard}>
+          <Ionicons color={ORANGE} name="barbell-outline" size={20} />
+          <View style={S.optionCopy}>
+            <Text style={S.optionTitle}>Push Day · Chest Focus</Text>
+            <Text style={S.optionSub}>6:30 PM · 5 exercises</Text>
+          </View>
+          <Text style={S.eventBadge}>QUEUED</Text>
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View style={S.featureCard}>
+      <View style={S.statCards}>
+        <View style={S.smallStat}>
+          <Text style={S.mutedCaps}>This month</Text>
+          <Text style={S.smallStatValue}>24</Text>
+          <Text style={S.optionSub}>sessions</Text>
+        </View>
+        <View style={S.smallStat}>
+          <Text style={S.mutedCaps}>Streak</Text>
+          <Text style={[S.smallStatValue, S.orangeText]}>11</Text>
+          <Text style={S.optionSub}>days</Text>
+        </View>
+      </View>
+      <View style={S.chart}>
+        {[42, 58, 73, 65, 80, 92, 88, 95].map((height, index) => (
+          <View key={`${height}-${index}`} style={[S.chartBar, { height }, index === 7 && S.chartBarHot]} />
         ))}
       </View>
-
-      <Pressable
-        onPress={onNext}
-        style={[FS.nextBtn, nextLabel !== "Next" && FS.nextBtnWide]}
-      >
-        {nextLabel === "Next" ? (
-          <Ionicons color="#070707" name="arrow-forward" size={18} />
-        ) : (
-          <Text style={FS.nextBtnText}>{nextLabel}</Text>
-        )}
-      </Pressable>
     </View>
   );
 }
 
-// ─── Styles ────────────────────────────────────────────────────────────────────
-
-/** Main screen styles */
 const S = StyleSheet.create({
   root: {
     backgroundColor: "#050505",
     flex: 1,
   },
-  carousel: { flex: 1 },
-  slide:    { flex: 1 },
-
-  // ── Splash ──
-  splashSlide: {
-    // Stretch so inner blocks can own their own horizontal alignment.
-    alignItems: "stretch",
+  carousel: {
     flex: 1,
-    // Two-section layout: hero sits at top, CTA pinned to bottom.
+  },
+  slide: {
+    flex: 1,
+  },
+  welcome: {
+    flex: 1,
     justifyContent: "space-between",
-    overflow: "hidden",
-    paddingBottom: Platform.OS === "ios" ? 16 : 12,
-    paddingHorizontal: 26,
-    paddingTop: Platform.OS === "ios" ? 38 : 30,
+    paddingBottom: Platform.OS === "ios" ? 34 : 24,
+    paddingHorizontal: 28,
+    paddingTop: Platform.OS === "ios" ? 70 : 46,
   },
-  glowBlob: {
-    backgroundColor: "rgba(176, 70, 23, 0.08)",
-    borderRadius: 999,
-    height: 560,
-    left: "54%",
-    marginLeft: -280,
-    marginTop: -280,
-    position: "absolute",
-    shadowColor: "#FF5A1F",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.62,
-    shadowRadius: 160,
-    top: "54%",
-    width: 560,
-  },
-  splashHero: {
-    alignItems: "flex-start",
-    width: "100%",
-  },
-  splashFooter: {
-    alignItems: "stretch",
-    gap: 8,
-    width: "100%",
-  },
-
-  // Brand bar.
-  brandRow: {
+  logoStack: {
     alignItems: "center",
-    flexDirection: "row",
-    gap: 12,
+    justifyContent: "center",
+    minHeight: 190,
   },
-  brandWordmark: {
+  logoRing: {
+    position: "absolute",
+    width: 172,
+    height: 172,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(255,90,31,0.42)",
+  },
+  logoTile: {
+    width: 106,
+    height: 106,
+    borderRadius: 30,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: ORANGE,
+    shadowColor: ORANGE,
+    shadowOffset: { width: 0, height: 20 },
+    shadowOpacity: 0.52,
+    shadowRadius: 34,
+    transform: [{ rotate: "-8deg" }],
+  },
+  centerCopy: {
+    alignItems: "center",
+    gap: 13,
+  },
+  wordmark: {
     color: "#FFFFFF",
-    fontFamily: F.condensedBlack,
-    fontSize: 22,
-    letterSpacing: -0.6,
-    lineHeight: 22,
+    fontFamily: F.black,
+    fontSize: 58,
+    letterSpacing: -2,
+    lineHeight: 64,
   },
-
-  // Primary headline — the promise, not the slogan.
-  splashHeadline: {
-    color: "#FFFFFF",
-    fontFamily: F.display,
-    fontSize: 32,
-    letterSpacing: -1,
-    lineHeight: 36,
-    marginTop: 16,
-  },
-  splashHeadlineAccent: {
+  wordmarkAccent: {
     color: ORANGE,
-    fontFamily: F.display,
   },
-  splashSub: {
-    color: "#9A9A9A",
-    fontFamily: F.regular,
+  welcomeTitle: {
+    color: "#FFFFFF",
+    fontFamily: F.display,
+    fontSize: 30,
+    letterSpacing: -0.8,
+    lineHeight: 35,
+    maxWidth: 320,
+    textAlign: "center",
+  },
+  bodyText: {
+    color: "#918A86",
+    fontFamily: F.medium,
     fontSize: 15,
     lineHeight: 22,
-    marginTop: 14,
-    textAlign: "left",
+    textAlign: "center",
   },
-
-  // Workout video preview shown in a compact phone frame.
-  videoPreviewWrap: {
+  bottomStack: {
+    gap: 12,
+  },
+  ghostTextButton: {
     alignItems: "center",
-    alignSelf: "center",
+    minHeight: 38,
     justifyContent: "center",
-    marginTop: 8,
-    width: "100%",
   },
-  videoPhoneShadow: {
-    backgroundColor: "rgba(255, 90, 31, 0.08)",
-    borderRadius: 46,
-    position: "absolute",
-    shadowColor: "#FF5A1F",
-    shadowOffset: { width: 0, height: 18 },
-    shadowOpacity: 0.34,
-    shadowRadius: 34,
+  ghostText: {
+    color: "#8A827D",
+    fontFamily: F.bold,
+    fontSize: 14,
   },
-  videoPhoneShell: {
-    backgroundColor: "#050505",
-    borderColor: "rgba(255, 255, 255, 0.1)",
-    borderRadius: 36,
-    borderWidth: 2,
-    elevation: 10,
+  stepSlide: {
+    backgroundColor: "#080706",
+    flex: 1,
+    gap: 20,
+    paddingBottom: Platform.OS === "ios" ? 24 : 20,
+    paddingHorizontal: 24,
+    paddingTop: Platform.OS === "ios" ? 58 : 34,
+  },
+  progressShell: {
+    gap: 9,
+  },
+  progressText: {
+    color: ORANGE,
+    fontFamily: F.bold,
+    fontSize: 11,
+    letterSpacing: 1.8,
+    textTransform: "uppercase",
+  },
+  progressTrack: {
+    height: 5,
+    borderRadius: 999,
+    backgroundColor: "#211A17",
     overflow: "hidden",
-    padding: 6,
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 18 },
-    shadowOpacity: 0.52,
-    shadowRadius: 30,
   },
-  videoPhoneNotch: {
-    alignSelf: "center",
-    backgroundColor: "#050505",
-    borderBottomLeftRadius: 12,
-    borderBottomRightRadius: 12,
-    height: 18,
-    position: "absolute",
-    top: 6,
-    width: 72,
-    zIndex: 3,
-  },
-  workoutVideo: {
-    backgroundColor: "#000000",
-    borderRadius: 30,
+  progressFill: {
     height: "100%",
-    overflow: "hidden",
-    width: "100%",
-  },
-  workoutVideoScrim: {
-    borderRadius: 30,
-    bottom: 6,
-    left: 6,
-    position: "absolute",
-    right: 6,
-    top: 6,
-  },
-  videoHomeBar: {
-    alignSelf: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.34)",
     borderRadius: 999,
-    bottom: 12,
-    height: 4,
-    position: "absolute",
-    width: 72,
+    backgroundColor: ORANGE,
   },
-  ctaWrap: {
-    alignItems: "stretch",
+  stepHeader: {
+    gap: 10,
+  },
+  stepTitle: {
+    color: "#FFFFFF",
+    fontFamily: F.display,
+    fontSize: 36,
+    letterSpacing: -1,
+    lineHeight: 39,
+  },
+  stepBody: {
+    flex: 1,
     justifyContent: "center",
-    width: "100%",
   },
-  ctaGlow: {
-    backgroundColor: "rgba(255, 90, 31, 0.08)",
-    borderRadius: 999,
-    height: 72,
-    position: "absolute",
-    shadowColor: "#FF5A1F",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.32,
-    shadowRadius: 32,
-    width: "100%",
+  footer: {
+    flexDirection: "row",
+    gap: 10,
   },
-  ctaBtn: {
+  backButton: {
+    width: 54,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#171313",
+    borderWidth: 1,
+    borderColor: "#2A2220",
+  },
+  primaryButton: {
     alignItems: "center",
     backgroundColor: ORANGE,
     borderRadius: 999,
+    flex: 1,
     flexDirection: "row",
     gap: 10,
     justifyContent: "center",
-    minHeight: 60,
-    paddingHorizontal: 28,
-    paddingVertical: 16,
-    shadowColor: "#FF5A1F",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.32,
-    shadowRadius: 20,
-    width: "100%",
+    minHeight: 58,
+    paddingHorizontal: 22,
   },
-  ctaBtnText: {
-    color: "#050505",
+  primaryButtonDisabled: {
+    opacity: 0.4,
+  },
+  primaryButtonText: {
+    color: "#080808",
     fontFamily: F.black,
     fontSize: 16,
-    letterSpacing: 0.4,
-  },
-  // Trust hook — sits directly under CTA, left-aligned with rest of column.
-  splashTrust: {
-    color: "#B8B8B8",
-    fontFamily: F.semiBold,
-    fontSize: 13,
-    letterSpacing: 0.1,
-    marginTop: 4,
-    textAlign: "center",
-  },
-  // Legal — pinned to bottom of footer, centered.
-  splashCaption: {
-    color: "#4A4A4A",
-    fontFamily: F.medium,
-    fontSize: 11,
-    letterSpacing: 0.2,
-    marginTop: 0,
-    textAlign: "center",
   },
   pressed: {
-    opacity: 0.9,
-    transform: [{ scale: 0.97 }],
+    opacity: 0.88,
+    transform: [{ scale: 0.98 }],
   },
-
-  // ── Feature shared text ──
-  fEyebrow: {
+  ageCard: {
+    alignItems: "center",
+    gap: 12,
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: "#2A2220",
+    backgroundColor: "#151211",
+    paddingVertical: 20,
+    overflow: "hidden",
+  },
+  ageWheelWindow: {
+    height: 104,
+    justifyContent: "center",
+    width: "100%",
+  },
+  ageWheelCenter: {
+    alignSelf: "center",
+    backgroundColor: "rgba(255, 90, 31, 0.12)",
+    borderColor: "rgba(255, 90, 31, 0.55)",
+    borderRadius: 22,
+    borderWidth: 1,
+    height: 82,
+    position: "absolute",
+    width: AGE_ITEM_WIDTH,
+  },
+  ageRow: {
+    gap: AGE_ITEM_GAP,
+    alignItems: "center",
+  },
+  ageWheelItem: {
+    width: AGE_ITEM_WIDTH,
+    height: 74,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    opacity: 0.42,
+  },
+  ageWheelItemActive: {
+    opacity: 1,
+  },
+  ageWheelText: {
+    color: "#9B918B",
+    fontFamily: F.black,
+    fontSize: 28,
+    lineHeight: 34,
+  },
+  ageWheelTextActive: {
     color: ORANGE,
-    fontFamily: F.condensedBold,
+    fontSize: 52,
+    lineHeight: 58,
+  },
+  ageReadout: {
+    color: "#FFFFFF",
+    fontFamily: F.black,
+    fontSize: 24,
+    lineHeight: 30,
+  },
+  mutedCaps: {
+    color: "#7B726D",
+    fontFamily: F.bold,
     fontSize: 11,
-    letterSpacing: 3,
-    marginBottom: 12,
+    letterSpacing: 1.4,
     textTransform: "uppercase",
   },
-  fTitle: {
+  optionList: {
+    gap: 10,
+  },
+  optionRow: {
+    minHeight: 78,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#2A2220",
+    backgroundColor: "#151211",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    padding: 16,
+  },
+  optionRowActive: {
+    borderColor: ORANGE,
+    backgroundColor: "rgba(255,90,31,0.1)",
+  },
+  optionCopy: {
+    flex: 1,
+    gap: 3,
+  },
+  optionTitle: {
     color: "#FFFFFF",
-    fontFamily: F.display,
-    fontSize: 44,
-    letterSpacing: -1.2,
-    lineHeight: 44,
-  },
-  fAccent: {
-    color: ORANGE,
-    fontFamily: F.display,
-  },
-  fDesc: {
-    color: "#888888",
-    fontFamily: F.regular,
+    fontFamily: F.black,
     fontSize: 16,
-    lineHeight: 25,
-    marginTop: 14,
+    lineHeight: 21,
   },
-  pillRow: {
+  optionSub: {
+    color: "#817873",
+    fontFamily: F.bold,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  radio: {
+    width: 24,
+    height: 24,
+    borderRadius: 999,
+    borderWidth: 2,
+    borderColor: "#463B35",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  radioActive: {
+    backgroundColor: ORANGE,
+    borderColor: ORANGE,
+  },
+  meter: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    backgroundColor: "#211C19",
+    flexDirection: "row",
+    gap: 4,
+    alignItems: "flex-end",
+    justifyContent: "center",
+    paddingBottom: 8,
+  },
+  meterBar: {
+    width: 6,
+    borderRadius: 4,
+    backgroundColor: "#3A322D",
+  },
+  meterBarActive: {
+    backgroundColor: ORANGE,
+  },
+  weekDots: {
+    flexDirection: "row",
+    gap: 4,
+  },
+  weekDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 3,
+    backgroundColor: "#332B26",
+  },
+  weekDotActive: {
+    backgroundColor: ORANGE,
+  },
+  walkthroughShell: {
+    alignSelf: "center",
+    aspectRatio: 9 / 16,
+    backgroundColor: "#050505",
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: "#2A2220",
+    maxHeight: 430,
+    minHeight: 360,
+    overflow: "hidden",
+    width: "82%",
+  },
+  walkthroughVideo: {
+    height: "100%",
+    width: "100%",
+  },
+  walkthroughScrim: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  walkthroughBadge: {
+    alignItems: "center",
+    backgroundColor: "rgba(8, 8, 8, 0.76)",
+    borderColor: "rgba(255, 90, 31, 0.28)",
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 6,
+    left: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    position: "absolute",
+    top: 14,
+  },
+  walkthroughBadgeText: {
+    color: "#FFFFFF",
+    fontFamily: F.black,
+    fontSize: 11,
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+  },
+  walkthroughCaption: {
+    bottom: 16,
+    gap: 4,
+    left: 16,
+    position: "absolute",
+    right: 16,
+  },
+  walkthroughTitle: {
+    color: "#FFFFFF",
+    fontFamily: F.black,
+    fontSize: 18,
+    lineHeight: 23,
+  },
+  walkthroughBody: {
+    color: "rgba(255, 255, 255, 0.76)",
+    fontFamily: F.bold,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  exerciseRow: {
+    alignSelf: "stretch",
+    flexDirection: "row",
+    gap: 10,
+    alignItems: "center",
+    borderRadius: 12,
+    backgroundColor: "#211C19",
+    padding: 10,
+  },
+  exerciseIndex: {
+    width: 22,
+    color: ORANGE,
+    fontFamily: F.black,
+  },
+  exerciseName: {
+    flex: 1,
+    color: "#FFFFFF",
+    fontFamily: F.bold,
+    fontSize: 13,
+  },
+  exerciseMeta: {
+    color: "#817873",
+    fontFamily: F.bold,
+    fontSize: 11,
+  },
+  goalGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8,
-    marginTop: 20,
+    gap: 10,
   },
-
-  // ── Auth ──
+  goalChip: {
+    width: "48%",
+    minHeight: 62,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#2A2220",
+    backgroundColor: "#151211",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
+    padding: 12,
+  },
+  goalChipActive: {
+    backgroundColor: ORANGE,
+    borderColor: ORANGE,
+  },
+  goalText: {
+    flex: 1,
+    color: "#FFFFFF",
+    fontFamily: F.black,
+    fontSize: 13,
+    lineHeight: 17,
+  },
+  goalTextActive: {
+    color: "#150803",
+  },
+  statsCard: {
+    gap: 14,
+    borderRadius: 26,
+    borderWidth: 1,
+    borderColor: "#2A2220",
+    backgroundColor: "#151211",
+    padding: 18,
+  },
+  fieldGrid: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  statInputGroup: {
+    flex: 1,
+    gap: 8,
+  },
+  fieldLabel: {
+    color: "#8A817B",
+    fontFamily: F.bold,
+    fontSize: 11,
+    letterSpacing: 1.6,
+    textTransform: "uppercase",
+  },
+  statInputShell: {
+    minHeight: 54,
+    borderRadius: 15,
+    backgroundColor: "#211C19",
+    borderWidth: 1,
+    borderColor: "#302824",
+    paddingHorizontal: 13,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  statInput: {
+    flex: 1,
+    color: "#FFFFFF",
+    fontFamily: F.black,
+    fontSize: 18,
+  },
+  statSuffix: {
+    color: "#817873",
+    fontFamily: F.bold,
+    fontSize: 11,
+    textTransform: "uppercase",
+  },
+  tryCard: {
+    minHeight: 360,
+    borderRadius: 26,
+    borderWidth: 1,
+    borderColor: "#2A2220",
+    backgroundColor: "#151211",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 14,
+    padding: 18,
+  },
+  tryTitle: {
+    color: "#FFFFFF",
+    fontFamily: F.black,
+    fontSize: 20,
+    lineHeight: 25,
+    textAlign: "center",
+  },
+  shareRow: {
+    alignSelf: "stretch",
+    flexDirection: "row",
+    gap: 10,
+  },
+  shareItem: {
+    flex: 1,
+    alignItems: "center",
+    gap: 8,
+    borderRadius: 16,
+    backgroundColor: "#211C19",
+    paddingVertical: 14,
+  },
+  shareItemActive: {
+    backgroundColor: ORANGE,
+  },
+  shareText: {
+    color: "#FFFFFF",
+    fontFamily: F.bold,
+    fontSize: 11,
+  },
+  shareTextActive: {
+    color: "#150803",
+  },
+  importBadge: {
+    width: 64,
+    height: 64,
+    borderRadius: 22,
+    backgroundColor: ORANGE,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  featureCard: {
+    gap: 14,
+    borderRadius: 26,
+    borderWidth: 1,
+    borderColor: "#2A2220",
+    backgroundColor: "#151211",
+    padding: 18,
+  },
+  calendarRow: {
+    flexDirection: "row",
+    gap: 6,
+  },
+  calendarDay: {
+    flex: 1,
+    minHeight: 62,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#211C19",
+  },
+  calendarDayActive: {
+    backgroundColor: ORANGE,
+  },
+  calendarText: {
+    color: "#817873",
+    fontFamily: F.black,
+    fontSize: 10,
+  },
+  calendarDate: {
+    color: "#FFFFFF",
+    fontFamily: F.black,
+    fontSize: 18,
+    marginTop: 2,
+  },
+  calendarTextActive: {
+    color: "#150803",
+  },
+  eventCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,90,31,0.10)",
+    borderWidth: 1,
+    borderColor: "rgba(255,90,31,0.24)",
+    padding: 14,
+  },
+  eventBadge: {
+    color: ORANGE,
+    fontFamily: F.black,
+    fontSize: 10,
+    letterSpacing: 1,
+  },
+  statCards: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  smallStat: {
+    flex: 1,
+    borderRadius: 18,
+    backgroundColor: "#211C19",
+    padding: 16,
+  },
+  smallStatValue: {
+    color: "#FFFFFF",
+    fontFamily: F.black,
+    fontSize: 34,
+    marginTop: 6,
+  },
+  orangeText: {
+    color: ORANGE,
+  },
+  chart: {
+    height: 110,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: 7,
+    borderRadius: 18,
+    backgroundColor: "#211C19",
+    padding: 16,
+  },
+  chartBar: {
+    flex: 1,
+    borderRadius: 5,
+    backgroundColor: "#403631",
+  },
+  chartBarHot: {
+    backgroundColor: ORANGE,
+  },
   authSlide: {
     backgroundColor: "#090909",
     flex: 1,
@@ -882,14 +1534,6 @@ const S = StyleSheet.create({
     paddingBottom: 36,
     paddingHorizontal: 28,
     paddingTop: Platform.OS === "ios" ? 56 : 36,
-  },
-  authEyebrow: {
-    color: ORANGE,
-    fontFamily: F.condensedBold,
-    fontSize: 11,
-    letterSpacing: 3,
-    marginBottom: 8,
-    textTransform: "uppercase",
   },
   authTitle: {
     color: "#FFFFFF",
@@ -901,6 +1545,13 @@ const S = StyleSheet.create({
   authDot: {
     color: ORANGE,
     fontFamily: F.display,
+  },
+  authSub: {
+    color: "#8F8782",
+    fontFamily: F.medium,
+    fontSize: 15,
+    lineHeight: 22,
+    marginTop: 12,
   },
   tabs: {
     backgroundColor: "#181818",
@@ -935,10 +1586,6 @@ const S = StyleSheet.create({
     gap: 16,
     marginTop: 20,
     padding: 22,
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.35,
-    shadowRadius: 18,
   },
   orRow: {
     alignItems: "center",
@@ -957,13 +1604,8 @@ const S = StyleSheet.create({
     letterSpacing: 1.5,
     textTransform: "uppercase",
   },
-  fieldGroup: { gap: 7 },
-  fieldLabel: {
-    color: "#888888",
-    fontFamily: F.bold,
-    fontSize: 11,
-    letterSpacing: 2,
-    textTransform: "uppercase",
+  fieldGroup: {
+    gap: 7,
   },
   fieldShell: {
     alignItems: "center",
@@ -1011,12 +1653,10 @@ const S = StyleSheet.create({
     justifyContent: "center",
     minHeight: 56,
     paddingHorizontal: 16,
-    shadowColor: "#FF5A1F",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.4,
-    shadowRadius: 20,
   },
-  submitBtnDisabled: { opacity: 0.45 },
+  submitBtnDisabled: {
+    opacity: 0.45,
+  },
   submitBtnText: {
     color: "#080808",
     fontFamily: F.black,
@@ -1030,353 +1670,5 @@ const S = StyleSheet.create({
     letterSpacing: 1.4,
     textAlign: "center",
     textTransform: "uppercase",
-  },
-});
-
-/** Feature slide shell + shared sub-component styles */
-const FS = StyleSheet.create({
-  shell: {
-    backgroundColor: "#0B0B0B",
-    flex: 1,
-  },
-  hero: {
-    alignItems: "center",
-    height: "44%",
-    justifyContent: "center",
-    overflow: "hidden",
-    padding: 28,
-  },
-  body: {
-    flex: 1,
-    justifyContent: "space-between",
-    paddingBottom: 36,
-    paddingHorizontal: 28,
-    paddingTop: 26,
-  },
-  pill: {
-    alignItems: "center",
-    backgroundColor: "#1C1C1C",
-    borderRadius: 999,
-    flexDirection: "row",
-    gap: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-  },
-  pillDot: {
-    backgroundColor: ORANGE,
-    borderRadius: 999,
-    height: 7,
-    width: 7,
-  },
-  pillText: {
-    color: "#FFFFFF",
-    fontFamily: F.bold,
-    fontSize: 13,
-  },
-  socialBadge: {
-    alignItems: "center",
-    backgroundColor: "rgba(24,24,24,0.92)",
-    borderRadius: 14,
-    flexDirection: "row",
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  socialBadgeText: {
-    color: "#FFFFFF",
-    fontFamily: F.bold,
-    fontSize: 12,
-  },
-  // Tiny "Example" ribbon for every fabricated mock-up card in the carousel.
-  previewRibbon: {
-    alignSelf: "flex-start",
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 999,
-    backgroundColor: "rgba(255, 90, 31, 0.14)",
-    borderColor: "rgba(255, 90, 31, 0.28)",
-    borderWidth: 1,
-    marginBottom: 10,
-  },
-  previewRibbonText: {
-    color: ORANGE,
-    fontFamily: F.extraBold,
-    fontSize: 9,
-    letterSpacing: 1.2,
-    textTransform: "uppercase",
-  },
-  exRow: {
-    alignItems: "center",
-    borderBottomColor: "#2A2A2A",
-    borderBottomWidth: 1,
-    flexDirection: "row",
-    gap: 10,
-    paddingVertical: 11,
-  },
-  exIcon: {
-    alignItems: "center",
-    backgroundColor: "#2A2A2A",
-    borderRadius: 9,
-    height: 34,
-    justifyContent: "center",
-    width: 34,
-  },
-  exName: {
-    color: "#FFFFFF",
-    fontFamily: F.extraBold,
-    fontSize: 13,
-  },
-  exMeta: {
-    color: "#888888",
-    fontFamily: F.regular,
-    fontSize: 11,
-    marginTop: 2,
-  },
-  footer: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 24,
-  },
-  footerSpacer: { width: 52 },
-  skipText: {
-    color: "#888888",
-    fontFamily: F.bold,
-    fontSize: 14,
-  },
-  dots: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 6,
-  },
-  dot: {
-    backgroundColor: "#3C3C3C",
-    borderRadius: 999,
-    height: 6,
-    width: 6,
-  },
-  dotActive: {
-    backgroundColor: ORANGE,
-    width: 22,
-  },
-  ghostBtn: {
-    alignItems: "center",
-    backgroundColor: "#1D1D1D",
-    borderRadius: 999,
-    height: 52,
-    justifyContent: "center",
-    width: 52,
-  },
-  nextBtn: {
-    alignItems: "center",
-    backgroundColor: ORANGE,
-    borderRadius: 999,
-    height: 52,
-    justifyContent: "center",
-    shadowColor: "#FF5A1F",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.44,
-    shadowRadius: 20,
-    width: 52,
-  },
-  nextBtnWide: {
-    borderRadius: 14,
-    paddingHorizontal: 20,
-    width: "auto",
-  },
-  nextBtnText: {
-    color: "#070707",
-    fontFamily: F.black,
-    fontSize: 13,
-    letterSpacing: 0.4,
-  },
-});
-
-/** Feature 01 — Import card */
-const F1 = StyleSheet.create({
-  badgeRow: {
-    flexDirection: "row",
-    gap: 10,
-    position: "absolute",
-    right: 22,
-    top: 22,
-  },
-  card: {
-    alignSelf: "center",
-    backgroundColor: "#1E1E1E",
-    borderColor: "#2E2723",
-    borderRadius: 22,
-    borderWidth: 1,
-    padding: 18,
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.36,
-    shadowRadius: 22,
-    width: 250,
-  },
-  cardTitle: {
-    color: "#FFFFFF",
-    fontFamily: F.black,
-    fontSize: 18,
-  },
-  cardSub: {
-    color: "#888888",
-    fontFamily: F.regular,
-    fontSize: 12,
-    lineHeight: 18,
-    marginTop: 4,
-  },
-  cardInput: {
-    alignItems: "center",
-    backgroundColor: "#2A2A2A",
-    borderRadius: 11,
-    flexDirection: "row",
-    gap: 8,
-    marginTop: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-  },
-  cardInputText: {
-    color: "#666666",
-    flex: 1,
-    fontFamily: F.regular,
-    fontSize: 12,
-  },
-  cardPrimary: {
-    alignItems: "center",
-    backgroundColor: ORANGE,
-    borderRadius: 12,
-    flexDirection: "row",
-    gap: 8,
-    justifyContent: "center",
-    marginTop: 12,
-    paddingVertical: 13,
-  },
-  cardPrimaryText: {
-    color: "#080808",
-    fontFamily: F.black,
-    fontSize: 13,
-  },
-});
-
-/** Feature 02 — Timer card */
-const F2 = StyleSheet.create({
-  card: {
-    alignSelf: "center",
-    backgroundColor: "#1E1E1E",
-    borderColor: "#243021",
-    borderRadius: 22,
-    borderWidth: 1,
-    padding: 16,
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.36,
-    shadowRadius: 22,
-    width: 260,
-  },
-  timerBadge: {
-    alignItems: "center",
-    backgroundColor: ORANGE,
-    borderRadius: 16,
-    paddingHorizontal: 20,
-    paddingVertical: 18,
-  },
-  timerLabel: {
-    color: "rgba(0,0,0,0.6)",
-    fontFamily: F.black,
-    fontSize: 9,
-    letterSpacing: 2.5,
-    textTransform: "uppercase",
-  },
-  timerValue: {
-    color: "#050505",
-    fontFamily: F.black,
-    fontSize: 42,
-    letterSpacing: -1,
-    lineHeight: 46,
-    marginTop: 4,
-  },
-  timerSub: {
-    color: "rgba(0,0,0,0.65)",
-    fontFamily: F.bold,
-    fontSize: 11,
-    marginTop: 4,
-  },
-});
-
-/** Feature 03 — History card */
-const F3 = StyleSheet.create({
-  card: {
-    alignSelf: "center",
-    backgroundColor: "#1E1E1E",
-    borderColor: "#24283A",
-    borderRadius: 22,
-    borderWidth: 1,
-    padding: 16,
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.36,
-    shadowRadius: 22,
-    width: 260,
-  },
-  statsGrid: {
-    flexDirection: "row",
-    gap: 10,
-  },
-  statCard: {
-    backgroundColor: "#2A2A2A",
-    borderRadius: 14,
-    flex: 1,
-    padding: 14,
-  },
-  statAccent: {
-    backgroundColor: "#2A1500",
-  },
-  statVal: {
-    color: "#FFFFFF",
-    fontFamily: F.black,
-    fontSize: 30,
-  },
-  statValOrange: {
-    color: ORANGE,
-  },
-  statLabel: {
-    color: "#888888",
-    fontFamily: F.extraBold,
-    fontSize: 10,
-    letterSpacing: 1.2,
-    marginTop: 4,
-    textTransform: "uppercase",
-  },
-  sessionRow: {
-    alignItems: "center",
-    backgroundColor: "#2A2A2A",
-    borderRadius: 14,
-    flexDirection: "row",
-    gap: 10,
-    marginTop: 10,
-    padding: 12,
-  },
-  sessionIcon: {
-    alignItems: "center",
-    backgroundColor: "#1A1A1A",
-    borderRadius: 9,
-    height: 36,
-    justifyContent: "center",
-    width: 36,
-  },
-  sessionName: {
-    color: "#FFFFFF",
-    fontFamily: F.extraBold,
-    fontSize: 13,
-  },
-  sessionMeta: {
-    color: "#888888",
-    fontFamily: F.regular,
-    fontSize: 11,
-    marginTop: 3,
   },
 });

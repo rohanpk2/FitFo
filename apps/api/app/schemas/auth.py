@@ -22,10 +22,12 @@ TrainingSplit = Literal[
     "custom",
 ]
 ExperienceLevel = Literal["beginner", "intermediate", "advanced"]
+OnboardingSex = Literal["male", "female", "prefer_not_to_say"]
 
 
 class UserOnboardingResponse(BaseModel):
     goals: List[OnboardingGoal] = Field(default_factory=list)
+    sex: Optional[OnboardingSex] = None
     training_split: TrainingSplit
     custom_split_notes: Optional[str] = Field(default=None, max_length=500)
     days_per_week: int = Field(..., ge=1, le=7)
@@ -112,6 +114,7 @@ class AppleSignInResponse(BaseModel):
 
 class SaveOnboardingRequest(BaseModel):
     goals: List[OnboardingGoal] = Field(..., min_length=1, max_length=6)
+    sex: OnboardingSex
     training_split: TrainingSplit
     custom_split_notes: Optional[str] = Field(default=None, max_length=500)
     days_per_week: int = Field(..., ge=1, le=7)
