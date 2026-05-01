@@ -108,10 +108,28 @@ def _oembed_endpoint(page_url: str) -> str:
     return f"https://www.tiktok.com/oembed?url={quote(page_url, safe='')}"
 
 
-async def verify_video_via_oembed(page_url: str) -> Tuple[bool, Optional[int], Optional[str]]:
+def _oembed_preview_snapshot(data: dict) -> dict[str, str]:
+    """
+    Persist a small subset of the oEmbed payload for job previews.
+    Official thumbnail_url avoids third-party scrapers returning interstitial art.
+    """
+    keys = ("thumbnail_url", "title", "author_name", "author_url")
+    out: dict[str, str] = {}
+    for key in keys:
+        value = data.get(key)
+        if isinstance(value, str) and value.strip():
+            out[key] = value.strip()
+    return out
+
+
+async def verify_video_via_oembed(
+    page_url: str,
+) -> Tuple[bool, Optional[int], Optional[str], Optional[dict]]:
     """
     Ask TikTok oEmbed whether this URL points to a real, public video.
     Fake or removed IDs get HTTP 400; the watch page alone often still returns 200 HTML.
+
+    On success, returns an oEmbed subset (thumbnail_url, title, ...) for importer UI.
     """
     headers = {
         "User-Agent": _TIKTOK_UA,
@@ -124,9 +142,9 @@ async def verify_video_via_oembed(page_url: str) -> Tuple[bool, Optional[int], O
         async with httpx.AsyncClient(follow_redirects=True, timeout=timeout, headers=headers) as client:
             response = await client.get(oembed)
     except httpx.TimeoutException:
-        return False, None, "oEmbed request timed out"
+        return False, None, "oEmbed request timed out", None
     except httpx.RequestError as exc:
-        return False, None, str(exc)
+        return False, None, str(exc), None
 
     status = response.status_code
     if status == 400:
@@ -135,20 +153,21 @@ async def verify_video_via_oembed(page_url: str) -> Tuple[bool, Optional[int], O
             msg = payload.get("message", "Something went wrong")
         except (json.JSONDecodeError, ValueError):
             msg = response.text[:200] if response.text else "Bad request"
-        return False, status, f"TikTok oEmbed rejected this URL ({msg})."
+        return False, status, f"TikTok oEmbed rejected this URL ({msg}).", None
 
     if status == 403:
-        return False, status, "TikTok oEmbed returned 403; try again later."
+        return False, status, "TikTok oEmbed returned 403; try again later.", None
 
     if status != 200:
-        return False, status, f"TikTok oEmbed returned HTTP {status}."
+        return False, status, f"TikTok oEmbed returned HTTP {status}.", None
 
     try:
         data = response.json()
     except (json.JSONDecodeError, ValueError):
-        return False, status, "TikTok oEmbed returned non-JSON body."
+        return False, status, "TikTok oEmbed returned non-JSON body.", None
 
     if data.get("type") != "video":
-        return False, status, "TikTok oEmbed did not return a video."
+        return False, status, "TikTok oEmbed did not return a video.", None
 
-    return True, status, None
+    preview = _oembed_preview_snapshot(data)
+    return True, status, None, preview if preview else None

@@ -33,7 +33,9 @@ async def ingest_video(
         # `tiktok.com/t/<code>` or `vm.tiktok.com/<code>` shortlinks. oEmbed only
         # accepts canonical `@user/video/<id>` URLs, so resolve the redirect first.
         normalized = await tiktok_url.resolve_tiktok_shortlink(normalized)
-        embed_ok, http_status, err = await tiktok_url.verify_video_via_oembed(normalized)
+        embed_ok, http_status, err, oembed_preview = (
+            await tiktok_url.verify_video_via_oembed(normalized)
+        )
         if not embed_ok:
             return IngestCheckResponse(
                 ok=False,
@@ -47,6 +49,8 @@ async def ingest_video(
             )
         provider_meta["oembed_verified"] = True
         provider_meta["oembed_http_status"] = http_status
+        if oembed_preview:
+            provider_meta["tiktok_oembed"] = oembed_preview
     else:
         # Instagram reels have no free reachability probe we can rely on.
         # The Apify scraper will surface unreachable URLs during the pipeline.

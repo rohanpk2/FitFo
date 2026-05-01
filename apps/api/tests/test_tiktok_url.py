@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import unittest
 from unittest.mock import AsyncMock, patch
 
@@ -78,6 +79,42 @@ class ResolveTikTokShortlinkTests(unittest.IsolatedAsyncioTestCase):
             resolved = await tiktok_url.resolve_tiktok_shortlink(shortlink)
 
         self.assertEqual(resolved, shortlink)
+
+
+class VerifyVideoViaOembedTests(unittest.IsolatedAsyncioTestCase):
+    async def test_success_returns_oembed_thumbnail(self) -> None:
+        page = "https://www.tiktok.com/@coach/video/123"
+        fake_json = httpx.Response(
+            status_code=200,
+            content=json.dumps(
+                {
+                    "type": "video",
+                    "thumbnail_url": "https://p16-sign.tiktokcdn-us.com/obj/thumb.webp",
+                    "title": "Leg day",
+                    "author_name": "Coach",
+                }
+            ).encode(),
+            request=httpx.Request("GET", tiktok_url._oembed_endpoint(page)),
+        )
+
+        mock_client = AsyncMock()
+        mock_client.__aenter__.return_value = mock_client
+        mock_client.__aexit__.return_value = False
+        mock_client.get = AsyncMock(return_value=fake_json)
+
+        with patch("app.services.tiktok_url.httpx.AsyncClient", return_value=mock_client):
+            ok, status, err, preview = await tiktok_url.verify_video_via_oembed(page)
+
+        self.assertTrue(ok)
+        self.assertEqual(status, 200)
+        self.assertIsNone(err)
+        self.assertIsNotNone(preview)
+        assert preview is not None
+        self.assertEqual(
+            preview.get("thumbnail_url"),
+            "https://p16-sign.tiktokcdn-us.com/obj/thumb.webp",
+        )
+        self.assertEqual(preview.get("title"), "Leg day")
 
 
 if __name__ == "__main__":

@@ -91,6 +91,11 @@ def _extract_thumbnail_url(provider_meta: Any) -> str | None:
     metadata. Returns None when the metadata is missing or no usable image
     URL is present.
 
+    For TikTok, prefer ``tiktok_oembed.thumbnail_url`` from TikTok's official
+    oEmbed response (stored at job creation). Third-party resolvers sometimes
+    return cover art from the anonymous "open in app" landing page rather
+    than the real frame.
+
     TikTok / TikWM exposes covers under ``data.cover`` with ``origin_cover``,
     ``dynamic_cover``, and ``ai_dynamic_cover`` as fallbacks. The static
     ``cover`` is the most stable JPEG; the dynamic variants are short
@@ -107,7 +112,13 @@ def _extract_thumbnail_url(provider_meta: Any) -> str | None:
     if not isinstance(provider_meta, dict):
         return None
 
-    # TikTok / TikWM
+    tiktok_embed = provider_meta.get("tiktok_oembed")
+    if isinstance(tiktok_embed, dict):
+        url = _first_http_url(tiktok_embed.get("thumbnail_url"))
+        if url is not None:
+            return url
+
+    # TikTok / TikWM (fallback when oEmbed had no thumbnail)
     tikwm = provider_meta.get("tikwm")
     if isinstance(tikwm, dict):
         data = tikwm.get("data")
