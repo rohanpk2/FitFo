@@ -242,7 +242,6 @@ export function OnboardingScreen({
             </View>
 
             <View style={styles.heroTitleBlock}>
-              <Text style={styles.heroEyebrow}>Figure it the f*ck out</Text>
               <Text style={styles.heroTitleNew}>
                 What drives{"\n"}
                 <Text style={styles.heroTitleAccent}>you</Text>
@@ -315,13 +314,12 @@ export function OnboardingScreen({
   const renderSplitStep = () => (
     <>
       <View style={styles.hero}>
-        <Text style={styles.eyebrow}>Figure it the f*ck out</Text>
         <Text style={styles.title}>
           Your{"\n"}
           Split
           <Text style={styles.titleDot}>.</Text>
         </Text>
-        <Text style={styles.wordmark}>FITFO</Text>
+        <Text style={styles.wordmark}>Fitfo</Text>
         <Text style={styles.heroCopy}>
           {isEditing
             ? "Edit your split and schedule so your setup still matches how you train."
@@ -430,13 +428,12 @@ export function OnboardingScreen({
       ) : null}
 
       <View style={styles.hero}>
-        <Text style={styles.eyebrow}>Figure it the f*ck out</Text>
         <Text style={styles.title}>
           Your 
           Stats
           <Text style={styles.titleDot}>.</Text>
         </Text>
-        <Text style={styles.wordmark}>FITFO</Text>
+        <Text style={styles.wordmark}>Fitfo</Text>
         <Text style={styles.heroCopy}>
           {isEditing
             ? "Change your stats here anytime and we'll keep the latest version on your account."
@@ -923,8 +920,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       fontSize: 22,
       fontFamily: "Satoshi-Black",
       fontWeight: "900",
-      letterSpacing: 2,
-      textTransform: "uppercase",
+      letterSpacing: 0,
     },
     heroCopy: {
       color: theme.colors.textSecondary,

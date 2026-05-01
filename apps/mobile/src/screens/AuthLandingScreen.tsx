@@ -172,13 +172,9 @@ export function AuthLandingScreen({
 
             {/* Hero — left-aligned editorial stack anchored to the top */}
             <View style={S.splashHero}>
-              {/* Brand bar: small wordmark + demoted tagline on one row */}
+              {/* Brand bar */}
               <View style={S.brandRow}>
-                <Text style={S.brandWordmark}>
-                  Fit<Text style={S.brandAccent}>F</Text>o
-                </Text>
-                <View style={S.brandDivider} />
-                <Text style={S.brandTagline}>Figure It The F*ck Out</Text>
+                <Text style={S.brandWordmark}>Fitfo</Text>
               </View>
 
               {/* Primary value headline — the promise, not the slogan */}
@@ -269,7 +265,7 @@ export function AuthLandingScreen({
                 <View style={F1.card}>
                   <PreviewRibbon />
                   <Text style={F1.cardTitle}>Import Workout</Text>
-                  <Text style={F1.cardSub}>Paste a link and let Fitfo do the rest.</Text>
+                  <Text style={F1.cardSub}>Share any TikTok or Reel to our app.</Text>
                   <View style={F1.cardInput}>
                     <Ionicons color="#666" name="link-outline" size={15} />
                     <Text style={F1.cardInputText}>tiktok.com/@creator/legday...</Text>
@@ -284,7 +280,7 @@ export function AuthLandingScreen({
             body={
               <>
                 <Text style={S.fTitle}>Import{"\n"}Any{"\n"}<Text style={S.fAccent}>Workout.</Text></Text>
-                <Text style={S.fDesc}>Paste a TikTok or Instagram link. Fitfo pulls out every exercise, set, and rep, no typing required.</Text>
+                <Text style={S.fDesc}>Share any TikTok or Reel to our app, just like you were sending it to a friend.</Text>
                 <View style={S.pillRow}>
                   <Pill label="TikTok videos"   />
                   <Pill label="Instagram Reels" />
@@ -396,7 +392,6 @@ export function AuthLandingScreen({
         <View style={[S.slide, { width }]}>
           <View style={S.authSlide}>
             <View>
-              <Text style={S.authEyebrow}>Figure It The F*ck Out</Text>
               <Text style={S.authTitle}>
                 {authMode === "login" ? "Welcome\nBack" : "Create\nAccount"}
                 <Text style={S.authDot}>.</Text>
@@ -683,7 +678,7 @@ const S = StyleSheet.create({
     width: "100%",
   },
 
-  // Brand bar: wordmark + divider + demoted tagline, one row at the top.
+  // Brand bar.
   brandRow: {
     alignItems: "center",
     flexDirection: "row",
@@ -695,21 +690,6 @@ const S = StyleSheet.create({
     fontSize: 22,
     letterSpacing: -0.6,
     lineHeight: 22,
-  },
-  brandAccent: {
-    color: ORANGE,
-  },
-  brandDivider: {
-    backgroundColor: "rgba(255, 90, 31, 0.45)",
-    height: 1,
-    width: 18,
-  },
-  brandTagline: {
-    color: "rgba(255, 90, 31, 0.85)",
-    fontFamily: F.condensedBold,
-    fontSize: 9,
-    letterSpacing: 1.8,
-    textTransform: "uppercase",
   },
 
   // Primary headline — the promise, not the slogan.

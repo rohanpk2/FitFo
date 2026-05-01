@@ -204,10 +204,8 @@ const DAY_OF_TEMPLATES_NO_CREATOR = [
   "Discipline check. {title} is today.",
 ];
 
-// Creator-specific banks. If the reel came from Nuno or Jacob, lean hard into
-// their voice so reminders feel like the actual guy is on the calendar. Match
-// is case-insensitive and substring-based so @nunosfitness, @nuno.builds,
-// @jacoboestreicher, etc. all route into the right bank.
+// Creator-specific banks. Match is case-insensitive and substring-based so
+// @nunosfitness, @nuno.builds, etc. all route into the right bank.
 const NUNO_LINES = [
   "Nuno's {title} is today. Go build it.",
   "Nuno didn't build that back skipping days. {title} is today.",
@@ -216,21 +214,7 @@ const NUNO_LINES = [
   "Nuno dropped the reel. You signed up. {title} is today.",
 ];
 
-const JACOB_LINES = [
-  "No excuses. Jacob Oestreicher's {title} is today.",
-  "Jacob's {title} is today. Show up.",
-  "Jacob's {title}. Today. Lock in.",
-  "Jacob already logged his. {title} is today.",
-  "Phone down. Jacob's {title} is today's work.",
-  "Jacob's on the board. {title} is today. Move.",
-];
-
 const NUNO_TITLES = ["Nuno's calling.", "Back day's up.", "Nuno time."];
-const JACOB_TITLES = [
-  "Jacob's calling.",
-  "Push day incoming.",
-  "Jacob's on the clock.",
-];
 
 const REMINDER_TITLES = [
   "Lock in.",
@@ -257,9 +241,6 @@ function pickCreatorBank(creatorHandle: string | null): {
   const normalized = creatorHandle.replace(/^@/, "").toLowerCase();
   if (normalized.includes("nuno")) {
     return { body: NUNO_LINES, title: NUNO_TITLES };
-  }
-  if (normalized.includes("jacob")) {
-    return { body: JACOB_LINES, title: JACOB_TITLES };
   }
   return null;
 }

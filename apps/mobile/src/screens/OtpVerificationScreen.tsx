@@ -93,12 +93,11 @@ export function OtpVerificationScreen({
             <Text style={styles.backText}>Back</Text>
           </Pressable>
 
-          <Text style={styles.eyebrow}>Figure it the f*ck out</Text>
           <Text style={styles.title}>
             {title}
             <Text style={styles.titleDot}>.</Text>
           </Text>
-          <Text style={styles.wordmark}>FITFO</Text>
+          <Text style={styles.wordmark}>Fitfo</Text>
           <Text style={styles.heroCopy}>
             Code sent to <Text style={styles.phoneText}>{phone}</Text>. Check your messages.
           </Text>
@@ -251,8 +250,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       fontSize: 20,
       fontFamily: "ClashDisplay-Bold",
       fontWeight: "900",
-      letterSpacing: 2,
-      textTransform: "uppercase",
+      letterSpacing: 0,
     },
     heroCopy: {
       color: theme.colors.textSecondary,
