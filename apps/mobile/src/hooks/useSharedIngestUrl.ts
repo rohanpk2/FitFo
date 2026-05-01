@@ -88,28 +88,135 @@ function normalizeLooseUrlCandidates(raw: string): string[] {
   return out;
 }
 
-export function isIngestibleSocialVideoUrl(candidate: string): boolean {
+/** Strip invisible direction / zero-width chars TikTok captions often inject. */
+function sanitizeShareHandoff(raw: string | null | undefined): string {
+  if (!raw) {
+    return "";
+  }
+  return raw.replace(/[\u200B-\u200D\uFEFF\u2066-\u2069]/g, "").trim();
+}
+
+const _IG_REEL_PREFIXES = ["/reel/", "/reels/", "/p/", "/tv/"] as const;
+
+function isStrictInstagramReelUrl(candidate: string): boolean {
   try {
-    const host = new URL(candidate).hostname.replace(/^www\./i, "").toLowerCase();
-    return host.includes("tiktok.com") || host.includes("instagram.com");
+    const u = new URL(candidate);
+    const host = u.hostname.replace(/^www\./i, "").toLowerCase();
+    if (!host.endsWith("instagram.com") && !host.endsWith("ddinstagram.com")) {
+      return false;
+    }
+    const path =
+      u.pathname.startsWith("/") ? u.pathname : `/${u.pathname}`;
+    const lower = path.toLowerCase();
+    return _IG_REEL_PREFIXES.some((p) => lower.startsWith(p));
   } catch {
     return false;
   }
 }
 
-/** Parse `expo-share-intent` `webUrl` / `text` into a TikTok or Instagram URL. */
+function isStrictTikTokContentUrl(candidate: string): boolean {
+  try {
+    const u = new URL(candidate);
+    const rawHost = u.hostname.replace(/^www\./i, "").toLowerCase();
+    if (!(rawHost === "tiktok.com" || rawHost.endsWith(".tiktok.com"))) {
+      return false;
+    }
+    const trimmedPath = u.pathname.replace(/^\/+/u, "");
+    const lower = trimmedPath.toLowerCase();
+
+    if (rawHost === "vm.tiktok.com" || rawHost === "vt.tiktok.com") {
+      return trimmedPath.length > 0;
+    }
+
+    return (
+      lower.startsWith("t/") ||
+      /^@[^/]+\/video\/\d+/u.test(lower) ||
+      /(^|[/])video\/\d+/u.test(trimmedPath)
+    );
+  } catch {
+    return false;
+  }
+}
+
+function ingestUrlRank(scoreUrl: string): number {
+  if (isStrictInstagramReelUrl(scoreUrl)) {
+    try {
+      const p = new URL(scoreUrl).pathname.toLowerCase();
+      if (p.includes("/reel/") || p.includes("/reels/")) {
+        return 95;
+      }
+      return 80;
+    } catch {
+      return 70;
+    }
+  }
+
+  if (!isStrictTikTokContentUrl(scoreUrl)) {
+    return -1;
+  }
+
+  try {
+    const u = new URL(scoreUrl);
+    const host = u.hostname.replace(/^www\./i, "").toLowerCase();
+    const path = u.pathname.toLowerCase();
+
+    // Prefer canonical `@handle/video/id` whenever caption + webUrl disagree.
+    if (path.includes("@") && /\/video\/\d+/u.test(path)) {
+      return 100;
+    }
+    if (/^\/@[^/]+\/video\/\d+/u.test(u.pathname)) {
+      return 100;
+    }
+    if (path.includes("/video/")) {
+      return 90;
+    }
+    if (host === "vm.tiktok.com" || host === "vt.tiktok.com") {
+      return 75;
+    }
+    if (path.includes("/t/")) {
+      return 70;
+    }
+    return 50;
+  } catch {
+    return 50;
+  }
+}
+
+/** True when the URL is a concrete TikTok video / shortlink or reel-style Instagram URL (not tiktok.com home). */
+export function isIngestibleSocialVideoUrl(candidate: string): boolean {
+  return isStrictTikTokContentUrl(candidate) || isStrictInstagramReelUrl(candidate);
+}
+
+/**
+ * Merge `webUrl`, `text`, and every https URL found inside them, then prefer the
+ * most specific TikTok `@…/video/…` (or reel) link. TikTok often sets `webUrl` to a
+ * generic marketing/LP while the real permalink only appears in shared `text`;
+ * our old matcher accepted any tiktok.com host and locked onto the useless URL first.
+ */
 export function extractIngestibleUrlFromSharePayload(
   webUrl: string | null | undefined,
   text: string | null | undefined,
 ): string | null {
-  const direct = webUrl?.trim();
-  if (direct && isIngestibleSocialVideoUrl(direct)) {
-    return direct;
+  const sanitizedWeb = sanitizeShareHandoff(webUrl);
+  const sanitizedText = sanitizeShareHandoff(text);
+
+  const pool: string[] = [];
+  if (sanitizedWeb) {
+    pool.push(sanitizedWeb);
+    pool.push(...normalizeLooseUrlCandidates(sanitizedWeb));
   }
-  for (const url of normalizeLooseUrlCandidates(text ?? "")) {
-    if (isIngestibleSocialVideoUrl(url)) {
-      return url;
-    }
+  if (sanitizedText) {
+    pool.push(...normalizeLooseUrlCandidates(sanitizedText));
   }
-  return null;
+
+  const unique = [...new Set(pool.map((x) => x.trim()).filter(Boolean))];
+  const ingestible = unique.filter(
+    (u) => isStrictTikTokContentUrl(u) || isStrictInstagramReelUrl(u),
+  );
+  if (ingestible.length === 0) {
+    return null;
+  }
+
+  ingestible.sort((a, b) => ingestUrlRank(b) - ingestUrlRank(a));
+  return ingestible[0] ?? null;
 }

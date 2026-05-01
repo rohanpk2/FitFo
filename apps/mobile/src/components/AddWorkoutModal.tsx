@@ -503,6 +503,7 @@ export function AddWorkoutModal({
                   <View style={styles.previewThumbnailWrap}>
                     <Image
                       accessibilityIgnoresInvertColors
+                      key={`import-thumb:${job?.id}:${job?.updated_at ?? ""}:${job.thumbnail_url}`}
                       source={{ uri: job.thumbnail_url }}
                       style={styles.previewThumbnail}
                       resizeMode="cover"
