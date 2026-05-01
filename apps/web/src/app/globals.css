@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  --bg: #0b0b0c;
+  --bg: #000000;
   --surface: #151517;
   --surface-muted: #1f1f22;
   --surface-raised: #242428;
@@ -26,9 +26,9 @@
 }
 
 /*
- * Tailwind v4 theme tokens. `--font-sans` and `--font-display` are injected
- * by next/font/local in layout.tsx , we just reference them here so
- * Tailwind's `font-sans` / `font-display` utilities pick the right face.
+ * Tailwind v4 theme tokens. Site typography is Satoshi only: `--font-sans` is
+ * injected by next/font/local in layout.tsx. `--font-display` aliases to it
+ * so existing `font-display` utilities and `var(--font-display)` still work.
  */
 @theme inline {
   --color-bg: var(--bg);
@@ -50,20 +50,27 @@
   --font-sans:
     var(--font-sans), ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-display:
-    var(--font-display), var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+    var(--font-sans), ui-sans-serif, system-ui, -apple-system, sans-serif;
+}
+
+html {
+  height: 100%;
+  --font-display: var(--font-sans);
+  background-color: #000000;
 }
 
 html,
 body {
-  background: var(--bg);
   color: var(--text-primary);
-  font-family: var(--font-sans), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-family: var(--font-sans), ui-sans-serif, system-ui, -apple-system,
+    sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 body {
-  min-height: 100vh;
+  min-height: 100%;
+  background-color: #000000;
 }
 
 ::selection {
@@ -94,6 +101,79 @@ body {
 
 .text-pretty {
   text-wrap: pretty;
+}
+
+/* ─── Blur-reveal (hero) ───────────────────────────────────────────────────── */
+
+@keyframes blurFadeUp {
+  from {
+    opacity: 0;
+    filter: blur(20px);
+    transform: translateY(40px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+}
+
+.animate-blur-fade-up {
+  opacity: 0;
+  animation: blurFadeUp 1s ease-out forwards;
+}
+
+.nav-surface {
+  background: rgba(0, 0, 0, 0.52);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  backdrop-filter: blur(20px) saturate(160%);
+}
+
+/*
+ * One site-wide mesh: warm sunrise at the top, true black at the bottom.
+ * `background-size: 100% 100%` stretches all layers with the document height.
+ */
+.fitfo-site-gradient {
+  min-height: 100%;
+  background-color: #000000;
+  background-image:
+    radial-gradient(
+      ellipse 140% 130% at 100% 108%,
+      #000000 0%,
+      rgba(6, 4, 14, 0.85) 38%,
+      transparent 72%
+    ),
+    radial-gradient(
+      ellipse 120% 100% at 78% -5%,
+      rgba(255, 185, 140, 0.55) 0%,
+      rgba(242, 140, 95, 0.35) 38%,
+      transparent 62%
+    ),
+    radial-gradient(
+      ellipse 100% 90% at 0% 0%,
+      rgba(220, 200, 200, 0.75) 0%,
+      rgba(197, 165, 165, 0.4) 45%,
+      transparent 70%
+    ),
+    radial-gradient(
+      ellipse 95% 85% at 52% 48%,
+      rgba(180, 70, 55, 0.45) 0%,
+      rgba(163, 59, 47, 0.22) 48%,
+      transparent 68%
+    ),
+    linear-gradient(
+      158deg,
+      #d4c0c0 0%,
+      #eec4b0 12%,
+      #f28c5f 26%,
+      #c74a38 44%,
+      #5c1e1a 58%,
+      #1a0f18 72%,
+      #0a0a0a 88%,
+      #000000 100%
+    );
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
 }
 
 /* ─── Motion system ──────────────────────────────────────────────────────── */
@@ -265,6 +345,12 @@ body {
   .hero-anim,
   .hero-anim-right {
     opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .animate-blur-fade-up {
+    opacity: 1 !important;
+    filter: none !important;
     transform: none !important;
   }
 }

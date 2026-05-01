@@ -16,27 +16,25 @@ const satoshi = localFont({
   display: "swap",
 });
 
-const clashDisplay = localFont({
-  src: [
-    { path: "./fonts/ClashDisplay-Medium.ttf", weight: "500", style: "normal" },
-    { path: "./fonts/ClashDisplay-Semibold.ttf", weight: "600", style: "normal" },
-    { path: "./fonts/ClashDisplay-Bold.ttf", weight: "700", style: "normal" },
-  ],
-  variable: "--font-display",
-  display: "swap",
-});
-
-const ICON = "/vector-no-bg.png";
-const SITE_URL = "https://fitfo.app";
+const LOGO_URL_PATH = "/fitfo-logo.png";
+const OG_IMAGE_PATH = "/og-image.png";
+const SITE_URL = "https://www.fitfo.app";
 const APP_STORE_URL = "https://apps.apple.com/app/id6762418380";
 const DESCRIPTION =
-  "Fitfo turns TikTok and Instagram fitness videos into structured, followable workouts you can save, schedule, edit, and log.";
+  "Share any TikTok or Instagram Reel workout to Fitfo. AI extracts the exercises, sets, and reps so you can train it, log it, and repeat. Free on iOS.";
+const OG_TITLE = "Fitfo: Turn fitness videos into workouts you actually do";
+const SHARE_DESCRIPTION =
+  "Share any TikTok or Reel to Fitfo. AI parses the video and builds a workout you can train, log, and repeat.";
 const KEYWORDS = [
   "Fitfo",
+  "TikTok workout app",
+  "save TikTok workouts",
+  "Instagram Reel workout tracker",
+  "AI workout from video",
+  "how to save workouts from TikTok",
   "fitness app",
   "workout app",
   "AI workout app",
-  "TikTok workout app",
   "Instagram Reels workout app",
   "turn fitness videos into workouts",
   "workout tracker",
@@ -47,10 +45,10 @@ const KEYWORDS = [
 ];
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://fitfo.app"),
+  metadataBase: new URL(SITE_URL),
   applicationName: "Fitfo",
   title: {
-    default: "Fitfo",
+    default: "Fitfo: Turn TikTok & Instagram Workouts Into Real Training",
     template: "%s · Fitfo",
   },
   description: DESCRIPTION,
@@ -79,19 +77,26 @@ export const metadata: Metadata = {
     },
   },
   openGraph: {
-    title: "Fitfo | Turn Fitness Videos Into Workouts",
-    description: DESCRIPTION,
-    url: SITE_URL,
+    title: OG_TITLE,
+    description: SHARE_DESCRIPTION,
+    url: `${SITE_URL}/`,
     siteName: "Fitfo",
     type: "website",
     locale: "en_US",
-    images: [ICON],
+    images: [
+      {
+        url: OG_IMAGE_PATH,
+        width: 1200,
+        height: 630,
+        alt: "Fitfo: TikTok and Instagram workouts turned into structured training on iPhone",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Fitfo | Turn Fitness Videos Into Workouts",
-    description: DESCRIPTION,
-    images: [ICON],
+    title: OG_TITLE,
+    description: SHARE_DESCRIPTION,
+    images: [`${SITE_URL}${OG_IMAGE_PATH}`],
   },
   appLinks: {
     ios: {
@@ -102,9 +107,10 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: ICON, sizes: "512x512", type: "image/png" },
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
     ],
-    apple: [{ url: ICON, sizes: "512x512", type: "image/png" }],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
   },
 };
 
@@ -116,7 +122,7 @@ const structuredData = {
       "@id": `${SITE_URL}/#organization`,
       name: "Vaayu Athletics LLC",
       url: SITE_URL,
-      logo: `${SITE_URL}${ICON}`,
+      logo: `${SITE_URL}${LOGO_URL_PATH}`,
       sameAs: [APP_STORE_URL],
       contactPoint: {
         "@type": "ContactPoint",
@@ -143,8 +149,9 @@ const structuredData = {
       operatingSystem: "iOS",
       applicationCategory: "HealthApplication",
       applicationSubCategory: "Workout tracker",
-      description: DESCRIPTION,
-      image: `${SITE_URL}${ICON}`,
+      description:
+        "Share any TikTok or Instagram Reel workout to Fitfo. AI extracts exercises, sets, and reps into a trainable workout.",
+      image: `${SITE_URL}${OG_IMAGE_PATH}`,
       publisher: { "@id": `${SITE_URL}/#organization` },
       offers: {
         "@type": "Offer",
@@ -199,16 +206,16 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${satoshi.variable} ${clashDisplay.variable} h-full antialiased`}
+      className={`${satoshi.variable} h-full antialiased`}
     >
-      <body className="min-h-full bg-bg font-sans text-text-primary">
+      <body className="min-h-full font-sans text-text-primary">
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
             __html: JSON.stringify(structuredData).replace(/</g, "\\u003c"),
           }}
         />
-        {children}
+        <div className="fitfo-site-gradient flex min-h-full flex-col">{children}</div>
       </body>
     </html>
   );

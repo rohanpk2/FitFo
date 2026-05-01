@@ -64,6 +64,7 @@ def create_scheduled_workout(
             workout_id=body.workout_id,
             job_id=body.job_id,
             source_url=body.source_url,
+            thumbnail_url=body.thumbnail_url,
             description=body.description,
             meta_left=body.meta_left,
             meta_right=body.meta_right,

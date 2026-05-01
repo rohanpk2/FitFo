@@ -72,7 +72,7 @@ export function PhoneFrame({
         />
       )}
       <div
-        className="relative rounded-[44px] border border-white/10 bg-black p-2.5 shadow-[0_30px_90px_-20px_rgba(0,0,0,0.6),0_12px_40px_-12px_rgba(255,90,20,0.25)]"
+        className="relative rounded-[44px] border border-white/12 bg-black p-2.5 shadow-[0_28px_80px_-24px_rgba(0,0,0,0.75),0_12px_36px_-16px_rgba(0,0,0,0.45)]"
         style={{ width, height }}
       >
         <div className="relative h-full w-full overflow-hidden rounded-[34px] bg-black">

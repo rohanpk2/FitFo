@@ -16,9 +16,8 @@ export default function PrivacyPage() {
   return (
     <>
       <Nav />
-      <main>
-        <section className="relative overflow-hidden border-b border-[var(--border-soft)]">
-          <div aria-hidden className="bg-grid absolute inset-0 -z-10" />
+      <main className="flex flex-1 flex-col">
+        <section className="relative overflow-hidden">
           <div className="mx-auto max-w-3xl px-5 pb-16 pt-20 sm:px-8 sm:pb-20 sm:pt-28">
             <p
               className="text-[10px] font-black uppercase tracking-[0.3em] text-[var(--primary-bright)]"
@@ -262,7 +261,35 @@ export default function PrivacyPage() {
                 the URL and we&apos;ll remove it.
               </p>
 
-              <H2>12. Changes to this policy</H2>
+              <H2>12. Subscriptions, billing, refunds, and App Store purchases</H2>
+              <p>
+                If Fitfo offers paid plans or trials, they are processed by{" "}
+                <strong>Apple</strong> through In-App Purchase. Pricing, trial
+                length, renewal, and cancellation are shown at checkout and in
+                your Apple ID subscription settings.{" "}
+                <strong>Refund requests</strong> generally go through Apple’s
+                support tools (for example &ldquo;Report a Problem&rdquo;), not
+                by charging your card directly on our site. We do not receive or
+                store your full card number.
+              </p>
+              <p>
+                If we materially change subscription benefits or pricing, we
+                will describe the change in the app or on this site where
+                practical, consistent with App Store guidelines.
+              </p>
+
+              <H2>13. Apple App Tracking Transparency (ATT) and advertising</H2>
+              <p>
+                Fitfo does <strong>not</strong> run third-party advertising SDKs
+                or sell your personal information for cross-context behavioral
+                advertising. We do not use the Identifier for Advertisers
+                (IDFA) to track you across other companies’ apps or websites for
+                ads. If we introduce optional analytics that could trigger an
+                Apple privacy prompt in the future, we will describe it here and
+                in the app before enabling it.
+              </p>
+
+              <H2>14. Changes to this policy</H2>
               <p>
                 We&apos;ll update this page if our practices change. The
                 effective date at the top reflects the latest version.
@@ -270,7 +297,7 @@ export default function PrivacyPage() {
                 before they take effect.
               </p>
 
-              <H2>13. Contact</H2>
+              <H2>15. Contact</H2>
               <p>
                 Questions, requests, or concerns about your data? Email{" "}
                 <a href="mailto:nirv@fitfo.app">nirv@fitfo.app</a>. We

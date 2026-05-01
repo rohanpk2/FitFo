@@ -126,9 +126,11 @@ def _extract_thumbnail_url(provider_meta: Any) -> str | None:
     if isinstance(apify, dict):
         url = _first_http_url(
             apify.get("displayUrl"),
+            apify.get("display_url"),
             apify.get("thumbnailUrl"),
             apify.get("thumbnail_url"),
             apify.get("thumbnailSrc"),
+            apify.get("thumbnail_src"),
         )
         if url is not None:
             return url

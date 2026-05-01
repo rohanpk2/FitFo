@@ -2,7 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Alert } from "react-native";
 import * as Notifications from "expo-notifications";
 
-import { getCreatorHandle } from "./fitfo";
+import { getCreatorDisplayLabel } from "./fitfo";
 import type { ScheduledWorkoutRecord } from "../types";
 
 // One storage key maps scheduled_workout_id -> expo notification ids so we can
@@ -112,6 +112,51 @@ export async function requestNotificationPermission(): Promise<boolean> {
         permissionState = "denied";
         return false;
       }
+    }
+
+    const requested = await Notifications.requestPermissionsAsync();
+    permissionState = requested.granted ? "granted" : "denied";
+    return requested.granted;
+  } catch {
+    permissionState = "denied";
+    return false;
+  }
+}
+
+/**
+ * First-time onboarding: explain workout reminders before the system dialog.
+ * Call after profile/onboarding is saved so users aren't stuck waiting on a
+ * slow import before they can opt in. Skips the generic pre-prompt for the
+ * rest of the session so scheduling/import doesn't double-ask in one sitting.
+ */
+export async function requestNotificationPermissionForOnboarding(): Promise<boolean> {
+  try {
+    const existing = await Notifications.getPermissionsAsync();
+    if (existing.granted) {
+      permissionState = "granted";
+      return true;
+    }
+    if (!existing.canAskAgain) {
+      permissionState = "denied";
+      return false;
+    }
+
+    explainerShownThisSession = true;
+
+    const userAgreed = await new Promise<boolean>((resolve) => {
+      Alert.alert(
+        "Get workout reminders?",
+        "We'll remind you the evening before and the morning of each workout you schedule, so your sessions stay on track. If an import takes a bit, we can also let you know when your workout is ready to save. You can turn this off anytime in Settings.",
+        [
+          { text: "Not now", style: "cancel", onPress: () => resolve(false) },
+          { text: "Allow", onPress: () => resolve(true) },
+        ],
+        { cancelable: false },
+      );
+    });
+
+    if (!userAgreed) {
+      return false;
     }
 
     const requested = await Notifications.requestPermissionsAsync();
@@ -241,7 +286,7 @@ function buildReminderCopy(
   title: string;
   body: string;
 } {
-  const creator = getCreatorHandle(routine.source_url);
+  const creator = getCreatorDisplayLabel(routine.source_url, routine.title);
   const cleanTitle = routine.title.trim() || "workout";
   // Prefer persona-specific copy for Nuno / Jacob so the reminder feels like
   // the actual creator is poking you on workout day.

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, type AppStateStatus } from "react-native";
 
 import { getJob, getWorkoutByJob } from "../lib/api";
+import { humanizeIngestError } from "../lib/ingestErrors";
 import type { JobResponse, JobStatus, WorkoutRow } from "../types";
 
 const POLL_INTERVAL_MS = 1500;
@@ -67,7 +68,7 @@ export function useIngestionJob(
 
         if (TERMINAL_STATUSES.includes(data.status)) {
           if (data.status === "failed") {
-            setError(data.error || "Job failed");
+            setError(humanizeIngestError(data.error));
           }
           stopPolling();
         }

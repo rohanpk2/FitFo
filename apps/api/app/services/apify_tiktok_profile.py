@@ -5,6 +5,7 @@ from typing import Any, Optional
 
 import httpx
 
+from app.services.apify_http_errors import user_message_for_apify_http
 
 APIFY_ACTOR_ID = "clockworks~tiktok-scraper"
 APIFY_RUN_SYNC_URL = (
@@ -71,8 +72,8 @@ async def fetch_profile_videos(
         raise ApifyTiktokProfileError(str(exc)) from exc
 
     if resp.status_code < 200 or resp.status_code >= 300:
-        body = resp.text[:400] if resp.text else "(empty)"
-        raise ApifyTiktokProfileError(f"Apify HTTP {resp.status_code}: {body}")
+        raw = resp.text[:400] if resp.text else ""
+        raise ApifyTiktokProfileError(user_message_for_apify_http(resp.status_code, raw))
 
     try:
         data = resp.json()

@@ -3,8 +3,8 @@ import Link from "next/link";
 
 export function Footer() {
   return (
-    <footer className="border-t border-border-soft bg-bg">
-      <div className="mx-auto max-w-6xl px-5 py-14 sm:px-8">
+    <footer className="nav-surface">
+      <div className="mx-auto w-full max-w-7xl px-4 py-14 sm:px-6 xl:px-10">
         <div className="flex flex-col gap-10 md:flex-row md:items-start md:justify-between">
           <div className="max-w-sm">
             <Link href="/" className="flex items-center gap-2.5">
@@ -13,7 +13,7 @@ export function Footer() {
                 alt=""
                 width={180}
                 height={180}
-                className="h-8 w-8"
+                className="h-10 w-10 sm:h-11 sm:w-11"
               />
               <span
                 className="text-base font-bold tracking-[-0.02em] text-text-primary"
@@ -46,13 +46,13 @@ export function Footer() {
               title="Legal"
               links={[
                 { label: "Privacy", href: "/privacy" },
-                { label: "Terms", href: "/marketing#terms" },
+                { label: "Terms", href: "/terms" },
               ]}
             />
           </div>
         </div>
 
-        <div className="mt-12 flex flex-col gap-3 border-t border-border-soft pt-6 text-xs text-text-muted sm:flex-row sm:items-center sm:justify-between">
+        <div className="mt-12 flex flex-col gap-3 pt-6 text-xs text-text-muted sm:flex-row sm:items-center sm:justify-between">
           <p>© 2026 Vaayu Athletics LLC. All rights reserved.</p>
           <p>
             Questions?{" "}

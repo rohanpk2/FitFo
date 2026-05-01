@@ -175,7 +175,7 @@ export default function AdminReviewPage() {
       const result = await bulkReviewChunks({ action, ids });
       setChunks([]);
       setEditsById({});
-      // Surface the count via the existing error/info channel — cheap and
+      // Surface the count via the existing error/info channel (cheap and
       // doesn't require a new banner component.
       setError(null);
       console.info(`bulk ${action}: ${result.updated} updated`);
@@ -373,7 +373,7 @@ export default function AdminReviewPage() {
                     }
                     disabled={isPending}
                   >
-                    <option value="">— none —</option>
+                    <option value="">(none)</option>
                     {CHUNK_TYPES.map((t) => (
                       <option key={t} value={t}>
                         {t}

@@ -12,7 +12,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 
 import { InlineEditableText } from "../components/InlineEditableText";
-import { getCreatorHandle, titleCase } from "../lib/fitfo";
+import { getCreatorDisplayLabel, titleCase } from "../lib/fitfo";
 import {
   MUSCLE_GROUP_LABELS,
   getMuscleGroupsForPlan,
@@ -251,7 +251,7 @@ export function SavedWorkoutDetailScreen({
   const styles = createStyles(theme);
 
   const plan = routine.workoutPlan;
-  const creatorHandle = getCreatorHandle(routine.sourceUrl);
+  const creatorHandle = getCreatorDisplayLabel(routine.sourceUrl, routine.title);
   const sourceUrl = routine.sourceUrl || null;
   const platform = getSourcePlatform(sourceUrl);
   const scheduledLabel = formatScheduledDate(routine.scheduledFor);

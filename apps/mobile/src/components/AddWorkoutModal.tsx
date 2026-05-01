@@ -13,7 +13,7 @@ import {
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 
 import { FitfoLoadingAnimation } from "./FitfoLoadingAnimation";
-import { getCreatorHandle } from "../lib/fitfo";
+import { getCreatorDisplayLabel } from "../lib/fitfo";
 import { getStatusInfo } from "../lib/status";
 import { getTheme, type ThemeMode } from "../theme";
 import type { JobResponse, SavedRoutinePreview } from "../types";
@@ -276,8 +276,8 @@ export function AddWorkoutModal({
     setSlowImportDismissed(true);
   };
   const creatorHandle = useMemo(
-    () => getCreatorHandle(routine?.sourceUrl ?? null),
-    [routine?.sourceUrl],
+    () => getCreatorDisplayLabel(routine?.sourceUrl ?? null, routine?.title),
+    [routine?.sourceUrl, routine?.title],
   );
   const upcomingDates = useMemo(() => buildUpcomingDates(14), []);
   const defaultDateIso = upcomingDates[0] ? toIsoDate(upcomingDates[0]) : null;
@@ -437,12 +437,13 @@ export function AddWorkoutModal({
                 </View>
                 <Text style={styles.title}>Import Workout</Text>
                 <Text style={styles.subtitle}>
-                  Paste a TikTok or Instagram reel link to turn it into a workout you
-                  can start now or save for later.
+                  Share a TikTok or Instagram Reel to Fitfo from your phone&apos;s share
+                  menu—the link will usually show up here automatically. You can also
+                  paste a link yourself if you prefer.
                 </Text>
 
                 <View style={styles.formBlock}>
-                  <Text style={styles.label}>Video Link</Text>
+                  <Text style={styles.label}>Link</Text>
                   <View style={styles.inputShell}>
                     <Ionicons
                       color={theme.colors.textMuted}
@@ -455,7 +456,7 @@ export function AddWorkoutModal({
                       editable
                       keyboardType="url"
                       onChangeText={setUrl}
-                      placeholder="tiktok.com/... or instagram.com/reel/..."
+                      placeholder="Appears after sharing, or paste a URL"
                       placeholderTextColor={theme.colors.textMuted}
                       style={styles.input}
                       value={url}
@@ -463,8 +464,8 @@ export function AddWorkoutModal({
                   </View>
 
                   <Text style={styles.helperText}>
-                    We&apos;ll extract the workout structure and let you decide what
-                    to do next.
+                    We&apos;ll extract the workout from the clip so you can start it
+                    or save it for later.
                   </Text>
 
                   <Pressable

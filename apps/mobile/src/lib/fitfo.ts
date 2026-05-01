@@ -145,6 +145,40 @@ function parseCreatorFromSourceUrl(sourceUrl: string | null | undefined): string
   }
 }
 
+/** Creator chip / reminders: @handle from TikTok-style URLs, else possessive prefix in title (e.g. "Sam's Leg Day"). */
+export function getCreatorDisplayLabel(
+  sourceUrl: string | null | undefined,
+  title?: string | null,
+): string | null {
+  const fromUrl = getCreatorHandle(sourceUrl);
+  if (fromUrl) {
+    return fromUrl;
+  }
+  if (title) {
+    const fromTitle = parsePossessiveCreatorFromTitle(title);
+    if (fromTitle) {
+      return fromTitle;
+    }
+  }
+  return null;
+}
+
+function parsePossessiveCreatorFromTitle(title: string): string | null {
+  const t = title.trim();
+  const m = /^(.+?)(?:'|\u2019)s\s+\S/.exec(t);
+  if (!m?.[1]) {
+    return null;
+  }
+  const name = m[1].trim();
+  if (name.length < 2 || name.length > 48) {
+    return null;
+  }
+  if (/^\d+$/.test(name)) {
+    return null;
+  }
+  return name.includes(" ") ? name : `@${name}`;
+}
+
 export function getCreatorHandle(sourceUrl: string | null | undefined): string | null {
   const slug = parseCreatorFromSourceUrl(sourceUrl);
   return slug ? `@${slug}` : null;
@@ -181,6 +215,23 @@ function stripLegacyImportDescriptor(title: string): string {
 
 function extractCreatorName(job?: JobResponse | null): string | null {
   const providerMeta = asRecord(job?.provider_meta);
+
+  const ownerFull = asString(providerMeta?.owner_full_name);
+  const ownerUser = asString(providerMeta?.owner_username);
+
+  const apify = asRecord(providerMeta?.apify);
+  const fromApifyFull =
+    asString(apify?.ownerFullName) ||
+    asString(apify?.fullName) ||
+    asString(apify?.owner_full_name);
+  const fromApifyUser =
+    asString(apify?.ownerUsername) ||
+    asString(apify?.username) ||
+    asString(apify?.owner_username);
+
+  const instagramCreator =
+    ownerFull || fromApifyFull || ownerUser || fromApifyUser || null;
+
   const tikwm = asRecord(providerMeta?.tikwm);
   const data = asRecord(tikwm?.data);
   const author = asRecord(data?.author);
@@ -192,6 +243,7 @@ function extractCreatorName(job?: JobResponse | null): string | null {
     asString(data?.author_nickname) ||
     asString(data?.author_unique_id) ||
     asString(data?.nickname) ||
+    instagramCreator ||
     parseCreatorFromSourceUrl(job?.source_url);
 
   return rawCreator ? humanizeWords(rawCreator) : null;
@@ -199,6 +251,33 @@ function extractCreatorName(job?: JobResponse | null): string | null {
 
 function extractCaption(job?: JobResponse | null): string | null {
   const providerMeta = asRecord(job?.provider_meta);
+
+  const topCaption = asString(providerMeta?.caption);
+  if (topCaption) {
+    return topCaption;
+  }
+
+  const apify = asRecord(providerMeta?.apify);
+  if (apify) {
+    const fromApify =
+      asString(apify.caption) ||
+      asString(apify.text) ||
+      asString(apify.description) ||
+      asString(apify.accessibilityCaption);
+    if (fromApify) {
+      return fromApify;
+    }
+    const edge = asRecord(apify.edge_media_to_caption);
+    const edges = edge?.edges;
+    if (Array.isArray(edges) && edges.length > 0) {
+      const node = asRecord(asRecord(edges[0])?.node);
+      const text = asString(node?.text);
+      if (text) {
+        return text;
+      }
+    }
+  }
+
   const tikwm = asRecord(providerMeta?.tikwm);
   const data = asRecord(tikwm?.data);
 
@@ -209,6 +288,42 @@ function extractCaption(job?: JobResponse | null): string | null {
     asString(data?.content) ||
     null
   );
+}
+
+function isInstagramSourceUrl(sourceUrl: string | null | undefined): boolean {
+  if (!sourceUrl) {
+    return false;
+  }
+  try {
+    const host = new URL(sourceUrl).hostname.replace(/^www\./i, "").toLowerCase();
+    return host.includes("instagram.com");
+  } catch {
+    return false;
+  }
+}
+
+function isLikelyMisassignedExerciseTitle(
+  title: string | null | undefined,
+  plan: WorkoutPlan | null | undefined,
+): boolean {
+  const t = asString(title);
+  if (!t || !plan?.blocks?.length) {
+    return false;
+  }
+  let count = 0;
+  let primary: string | null = null;
+  for (const block of plan.blocks) {
+    for (const exercise of block.exercises) {
+      count += 1;
+      if (!primary) {
+        primary = asString(exercise.name);
+      }
+    }
+  }
+  if (count < 2 || !primary) {
+    return false;
+  }
+  return t.toLowerCase() === primary.trim().toLowerCase();
 }
 
 function inferFocusFromText(text: string): string | null {
@@ -222,7 +337,7 @@ function inferFocusFromText(text: string): string | null {
     { keywords: ["row", "lat pulldown", "back day"], label: "Back Builder" },
     { keywords: ["shoulder", "overhead press", "lateral raise"], label: "Shoulder Day" },
     { keywords: ["bicep", "tricep", "arm day", "arms"], label: "Arm Day" },
-    { keywords: ["glute", "glutes"], label: "Glute Day" },
+    { keywords: ["glute", "glutes", "hip thrust", "hip thrusts"], label: "Glute Day" },
     { keywords: ["leg day", "legs", "quad", "quads", "hamstring", "hamstrings"], label: "Leg Day" },
     { keywords: ["chest"], label: "Chest Day" },
     { keywords: ["upper body"], label: "Upper Body Session" },
@@ -258,9 +373,11 @@ function getPrimaryExerciseName(plan: WorkoutPlan): string | null {
 
 function getWorkoutFocus(workout: WorkoutRow, job?: JobResponse | null): string {
   const explicitTitle = asString(workout.title) || asString(workout.plan.title);
+  const suspectExerciseTitle = isLikelyMisassignedExerciseTitle(explicitTitle, workout.plan);
   if (
     explicitTitle &&
-    !GENERIC_ROUTINE_TITLES.has(explicitTitle.toLowerCase())
+    !GENERIC_ROUTINE_TITLES.has(explicitTitle.toLowerCase()) &&
+    !suspectExerciseTitle
   ) {
     return humanizeWords(explicitTitle);
   }
@@ -270,6 +387,10 @@ function getWorkoutFocus(workout: WorkoutRow, job?: JobResponse | null): string 
     const inferredFromCaption = inferFocusFromText(captionMatch);
     if (inferredFromCaption) {
       return inferredFromCaption;
+    }
+    const trimmed = captionMatch.trim();
+    if (trimmed.length >= 3 && trimmed.length <= 80) {
+      return humanizeWords(trimmed);
     }
   }
 
@@ -303,9 +424,11 @@ function getWorkoutFocus(workout: WorkoutRow, job?: JobResponse | null): string 
 
 function getWorkoutFocusFromPlan(plan: WorkoutPlan, fallbackTitle?: string | null): string | null {
   const explicitTitle = asString(plan.title) || asString(fallbackTitle);
+  const suspectExerciseTitle = isLikelyMisassignedExerciseTitle(explicitTitle, plan);
   if (
     explicitTitle &&
-    !GENERIC_ROUTINE_TITLES.has(explicitTitle.toLowerCase())
+    !GENERIC_ROUTINE_TITLES.has(explicitTitle.toLowerCase()) &&
+    !suspectExerciseTitle
   ) {
     return stripLegacyImportDescriptor(humanizeWords(explicitTitle));
   }
@@ -344,15 +467,26 @@ export function getRoutineDisplayTitle(input: {
   workoutPlan?: WorkoutPlan | null;
 }): string {
   const cleanedTitle = stripLegacyImportDescriptor(input.title);
+  const suspectExerciseTitle =
+    input.workoutPlan &&
+    cleanedTitle &&
+    isLikelyMisassignedExerciseTitle(cleanedTitle, input.workoutPlan);
+
   if (
     cleanedTitle &&
-    !GENERIC_ROUTINE_TITLES.has(cleanedTitle.toLowerCase())
+    !GENERIC_ROUTINE_TITLES.has(cleanedTitle.toLowerCase()) &&
+    !suspectExerciseTitle
   ) {
     return titleCase(cleanedTitle) || cleanedTitle;
   }
 
-  const creatorSlug = parseCreatorFromSourceUrl(input.sourceUrl);
-  const creatorName = creatorSlug ? humanizeWords(creatorSlug) : null;
+  const creatorLabel = getCreatorDisplayLabel(
+    input.sourceUrl,
+    suspectExerciseTitle ? undefined : cleanedTitle,
+  );
+  const creatorName = creatorLabel
+    ? humanizeWords(creatorLabel.replace(/^@/, ""))
+    : null;
   const focus = input.workoutPlan
     ? getWorkoutFocusFromPlan(input.workoutPlan, cleanedTitle)
     : null;
@@ -368,6 +502,7 @@ function getImportedDescription(
   workout: WorkoutRow,
   creatorName: string | null,
   focus: string,
+  sourceUrl?: string | null,
 ): string {
   const normalizedNotes = workout.plan.notes?.trim().toLowerCase() || "";
 
@@ -375,11 +510,12 @@ function getImportedDescription(
     return sentenceCase(workout.plan.notes) || workout.plan.notes;
   }
 
+  const platform = isInstagramSourceUrl(sourceUrl) ? "Instagram" : "TikTok";
   if (creatorName) {
-    return `Imported from ${toPossessive(creatorName)} TikTok and tagged as ${focus.toLowerCase()}.`;
+    return `Imported from ${toPossessive(creatorName)} ${platform} and tagged as ${focus.toLowerCase()}.`;
   }
 
-  return `Imported from TikTok and tagged as ${focus.toLowerCase()}.`;
+  return `Imported from ${platform} and tagged as ${focus.toLowerCase()}.`;
 }
 
 function sanitizeRoutineDescription(description: string | null | undefined): string {
@@ -510,13 +646,19 @@ export function createImportedRoutinePreview(
     title: creatorName
       ? `${toPossessive(creatorName)} ${focus}`
       : focus,
-    description: getImportedDescription(workout, creatorName, focus),
+    description: getImportedDescription(
+      workout,
+      creatorName,
+      focus,
+      options?.job?.source_url ?? null,
+    ),
     metaLeft: exerciseCount > 0 ? `${exerciseCount} exercises` : `${workout.plan.blocks.length} blocks`,
     metaRight: workout.plan.blocks.length === 1
       ? `${workout.plan.blocks.length} block`
       : `${workout.plan.blocks.length} blocks`,
     badgeLabel: "Imported",
     workoutPlan: workout.plan,
+    thumbnailUrl: options?.job?.thumbnail_url ?? null,
   };
 }
 
@@ -603,6 +745,7 @@ export function createSavedRoutinePreviewFromRecord(
     metaRight: record.meta_right || "Ready",
     badgeLabel: record.badge_label || "Saved",
     workoutPlan: record.workout_plan || undefined,
+    thumbnailUrl: record.thumbnail_url ?? null,
   };
 }
 
@@ -627,6 +770,7 @@ export function createScheduledRoutinePreview(
     metaRight: record.meta_right || "Ready",
     badgeLabel: record.badge_label || "Scheduled",
     workoutPlan: record.workout_plan || undefined,
+    thumbnailUrl: record.thumbnail_url ?? null,
   };
 }
 

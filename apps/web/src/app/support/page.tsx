@@ -167,9 +167,8 @@ export default function SupportPage() {
   return (
     <>
       <Nav />
-      <main>
-        <section className="relative overflow-hidden border-b border-[var(--border-soft)]">
-          <div aria-hidden className="bg-grid absolute inset-0 -z-10" />
+      <main className="flex flex-1 flex-col">
+        <section className="relative overflow-hidden">
           <div className="mx-auto max-w-4xl px-5 pb-20 pt-20 sm:px-8 sm:pb-24 sm:pt-28">
             <p
               className="text-[10px] font-black uppercase tracking-[0.3em] text-[var(--primary-bright)]"

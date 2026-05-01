@@ -16,7 +16,7 @@ import {
   FeedbackCard,
   getBrandAccent,
 } from "../components/WorkoutCard";
-import { getCreatorHandle } from "../lib/fitfo";
+import { getCreatorDisplayLabel } from "../lib/fitfo";
 import {
   MUSCLE_GROUPS,
   MUSCLE_GROUP_LABELS,
@@ -137,7 +137,7 @@ function StatTile({
           },
         ]}
       >
-        <Ionicons color={iconColor} name={iconName} size={16} />
+        <Ionicons color={iconColor} name={iconName} size={14} />
       </View>
       <Text
         adjustsFontSizeToFit
@@ -193,7 +193,7 @@ function LibraryWorkoutCard({
 }) {
   const styles = createStyles(theme);
   const accent = getBrandAccent(theme);
-  const creatorHandle = getCreatorHandle(routine.sourceUrl);
+  const creatorHandle = getCreatorDisplayLabel(routine.sourceUrl, routine.title);
   const sourceUrl = routine.sourceUrl || null;
   const platform = getSourcePlatform(sourceUrl);
   const sourceShortLabel = getSourceShortLabel(platform);
@@ -488,7 +488,7 @@ export function SavedLibraryScreen({
         const haystack = [
           routine.title,
           routine.description,
-          getCreatorHandle(routine.sourceUrl) || "",
+          getCreatorDisplayLabel(routine.sourceUrl, routine.title) || "",
         ]
           .join(" ")
           .toLowerCase();
@@ -878,15 +878,15 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
 
     statsRow: {
       flexDirection: "row",
-      gap: 10,
+      gap: 8,
     },
     statTile: {
       flex: 1,
-      minHeight: 132,
-      borderRadius: 22,
+      minHeight: 110,
+      borderRadius: 18,
       backgroundColor: theme.colors.surface,
-      paddingVertical: 14,
-      paddingHorizontal: 12,
+      paddingVertical: 11,
+      paddingHorizontal: 10,
       borderWidth: theme.mode === "dark" ? 1 : 0,
       borderColor: theme.colors.borderSoft,
       ...theme.shadows.softCard,
@@ -896,29 +896,29 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       borderWidth: 0,
     },
     statTileIcon: {
-      width: 28,
-      height: 28,
-      borderRadius: 10,
+      width: 24,
+      height: 24,
+      borderRadius: 9,
       alignItems: "center",
       justifyContent: "center",
-      marginBottom: 10,
+      marginBottom: 6,
     },
     statTileValue: {
       color: theme.colors.textPrimary,
-      fontSize: 28,
-      lineHeight: 30,
+      fontSize: 24,
+      lineHeight: 27,
       fontFamily: "Satoshi-Bold",
       fontWeight: "800",
-      letterSpacing: -0.8,
-      marginBottom: 4,
+      letterSpacing: -0.65,
+      marginBottom: 3,
     },
     statTileValueDark: {
       color: "#FFFFFF",
     },
     statTileLabel: {
       color: theme.colors.textPrimary,
-      fontSize: 13,
-      lineHeight: 16,
+      fontSize: 11,
+      lineHeight: 14,
       fontFamily: "Satoshi-Bold",
       fontWeight: "800",
     },
@@ -927,8 +927,8 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     },
     statTileCaption: {
       color: theme.colors.textMuted,
-      fontSize: 11,
-      lineHeight: 14,
+      fontSize: 10,
+      lineHeight: 13,
       fontFamily: "Satoshi-Medium",
       fontWeight: "500",
       marginTop: 2,

@@ -7,6 +7,7 @@ class SavedWorkoutUpsertRequest(BaseModel):
     workout_id: Optional[str] = None
     job_id: Optional[str] = None
     source_url: Optional[str] = Field(default=None, max_length=4096)
+    thumbnail_url: Optional[str] = Field(default=None, max_length=4096)
     title: str = Field(..., min_length=1, max_length=200)
     description: Optional[str] = Field(default=None, max_length=2000)
     meta_left: Optional[str] = Field(default=None, max_length=120)
@@ -35,6 +36,7 @@ class SavedWorkoutResponse(BaseModel):
     workout_id: Optional[str] = None
     job_id: Optional[str] = None
     source_url: Optional[str] = None
+    thumbnail_url: Optional[str] = None
     title: str
     description: Optional[str] = None
     meta_left: Optional[str] = None

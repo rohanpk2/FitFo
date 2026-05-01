@@ -282,6 +282,27 @@ def _extract_caption_from_provider_meta(provider_meta: dict | None) -> str:
     if isinstance(caption, str) and caption.strip():
         return caption.strip()
 
+    # Fallback: instagram actor output is sometimes only under provider_meta.apify
+    # before/during early merges — mirror mobile `extractCaption` coverage so the
+    # LLM still receives the reel caption for title/workout inference.
+    apify = provider_meta.get("apify")
+    if isinstance(apify, dict):
+        for key in ("caption", "text", "description", "accessibilityCaption"):
+            value = apify.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+        edge = apify.get("edge_media_to_caption")
+        if isinstance(edge, dict):
+            edges = edge.get("edges")
+            if isinstance(edges, list) and edges:
+                first = edges[0]
+                if isinstance(first, dict):
+                    node = first.get("node")
+                    if isinstance(node, dict):
+                        text = node.get("text")
+                        if isinstance(text, str) and text.strip():
+                            return text.strip()
+
     # TikWM nests everything under provider_meta.tikwm.data.
     tikwm = provider_meta.get("tikwm")
     if isinstance(tikwm, dict):
@@ -543,6 +564,7 @@ async def _run_instagram_pipeline(job_id: str, source_url: str) -> None:
 
     download_url = apify_reel.pick_video_url(item)  # raises ApifyReelError if no URL
     owner_username = apify_reel.pick_owner_username(item)
+    owner_full_name = apify_reel.pick_owner_full_name(item)
     caption = apify_reel.pick_caption(item)
 
     row = supabase_db.get_ingestion_job(job_id)
@@ -554,6 +576,7 @@ async def _run_instagram_pipeline(job_id: str, source_url: str) -> None:
             "apify": item,
             "download_url": download_url,
             "owner_username": owner_username,
+            "owner_full_name": owner_full_name,
             "caption": caption,
         },
     )

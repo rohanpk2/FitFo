@@ -60,3 +60,23 @@ class FetchReelPayloadTests(unittest.IsolatedAsyncioTestCase):
         ):
             with self.assertRaises(apify_reel.ApifyReelError):
                 await apify_reel.fetch_reel("https://www.instagram.com/reel/abc123/")
+
+
+class PickMetadataTests(unittest.TestCase):
+    def test_pick_caption_from_edge_media(self) -> None:
+        item = {
+            "edge_media_to_caption": {
+                "edges": [{"node": {"text": "Glutes and abs day 🔥"}}],
+            },
+        }
+        self.assertEqual(apify_reel.pick_caption(item), "Glutes and abs day 🔥")
+
+    def test_pick_owner_prefers_username_fields(self) -> None:
+        item = {"ownerUsername": "sam_fitness", "ownerFullName": "Sam"}
+        self.assertEqual(apify_reel.pick_owner_username(item), "sam_fitness")
+        self.assertEqual(apify_reel.pick_owner_full_name(item), "Sam")
+
+    def test_pick_owner_nested_owner_dict(self) -> None:
+        item = {"owner": {"username": "nested_user", "fullName": "Nested Name"}}
+        self.assertEqual(apify_reel.pick_owner_username(item), "nested_user")
+        self.assertEqual(apify_reel.pick_owner_full_name(item), "Nested Name")

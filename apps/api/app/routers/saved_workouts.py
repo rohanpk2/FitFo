@@ -35,6 +35,7 @@ def save_workout_for_later(
             workout_id=body.workout_id,
             job_id=body.job_id,
             source_url=body.source_url,
+            thumbnail_url=body.thumbnail_url,
             title=body.title,
             description=body.description,
             meta_left=body.meta_left,

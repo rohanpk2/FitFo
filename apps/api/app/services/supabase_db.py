@@ -230,6 +230,7 @@ def create_or_update_saved_workout(
     workout_id: Optional[str] = None,
     job_id: Optional[str] = None,
     source_url: Optional[str] = None,
+    thumbnail_url: Optional[str] = None,
     title: str,
     description: Optional[str] = None,
     meta_left: Optional[str] = None,
@@ -247,6 +248,7 @@ def create_or_update_saved_workout(
         "badge_label": badge_label,
         "workout_plan": workout_plan,
         "source_url": source_url,
+        "thumbnail_url": thumbnail_url,
         "saved_at": _utc_now_iso(),
     }
     if workout_id is not None:
@@ -343,7 +345,7 @@ def delete_saved_workout(saved_workout_id: str, *, user_id: str) -> Dict[str, An
 
 
 SCHEDULED_WORKOUT_FIELDS = (
-    "id, user_id, source_workout_id, workout_id, job_id, source_url, scheduled_for, "
+    "id, user_id, source_workout_id, workout_id, job_id, source_url, thumbnail_url, scheduled_for, "
     "status, title, description, meta_left, meta_right, badge_label, workout_plan, "
     "created_at, updated_at"
 )
@@ -378,6 +380,7 @@ def create_scheduled_workout(
     workout_id: Optional[str] = None,
     job_id: Optional[str] = None,
     source_url: Optional[str] = None,
+    thumbnail_url: Optional[str] = None,
     description: Optional[str] = None,
     meta_left: Optional[str] = None,
     meta_right: Optional[str] = None,
@@ -395,6 +398,7 @@ def create_scheduled_workout(
         "badge_label": badge_label,
         "workout_plan": workout_plan,
         "source_url": source_url,
+        "thumbnail_url": thumbnail_url,
         "status": "scheduled",
     }
     if source_workout_id is not None:

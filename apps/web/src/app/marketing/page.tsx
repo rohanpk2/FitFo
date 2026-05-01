@@ -27,11 +27,10 @@ export default function MarketingPage() {
   return (
     <>
       <Nav />
-      <main>
+      <main className="flex flex-1 flex-col">
         {/* Hero */}
-        <section className="relative overflow-hidden border-b border-[var(--border-soft)]">
-          <div aria-hidden className="bg-grid absolute inset-0 -z-10" />
-          <div className="mx-auto max-w-5xl px-5 pb-20 pt-20 sm:px-8 sm:pb-24 sm:pt-28">
+        <section className="relative overflow-hidden">
+          <div className="mx-auto max-w-7xl px-4 pb-20 pt-20 sm:px-6 sm:pb-24 sm:pt-28 xl:px-10">
             <p
               className="text-[10px] font-black uppercase tracking-[0.3em] text-[var(--primary-bright)]"
               style={{ fontFamily: "var(--font-sans)" }}
@@ -60,8 +59,8 @@ export default function MarketingPage() {
         </section>
 
         {/* About / boilerplate */}
-        <section className="border-b border-[var(--border-soft)]">
-          <div className="mx-auto grid max-w-5xl gap-12 px-5 py-20 sm:px-8 sm:py-24 md:grid-cols-[1fr_1.4fr]">
+        <section>
+          <div className="mx-auto grid max-w-7xl gap-12 px-4 py-20 sm:px-6 sm:py-24 md:grid-cols-[1fr_1.4fr] xl:px-10">
             <div>
               <p
                 className="text-[10px] font-black uppercase tracking-[0.3em] text-[var(--primary-bright)]"
@@ -112,8 +111,8 @@ export default function MarketingPage() {
         </section>
 
         {/* Screenshots */}
-        <section className="border-b border-[var(--border-soft)]">
-          <div className="mx-auto max-w-6xl px-5 py-20 sm:px-8 sm:py-24">
+        <section>
+          <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 sm:py-24 xl:px-10">
             <div className="flex items-end justify-between gap-6">
               <div>
                 <p
@@ -158,8 +157,8 @@ export default function MarketingPage() {
         
 
         {/* Facts */}
-        <section className="border-b border-[var(--border-soft)]">
-          <div className="mx-auto max-w-5xl px-5 py-20 sm:px-8 sm:py-24">
+        <section>
+          <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 sm:py-24 xl:px-10">
             <p
               className="text-[10px] font-black uppercase tracking-[0.3em] text-[var(--primary-bright)]"
               style={{ fontFamily: "var(--font-sans)" }}
@@ -210,7 +209,7 @@ export default function MarketingPage() {
         </section>
 
         {/* Terms anchor */}
-        <section id="terms" className="border-b border-[var(--border-soft)]">
+        <section id="terms">
           <div className="mx-auto max-w-4xl px-5 py-20 sm:px-8 sm:py-24">
             <p
               className="text-[10px] font-black uppercase tracking-[0.3em] text-[var(--primary-bright)]"
@@ -245,6 +244,16 @@ export default function MarketingPage() {
                   nirv@fitfo.app
                 </a>{" "}
                 with the URL.
+              </p>
+              <p>
+                For the full agreement, read our{" "}
+                <Link
+                  href="/terms"
+                  className="text-[var(--primary-bright)] underline underline-offset-2"
+                >
+                  Terms of Service
+                </Link>
+                . This section is only a summary.
               </p>
               <p>
                 For how we handle your data, see our{" "}

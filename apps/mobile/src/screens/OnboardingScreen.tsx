@@ -1,6 +1,8 @@
 import { useState } from "react";
 import {
   ActivityIndicator,
+  InputAccessoryView,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -57,6 +59,8 @@ const splitOptions: Array<{ label: string; value: TrainingSplit }> = [
 ];
 
 const dayOptions = [3, 4, 5, 6];
+
+const STATS_INPUT_ACCESSORY_ID = "fitfoOnboardingStatsAccessory";
 
 const experienceOptions: Array<{ label: string; value: ExperienceLevel }> = [
   { label: "Beginner", value: "beginner" },
@@ -167,6 +171,8 @@ export function OnboardingScreen({
       return;
     }
 
+    Keyboard.dismiss();
+
     if (stepIndex < 2) {
       setStepIndex((current) => current + 1);
       return;
@@ -192,6 +198,8 @@ export function OnboardingScreen({
   };
 
   const handleBackPress = () => {
+    Keyboard.dismiss();
+
     if (stepIndex > 0 && stepIndex < 3) {
       setStepIndex((current) => current - 1);
       return;
@@ -404,6 +412,23 @@ export function OnboardingScreen({
 
   const renderStatsStep = () => (
     <>
+      {Platform.OS === "ios" ? (
+        <InputAccessoryView nativeID={STATS_INPUT_ACCESSORY_ID}>
+          <View style={styles.inputAccessoryBar}>
+            <Pressable
+              hitSlop={12}
+              onPress={() => Keyboard.dismiss()}
+              style={({ pressed }) => [
+                styles.inputAccessoryDone,
+                pressed ? styles.inputAccessoryDonePressed : null,
+              ]}
+            >
+              <Text style={styles.inputAccessoryDoneText}>Done</Text>
+            </Pressable>
+          </View>
+        </InputAccessoryView>
+      ) : null}
+
       <View style={styles.hero}>
         <Text style={styles.eyebrow}>Figure it the f*ck out</Text>
         <Text style={styles.title}>
@@ -427,6 +452,7 @@ export function OnboardingScreen({
             <Text style={styles.inputLabel}>Weight</Text>
             <View style={styles.inputShell}>
               <TextInput
+                inputAccessoryViewID={Platform.OS === "ios" ? STATS_INPUT_ACCESSORY_ID : undefined}
                 keyboardType="decimal-pad"
                 onChangeText={(value) => setWeightLbsInput(sanitizeDecimalInput(value))}
                 placeholder="175"
@@ -442,6 +468,7 @@ export function OnboardingScreen({
             <Text style={styles.inputLabel}>Age</Text>
             <View style={styles.inputShell}>
               <TextInput
+                inputAccessoryViewID={Platform.OS === "ios" ? STATS_INPUT_ACCESSORY_ID : undefined}
                 keyboardType="number-pad"
                 onChangeText={(value) => setAgeInput(sanitizeWholeNumberInput(value))}
                 placeholder="20"
@@ -460,6 +487,7 @@ export function OnboardingScreen({
             <Text style={styles.inputLabel}>Feet</Text>
             <View style={styles.inputShell}>
               <TextInput
+                inputAccessoryViewID={Platform.OS === "ios" ? STATS_INPUT_ACCESSORY_ID : undefined}
                 keyboardType="number-pad"
                 onChangeText={(value) => setHeightFeetInput(sanitizeWholeNumberInput(value, 1))}
                 placeholder="5"
@@ -475,6 +503,7 @@ export function OnboardingScreen({
             <Text style={styles.inputLabel}>Inches</Text>
             <View style={styles.inputShell}>
               <TextInput
+                inputAccessoryViewID={Platform.OS === "ios" ? STATS_INPUT_ACCESSORY_ID : undefined}
                 keyboardType="number-pad"
                 onChangeText={(value) => setHeightInchesInput(sanitizeWholeNumberInput(value, 2))}
                 placeholder="11"
@@ -540,6 +569,7 @@ export function OnboardingScreen({
     >
       <ScrollView
         contentContainerStyle={styles.shell}
+        keyboardDismissMode="on-drag"
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -1069,6 +1099,30 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       textTransform: "uppercase",
+    },
+    inputAccessoryBar: {
+      flexDirection: "row",
+      justifyContent: "flex-end",
+      alignItems: "center",
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: theme.colors.borderSoft,
+      backgroundColor: theme.colors.surface,
+    },
+    inputAccessoryDone: {
+      paddingHorizontal: 14,
+      paddingVertical: 6,
+      borderRadius: 8,
+    },
+    inputAccessoryDonePressed: {
+      opacity: 0.7,
+    },
+    inputAccessoryDoneText: {
+      color: theme.colors.primary,
+      fontSize: 16,
+      fontFamily: "Satoshi-Bold",
+      fontWeight: "800",
     },
     errorCard: {
       borderRadius: 18,

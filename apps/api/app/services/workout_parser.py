@@ -70,6 +70,10 @@ on-screen text order for anything not already mentioned).
 trimming whitespace.
 - workout_type should be chosen conservatively: use "other" if the sources do \
 not clearly indicate a category.
+- **Title:** When the **caption** (or another source) names the session, day, \
+or focus (e.g. "Glutes and abs day", "Leg day", "Push workout"), use that \
+as **title** — not the first exercise in the list. Use an exercise name as \
+**title** only when no source names the overall workout.
 - muscle_groups MUST be a subset of the exact strings \
 ["chest", "back", "shoulders", "arms", "legs"]. Include every group that is \
 meaningfully trained by the extracted exercises (a push day would be \

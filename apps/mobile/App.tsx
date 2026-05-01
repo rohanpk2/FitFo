@@ -21,9 +21,13 @@ import { FitfoLoadingAnimation } from "./src/components/FitfoLoadingAnimation";
 applyDefaultFont();
 import { BottomNav } from "./src/components/BottomNav";
 import { ScheduleAgainModal } from "./src/components/ScheduleAgainModal";
+import { useShareIntent } from "expo-share-intent";
 import { useIngestionJob } from "./src/hooks/useIngestionJob";
 import { useRevenueCat } from "./src/hooks/useRevenueCat";
-import { useSharedIngestUrl } from "./src/hooks/useSharedIngestUrl";
+import {
+  extractIngestibleUrlFromSharePayload,
+  useSharedIngestUrl,
+} from "./src/hooks/useSharedIngestUrl";
 import {
   clearAuthSession,
   getStoredAuthSession,
@@ -53,6 +57,7 @@ import {
   updateScheduledWorkout,
   verifyOtp,
 } from "./src/lib/api";
+import { humanizeIngestError } from "./src/lib/ingestErrors";
 import { signInWithApple } from "./src/lib/appleAuth";
 import {
   buildCompletedWorkoutRequest,
@@ -63,7 +68,7 @@ import {
   createScheduledRoutinePreview,
   getCompletedWorkoutMeta,
   getCompletedWorkoutSetCount,
-  getCreatorHandle,
+  getCreatorDisplayLabel,
   getRoutineDisplayTitle,
 } from "./src/lib/fitfo";
 import * as Notifications from "expo-notifications";
@@ -73,6 +78,7 @@ import {
   getAutoNotifyImportsPreference,
   notifyWorkoutReady,
   reconcileScheduledNotifications,
+  requestNotificationPermissionForOnboarding,
   scheduleWorkoutReminder,
   setAutoNotifyImportsPreference,
 } from "./src/lib/notifications";
@@ -119,6 +125,7 @@ interface ScheduleAgainTarget {
   metaLeft: string;
   metaRight: string;
   badgeLabel: string | null;
+  thumbnailUrl?: string | null;
   // When set, the workout already lives in the user's saved library and we
   // should reuse that row as the schedule's source instead of round-tripping
   // through saveWorkoutForLater again (which would create a duplicate).
@@ -254,12 +261,15 @@ export default function App() {
   const [isDevPaywallBypassed, setIsDevPaywallBypassed] = useState(false);
 
   const handledImportedWorkoutId = useRef<string | null>(null);
+  const handledNativeShareUrls = useRef(new Set<string>());
   // Tracks any pending post-close cleanup of AddWorkoutModal so we can cancel
   // it if the user re-opens the modal before the cleanup fires (otherwise a
   // late reset would wipe out freshly re-populated state).
   const pendingAddWorkoutCleanupRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
+  const { isReady: isShareIntentReady, hasShareIntent, shareIntent, resetShareIntent } =
+    useShareIntent();
   const { job, workout, error: pollError } = useIngestionJob(jobId, accessToken);
   const theme = getTheme(themeMode);
   const styles = createStyles(theme);
@@ -307,8 +317,9 @@ export default function App() {
       if (!isAddWorkoutVisible) {
         void notifyWorkoutReady({
           title: latestImportedRoutine.title,
-          creatorHandle: getCreatorHandle(
+          creatorHandle: getCreatorDisplayLabel(
             latestImportedRoutine.sourceUrl ?? null,
+            latestImportedRoutine.title,
           ),
           jobId,
         });
@@ -341,6 +352,21 @@ export default function App() {
     setIsImportRunningInBackground(false);
     handledImportedWorkoutId.current = null;
   }, []);
+
+  const applyIncomingIngestUrl = useCallback(
+    (sharedUrl: string) => {
+      if (!accessToken) {
+        setSharedIngestUrl(sharedUrl);
+        setIsShareDrivenIngest(true);
+        return;
+      }
+      setSharedIngestUrl(sharedUrl);
+      setIsShareDrivenIngest(true);
+      resetImportFlow();
+      setIsAddWorkoutVisible(true);
+    },
+    [accessToken, resetImportFlow],
+  );
 
   const cancelPendingAddWorkoutCleanup = useCallback(() => {
     if (pendingAddWorkoutCleanupRef.current) {
@@ -554,40 +580,54 @@ export default function App() {
       const response = await createIngestionJob(url, accessToken);
 
       if (!response.ok || !response.job_id) {
-        setSubmitError(response.error || "Failed to start extraction");
+        const detail = response.error?.trim();
+        setSubmitError(
+          detail ? humanizeIngestError(detail) : "Failed to start extraction",
+        );
         return;
       }
 
       setJobId(response.job_id);
     } catch (error) {
       setSubmitError(
-        error instanceof Error ? error.message : "Something went wrong",
+        humanizeIngestError(
+          error instanceof Error ? error.message : "Something went wrong",
+        ),
       );
     } finally {
       setIsExtractSubmitting(false);
     }
   }, [accessToken]);
 
-  // Listen for share-sheet handoffs (iOS Share Extension / Android ACTION_SEND)
-  // and auto-open the import modal with the shared URL pre-filled + auto-submitted.
-  useSharedIngestUrl(
-    useCallback(
-      (sharedUrl: string) => {
-        if (!accessToken) {
-          // Not logged in yet — stash the URL so we can process it once
-          // authentication finishes bootstrapping.
-          setSharedIngestUrl(sharedUrl);
-          setIsShareDrivenIngest(true);
-          return;
-        }
-        setSharedIngestUrl(sharedUrl);
-        setIsShareDrivenIngest(true);
-        resetImportFlow();
-        setIsAddWorkoutVisible(true);
-      },
-      [accessToken, resetImportFlow],
-    ),
-  );
+  useSharedIngestUrl(applyIncomingIngestUrl);
+
+  useEffect(() => {
+    if (!isShareIntentReady || !hasShareIntent) {
+      return;
+    }
+    const candidate = extractIngestibleUrlFromSharePayload(
+      shareIntent.webUrl,
+      shareIntent.text,
+    );
+    if (!candidate) {
+      resetShareIntent();
+      return;
+    }
+    if (handledNativeShareUrls.current.has(candidate)) {
+      resetShareIntent();
+      return;
+    }
+    handledNativeShareUrls.current.add(candidate);
+    applyIncomingIngestUrl(candidate);
+    resetShareIntent();
+  }, [
+    applyIncomingIngestUrl,
+    hasShareIntent,
+    isShareIntentReady,
+    resetShareIntent,
+    shareIntent.text,
+    shareIntent.webUrl,
+  ]);
 
   // If the share hand-off arrived before auth was ready, replay it as soon as
   // the user is authenticated so their brainrot-to-workout pipeline keeps
@@ -648,12 +688,15 @@ export default function App() {
 
       setIsSchedulingWorkout(true);
       try {
+        const importThumbnailUrl =
+          job?.thumbnail_url ?? latestImportedRoutine.thumbnailUrl ?? null;
         // Always mirror the imported workout into the saved library first so schedules
         // point at a persistent source record that the user can edit or reuse later.
         const saved = await saveWorkoutForLater(accessToken, {
           workout_id: workout?.id ?? latestImportedRoutine.workoutId ?? null,
           job_id: job?.id ?? latestImportedRoutine.jobId ?? null,
           source_url: job?.source_url ?? latestImportedRoutine.sourceUrl ?? null,
+          thumbnail_url: importThumbnailUrl,
           title: latestImportedRoutine.title,
           description: latestImportedRoutine.description,
           meta_left: latestImportedRoutine.metaLeft,
@@ -674,6 +717,7 @@ export default function App() {
           workout_id: saved.workout_id ?? null,
           job_id: saved.job_id ?? null,
           source_url: saved.source_url ?? null,
+          thumbnail_url: importThumbnailUrl,
           scheduled_for: scheduledFor,
           title: latestImportedRoutine.title,
           description: latestImportedRoutine.description,
@@ -740,10 +784,13 @@ export default function App() {
 
     setIsSavingImportedWorkout(true);
     try {
+      const importThumbnailUrl =
+        job?.thumbnail_url ?? latestImportedRoutine.thumbnailUrl ?? null;
       const saved = await saveWorkoutForLater(accessToken, {
         workout_id: workout?.id ?? latestImportedRoutine.workoutId ?? null,
         job_id: job?.id ?? latestImportedRoutine.jobId ?? null,
         source_url: job?.source_url ?? latestImportedRoutine.sourceUrl ?? null,
+        thumbnail_url: importThumbnailUrl,
         title: latestImportedRoutine.title,
         description: latestImportedRoutine.description,
         meta_left: latestImportedRoutine.metaLeft,
@@ -788,26 +835,49 @@ export default function App() {
   ]);
 
   const handleUnscheduleWorkout = useCallback(
-    async (scheduledWorkoutId: string) => {
+    (
+      scheduledWorkoutId: string,
+      options?: { afterConfirm?: () => void },
+    ) => {
       if (!accessToken) {
         return;
       }
 
-      try {
-        await deleteScheduledWorkout(accessToken, scheduledWorkoutId);
-        setScheduledWorkouts((current) =>
-          current.filter((item) => item.id !== scheduledWorkoutId),
-        );
-        setScheduledWorkoutsError(null);
-        // Cancel paired local reminders (no-op if none were scheduled).
-        void cancelWorkoutReminder(scheduledWorkoutId);
-      } catch (error) {
-        setScheduledWorkoutsError(
-          error instanceof Error
-            ? error.message
-            : "Unable to remove that scheduled workout.",
-        );
-      }
+      Alert.alert(
+        "Unschedule this workout?",
+        "It will be removed from your calendar. Saved copies stay in your library.",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Unschedule",
+            style: "destructive",
+            onPress: () => {
+              options?.afterConfirm?.();
+
+              let previous: ScheduledWorkoutRecord[] = [];
+              setScheduledWorkouts((current) => {
+                previous = current;
+                return current.filter((item) => item.id !== scheduledWorkoutId);
+              });
+              setScheduledWorkoutsError(null);
+              void cancelWorkoutReminder(scheduledWorkoutId);
+
+              void deleteScheduledWorkout(accessToken, scheduledWorkoutId)
+                .then(() => {
+                  setScheduledWorkoutsError(null);
+                })
+                .catch((error) => {
+                  setScheduledWorkouts(previous);
+                  setScheduledWorkoutsError(
+                    error instanceof Error
+                      ? error.message
+                      : "Unable to remove that scheduled workout.",
+                  );
+                });
+            },
+          },
+        ],
+      );
     },
     [accessToken],
   );
@@ -1006,6 +1076,7 @@ export default function App() {
         metaLeft: routine.metaLeft,
         metaRight: routine.metaRight,
         badgeLabel: routine.badgeLabel ?? "Scheduled",
+        thumbnailUrl: routine.thumbnailUrl ?? null,
         savedWorkoutId,
       });
     },
@@ -1038,12 +1109,15 @@ export default function App() {
         let sourceWorkoutWorkoutId: string | null = scheduleAgainTarget.workoutId;
         let sourceJobId: string | null = scheduleAgainTarget.jobId;
         let sourceSourceUrl: string | null = scheduleAgainTarget.sourceUrl;
+        let scheduleThumbnailUrl: string | null =
+          scheduleAgainTarget.thumbnailUrl ?? null;
 
         if (!sourceWorkoutId) {
           const saved = await saveWorkoutForLater(accessToken, {
             workout_id: scheduleAgainTarget.workoutId,
             job_id: scheduleAgainTarget.jobId,
             source_url: scheduleAgainTarget.sourceUrl,
+            thumbnail_url: scheduleAgainTarget.thumbnailUrl ?? null,
             title: scheduleAgainTarget.title,
             description: scheduleAgainTarget.description,
             meta_left: scheduleAgainTarget.metaLeft,
@@ -1055,6 +1129,7 @@ export default function App() {
           sourceWorkoutWorkoutId = saved.workout_id ?? null;
           sourceJobId = saved.job_id ?? null;
           sourceSourceUrl = saved.source_url ?? null;
+          scheduleThumbnailUrl = saved.thumbnail_url ?? scheduleThumbnailUrl;
           const savedPreview = createSavedRoutinePreviewFromRecord(saved);
           setSavedWorkouts((current) => {
             const withoutDuplicate = current.filter(
@@ -1069,6 +1144,7 @@ export default function App() {
           workout_id: sourceWorkoutWorkoutId,
           job_id: sourceJobId,
           source_url: sourceSourceUrl,
+          thumbnail_url: scheduleThumbnailUrl,
           scheduled_for: scheduledFor,
           title: scheduleAgainTarget.title,
           description: scheduleAgainTarget.description,
@@ -1108,34 +1184,40 @@ export default function App() {
     [accessToken, scheduleAgainTarget],
   );
 
-  const handleCreateManualWorkout = useCallback(async () => {
+  const handleCreateManualWorkout = useCallback(() => {
     if (!accessToken) {
       return;
     }
 
-    try {
-      const saved = await saveWorkoutForLater(accessToken, {
-        title: "Custom Routine Draft",
-        description: "Fresh template for a manually created workout session.",
-        meta_left: "Draft",
-        meta_right: "Editable",
-        badge_label: "Saved",
-        workout_plan: null,
-      });
-      const preview = createSavedRoutinePreviewFromRecord(saved);
-      setSavedWorkouts((current) => {
-        const withoutDuplicate = current.filter((item) => item.id !== preview.id);
-        return [preview, ...withoutDuplicate];
-      });
-      setSavedWorkoutsError(null);
-      setSubmitError(null);
-      setIsAddWorkoutVisible(false);
-      resetImportFlow();
-    } catch (error) {
-      setSubmitError(
-        error instanceof Error ? error.message : "Unable to create that workout right now.",
-      );
-    }
+    setSubmitError(null);
+    setIsAddWorkoutVisible(false);
+    resetImportFlow();
+
+    void (async () => {
+      try {
+        const saved = await saveWorkoutForLater(accessToken, {
+          title: "Custom Routine Draft",
+          description: "Fresh template for a manually created workout session.",
+          meta_left: "Draft",
+          meta_right: "Editable",
+          badge_label: "Saved",
+          workout_plan: null,
+        });
+        const preview = createSavedRoutinePreviewFromRecord(saved);
+        setSavedWorkouts((current) => {
+          const withoutDuplicate = current.filter((item) => item.id !== preview.id);
+          return [preview, ...withoutDuplicate];
+        });
+        setSavedWorkoutsError(null);
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Unable to create that workout right now.";
+        setSavedWorkoutsError(message);
+        Alert.alert("Couldn't create workout", message);
+      }
+    })();
   }, [accessToken, resetImportFlow]);
 
   const handleFinishWorkout = useCallback(async () => {
@@ -1587,6 +1669,8 @@ export default function App() {
       setIsOnboardingSubmitting(true);
       setOnboardingError(null);
 
+      const isFirstOnboardingCompletion = Boolean(currentUser && !currentUser.onboarding);
+
       try {
         const response = await saveOnboarding(accessToken, payload);
         setCurrentUser(response.profile);
@@ -1594,6 +1678,12 @@ export default function App() {
         setAuthPrefillFullName(response.profile.full_name);
         await storeAuthSession(accessToken, response.profile);
         await loadBodyWeightEntries(accessToken);
+
+        if (isFirstOnboardingCompletion) {
+          setTimeout(() => {
+            void requestNotificationPermissionForOnboarding();
+          }, 400);
+        }
       } catch (error) {
         const message =
           error instanceof Error ? error.message : "Unable to save onboarding.";
@@ -1603,7 +1693,7 @@ export default function App() {
         setIsOnboardingSubmitting(false);
       }
     },
-    [accessToken, loadBodyWeightEntries],
+    [accessToken, currentUser, loadBodyWeightEntries],
   );
 
   const handleAddBodyWeightEntry = useCallback(
@@ -1642,26 +1732,49 @@ export default function App() {
   }, []);
 
   const handleRemoveSavedWorkout = useCallback(
-    async (savedWorkoutId: string) => {
+    (savedWorkoutId: string, options?: { afterConfirm?: () => void }) => {
       if (!accessToken) {
         return;
       }
 
-      try {
-        await deleteSavedWorkout(accessToken, savedWorkoutId);
-        setSavedWorkouts((current) =>
-          current.filter(
-            (routine) =>
-              routine.id !== savedWorkoutId &&
-              routine.savedWorkoutId !== savedWorkoutId,
-          ),
-        );
-        setSavedWorkoutsError(null);
-      } catch (error) {
-        setSavedWorkoutsError(
-          error instanceof Error ? error.message : "Unable to remove that workout.",
-        );
-      }
+      Alert.alert(
+        "Remove this workout?",
+        "It will be deleted from your saved library. This can't be undone.",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Remove",
+            style: "destructive",
+            onPress: () => {
+              options?.afterConfirm?.();
+
+              let previous: SavedRoutinePreview[] = [];
+              setSavedWorkouts((current) => {
+                previous = current;
+                return current.filter(
+                  (routine) =>
+                    routine.id !== savedWorkoutId &&
+                    routine.savedWorkoutId !== savedWorkoutId,
+                );
+              });
+              setSavedWorkoutsError(null);
+
+              void deleteSavedWorkout(accessToken, savedWorkoutId)
+                .then(() => {
+                  setSavedWorkoutsError(null);
+                })
+                .catch((error) => {
+                  setSavedWorkouts(previous);
+                  setSavedWorkoutsError(
+                    error instanceof Error
+                      ? error.message
+                      : "Unable to remove that workout.",
+                  );
+                });
+            },
+          },
+        ],
+      );
     },
     [accessToken],
   );
@@ -1744,11 +1857,14 @@ export default function App() {
           onRemove={
             removeTargetId
               ? () => {
-                  setSelectedSavedRoutine(null);
                   if (isScheduledView) {
-                    handleUnscheduleWorkout(removeTargetId);
+                    handleUnscheduleWorkout(removeTargetId, {
+                      afterConfirm: () => setSelectedSavedRoutine(null),
+                    });
                   } else {
-                    handleRemoveSavedWorkout(removeTargetId);
+                    handleRemoveSavedWorkout(removeTargetId, {
+                      afterConfirm: () => setSelectedSavedRoutine(null),
+                    });
                   }
                 }
               : undefined

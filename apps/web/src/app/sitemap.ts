@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 
-const SITE_URL = "https://fitfo.app";
+const SITE_URL = "https://www.fitfo.app";
 
 const routes: {
   path: string;
@@ -11,6 +11,7 @@ const routes: {
   { path: "/support", changeFrequency: "monthly", priority: 0.75 },
   { path: "/marketing", changeFrequency: "monthly", priority: 0.7 },
   { path: "/privacy", changeFrequency: "yearly", priority: 0.35 },
+  { path: "/terms", changeFrequency: "yearly", priority: 0.35 },
 ];
 
 export default function sitemap(): MetadataRoute.Sitemap {

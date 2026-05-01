@@ -2,13 +2,8 @@ import { useEffect, useRef } from "react";
 import { Linking } from "react-native";
 
 /**
- * Subscribe to incoming `fitfo://ingest?url=...` deep links. Fires whenever a
- * share-sheet hand-off (iOS Share Extension or Android ACTION_SEND) lands on
- * the app, including cold launches.
- *
- * The callback receives the decoded source URL (TikTok / Instagram / etc.),
- * not the full deep link. Failure cases (missing url, parse error) are
- * swallowed silently — we don't want a malformed share to crash the app.
+ * Subscribe to incoming `fitfo://ingest?url=...` deep links (see also
+ * `expo-share-intent` in `App.tsx` for native TikTok / Instagram shares).
  */
 export function useSharedIngestUrl(onUrl: (sharedUrl: string) => void) {
   const handledUrls = useRef(new Set<string>());
@@ -74,4 +69,47 @@ function extractIngestUrl(rawLink: string): string | null {
       return null;
     }
   }
+}
+
+function normalizeLooseUrlCandidates(raw: string): string[] {
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    return [];
+  }
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const match of trimmed.matchAll(/https?:\/\/[^\s<>"{}|\\^`[\]]+/gi)) {
+    const url = match[0].replace(/[.,;:)!?]+$/g, "");
+    if (url && !seen.has(url)) {
+      seen.add(url);
+      out.push(url);
+    }
+  }
+  return out;
+}
+
+export function isIngestibleSocialVideoUrl(candidate: string): boolean {
+  try {
+    const host = new URL(candidate).hostname.replace(/^www\./i, "").toLowerCase();
+    return host.includes("tiktok.com") || host.includes("instagram.com");
+  } catch {
+    return false;
+  }
+}
+
+/** Parse `expo-share-intent` `webUrl` / `text` into a TikTok or Instagram URL. */
+export function extractIngestibleUrlFromSharePayload(
+  webUrl: string | null | undefined,
+  text: string | null | undefined,
+): string | null {
+  const direct = webUrl?.trim();
+  if (direct && isIngestibleSocialVideoUrl(direct)) {
+    return direct;
+  }
+  for (const url of normalizeLooseUrlCandidates(text ?? "")) {
+    if (isIngestibleSocialVideoUrl(url)) {
+      return url;
+    }
+  }
+  return null;
 }

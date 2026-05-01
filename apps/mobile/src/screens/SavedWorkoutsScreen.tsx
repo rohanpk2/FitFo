@@ -164,13 +164,13 @@ function StatTile({
           <MaterialCommunityIcons
             color={iconColor}
             name={iconName as keyof typeof MaterialCommunityIcons.glyphMap}
-            size={18}
+            size={15}
           />
         ) : (
           <Ionicons
             color={iconColor}
             name={iconName as keyof typeof Ionicons.glyphMap}
-            size={18}
+            size={15}
           />
         )}
       </View>
@@ -928,14 +928,15 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
 
     statsRow: {
       flexDirection: "row",
-      gap: 12,
-      marginTop: 4,
+      gap: 8,
+      marginTop: 2,
     },
     statTile: {
       flex: 1,
-      borderRadius: 22,
+      borderRadius: 18,
       backgroundColor: theme.colors.surface,
-      padding: 16,
+      paddingVertical: 11,
+      paddingHorizontal: 12,
       borderWidth: theme.mode === "dark" ? 1 : 0,
       borderColor: theme.colors.borderSoft,
       ...theme.shadows.softCard,
@@ -947,29 +948,29 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     },
     statTileLabel: {
       color: theme.colors.textPrimary,
-      fontSize: 13,
+      fontSize: 12,
       fontFamily: "Satoshi-Bold",
       fontWeight: "800",
     },
     statTileValue: {
-      marginTop: 8,
+      marginTop: 4,
       color: theme.colors.textPrimary,
-      fontSize: 32,
-      lineHeight: 36,
+      fontSize: 26,
+      lineHeight: 30,
       fontFamily: "Satoshi-Bold",
       fontWeight: "800",
-      letterSpacing: -1,
+      letterSpacing: -0.75,
     },
     statTileUnit: {
       color: theme.colors.textSecondary,
-      fontSize: 13,
+      fontSize: 11,
       fontFamily: "Satoshi-Bold",
       fontWeight: "700",
-      marginTop: -2,
+      marginTop: -1,
     },
     statTileCaption: {
-      marginTop: 8,
-      fontSize: 12,
+      marginTop: 5,
+      fontSize: 11,
       fontFamily: "Satoshi-Bold",
       fontWeight: "700",
     },

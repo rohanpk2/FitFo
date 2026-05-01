@@ -13,7 +13,7 @@ import { Ionicons } from "@expo/vector-icons";
 import {
   formatCompletedWorkoutDate,
   getCompletedWorkoutMeta,
-  getCreatorHandle,
+  getCreatorDisplayLabel,
   getRoutineDisplayTitle,
   titleCase,
 } from "../lib/fitfo";
@@ -205,7 +205,7 @@ export function WorkoutSummaryScreen({
                 size={16}
               />
               <Text style={styles.sourceButtonText}>
-                {getCreatorHandle(workout.source_url) ||
+                {getCreatorDisplayLabel(workout.source_url, workout.title) ||
                   formatSourceUrl(workout.source_url)}
               </Text>
               <Ionicons

@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
-import { getCreatorHandle } from "../lib/fitfo";
+import { getCreatorDisplayLabel } from "../lib/fitfo";
 import { getTheme } from "../theme";
 import type { SavedRoutinePreview } from "../types";
 
@@ -128,7 +128,7 @@ export function WorkoutCard({
   const isScheduled = accent === "scheduled";
   const isLastHit = accent === "lastHit";
   const accentColor = getBrandAccent(theme);
-  const creatorHandle = getCreatorHandle(routine.sourceUrl);
+  const creatorHandle = getCreatorDisplayLabel(routine.sourceUrl, routine.title);
   const sourceUrl = routine.sourceUrl || null;
   const platform = getSourcePlatform(sourceUrl);
 

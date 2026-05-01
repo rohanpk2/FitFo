@@ -5,6 +5,7 @@ from typing import Any, Optional
 
 import httpx
 
+from app.services.apify_http_errors import user_message_for_apify_http
 
 APIFY_ACTOR_ID = "apify~instagram-reel-scraper"
 APIFY_RUN_SYNC_URL = (
@@ -58,8 +59,8 @@ async def fetch_reel(source_url: str) -> dict[str, Any]:
     # Apify's run-sync endpoint returns 201 Created because it spawns a new
     # actor run. 200 is documented too, so accept the whole 2xx success band.
     if resp.status_code < 200 or resp.status_code >= 300:
-        body = resp.text[:400] if resp.text else "(empty)"
-        raise ApifyReelError(f"Apify HTTP {resp.status_code}: {body}")
+        raw = resp.text[:400] if resp.text else ""
+        raise ApifyReelError(user_message_for_apify_http(resp.status_code, raw))
 
     try:
         data = resp.json()
@@ -154,23 +155,92 @@ def pick_transcript(item: dict[str, Any]) -> Optional[str]:
     return None
 
 
+def _first_non_empty_str(*candidates: Any) -> Optional[str]:
+    for value in candidates:
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped:
+                return stripped
+    return None
+
+
+def _caption_from_edge_media(item: dict[str, Any]) -> Optional[str]:
+    """Instagram GraphQL-shaped payloads (some Apify actor versions)."""
+    edge = item.get("edge_media_to_caption")
+    if isinstance(edge, dict):
+        edges = edge.get("edges")
+        if isinstance(edges, list) and edges:
+            first = edges[0]
+            if isinstance(first, dict):
+                node = first.get("node")
+                if isinstance(node, dict):
+                    return _first_non_empty_str(node.get("text"))
+    return None
+
+
 def pick_owner_username(item: dict[str, Any]) -> Optional[str]:
-    for key in ("ownerUsername", "owner_username", "username"):
-        value = item.get(key)
-        if isinstance(value, str) and value.strip():
-            return value.strip()
+    direct = _first_non_empty_str(
+        item.get("ownerUsername"),
+        item.get("owner_username"),
+        item.get("username"),
+        item.get("userName"),
+        item.get("userUsername"),
+    )
+    if direct:
+        return direct
     owner = item.get("owner")
     if isinstance(owner, dict):
-        for key in ("username", "handle"):
-            value = owner.get(key)
-            if isinstance(value, str) and value.strip():
-                return value.strip()
+        return _first_non_empty_str(
+            owner.get("username"),
+            owner.get("userName"),
+            owner.get("handle"),
+        )
+    return None
+
+
+def pick_owner_full_name(item: dict[str, Any]) -> Optional[str]:
+    """Display name for back-linking when the reel URL has no @handle in the path."""
+    direct = _first_non_empty_str(
+        item.get("ownerFullName"),
+        item.get("owner_full_name"),
+        item.get("fullName"),
+        item.get("full_name"),
+    )
+    if direct:
+        return direct
+    owner = item.get("owner")
+    if isinstance(owner, dict):
+        return _first_non_empty_str(
+            owner.get("fullName"),
+            owner.get("full_name"),
+            owner.get("name"),
+        )
     return None
 
 
 def pick_caption(item: dict[str, Any]) -> Optional[str]:
-    for key in ("caption", "text", "description"):
-        value = item.get(key)
-        if isinstance(value, str) and value.strip():
-            return value.strip()
+    direct = _first_non_empty_str(
+        item.get("caption"),
+        item.get("text"),
+        item.get("description"),
+        item.get("accessibilityCaption"),
+    )
+    if direct:
+        return direct
+
+    nested = _caption_from_edge_media(item)
+    if nested:
+        return nested
+
+    captions = item.get("captions")
+    if isinstance(captions, list):
+        for entry in captions:
+            if isinstance(entry, str):
+                stripped = entry.strip()
+                if stripped:
+                    return stripped
+            if isinstance(entry, dict):
+                found = _first_non_empty_str(entry.get("text"), entry.get("caption"))
+                if found:
+                    return found
     return None

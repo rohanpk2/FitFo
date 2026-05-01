@@ -246,9 +246,7 @@ export interface SavedRoutinePreview {
   metaRight: string;
   badgeLabel?: string;
   workoutPlan?: WorkoutPlan;
-  // Best-effort cover image (e.g. TikTok cover from JobResponse.thumbnail_url).
-  // Not persisted on saved/scheduled/completed records yet, so it's only
-  // present for routines that ride along with an in-flight ingestion job.
+  // Best-effort cover image from the import job or persisted library rows.
   thumbnailUrl?: string | null;
 }
 
@@ -290,6 +288,8 @@ export interface SavedWorkoutRecord {
   workout_id: string | null;
   job_id: string | null;
   source_url: string | null;
+  /** Present after API migration `013_saved_scheduled_thumbnail`; optional for older payloads. */
+  thumbnail_url?: string | null;
   title: string;
   description: string | null;
   meta_left: string | null;
@@ -305,6 +305,7 @@ export interface SavedWorkoutUpsertRequest {
   workout_id?: string | null;
   job_id?: string | null;
   source_url?: string | null;
+  thumbnail_url?: string | null;
   title: string;
   description?: string | null;
   meta_left?: string | null;
@@ -336,6 +337,8 @@ export interface ScheduledWorkoutRecord {
   workout_id: string | null;
   job_id: string | null;
   source_url: string | null;
+  /** Present after API migration `013_saved_scheduled_thumbnail`. */
+  thumbnail_url?: string | null;
   scheduled_for: string;
   status: ScheduledWorkoutStatus;
   title: string;
@@ -353,6 +356,7 @@ export interface ScheduledWorkoutCreateRequest {
   workout_id?: string | null;
   job_id?: string | null;
   source_url?: string | null;
+  thumbnail_url?: string | null;
   scheduled_for: string;
   title: string;
   description?: string | null;
