@@ -917,3 +917,29 @@ def upload_bytes_to_storage(
     options = {"content-type": content_type, "x-upsert": "true" if upsert else "false"}
     # supabase-py expects raw bytes for small uploads
     return supa.storage.from_(b).upload(path, content, file_options=options)  # type: ignore[no-any-return]
+
+
+def create_signed_download_url_for_path(
+    *,
+    bucket: str,
+    path: str,
+    expires_in_seconds: int = 604800,
+) -> Optional[str]:
+    """
+    Builds a temporary HTTPS URL suitable for RN <Image uri=…> downloads.
+    Returns None when Supabase is not configured or signing fails.
+    """
+    bucket_name = bucket.strip()
+    object_path = path.strip().lstrip("/")
+    if not bucket_name or not object_path:
+        return None
+    try:
+        supa = get_supabase()
+        out = supa.storage.from_(bucket_name).create_signed_url(
+            object_path, expires_in_seconds
+        )
+    except Exception:
+        return None
+    if isinstance(out, dict):
+        return out.get("signedURL") or out.get("signedUrl")  # storage3 casing varies
+    return getattr(out, "signedURL", None) or getattr(out, "signedUrl", None)

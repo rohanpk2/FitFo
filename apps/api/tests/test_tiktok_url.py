@@ -17,6 +17,26 @@ class ResolveTikTokShortlinkTests(unittest.IsolatedAsyncioTestCase):
         mocked.assert_not_called()
         self.assertEqual(resolved, canonical)
 
+    async def test_follows_redirect_for_m_tiktok_share_shortlink(self) -> None:
+        """Mobile share / Copy link often uses m.tiktok.com/t/… which must redirect."""
+        final = "https://www.tiktok.com/@coach/video/1234567890"
+        fake_response = httpx.Response(
+            status_code=200,
+            request=httpx.Request("HEAD", final),
+        )
+        mock_client = AsyncMock()
+        mock_client.__aenter__.return_value = mock_client
+        mock_client.__aexit__.return_value = False
+        mock_client.head = AsyncMock(return_value=fake_response)
+
+        with patch("app.services.tiktok_url.httpx.AsyncClient", return_value=mock_client):
+            resolved = await tiktok_url.resolve_tiktok_shortlink(
+                "https://m.tiktok.com/t/ZP8aBcDe/"
+            )
+
+        self.assertTrue(resolved.startswith("https://www.tiktok.com/@coach/video/"))
+        mock_client.head.assert_awaited_once()
+
     async def test_follows_redirect_for_www_shortlink(self) -> None:
         final = "https://www.tiktok.com/@coach/video/1234567890"
         fake_response = httpx.Response(

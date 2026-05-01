@@ -91,26 +91,30 @@ def _extract_thumbnail_url(provider_meta: Any) -> str | None:
     metadata. Returns None when the metadata is missing or no usable image
     URL is present.
 
-    For TikTok, prefer ``tiktok_oembed.thumbnail_url`` from TikTok's official
-    oEmbed response (stored at job creation). Third-party resolvers sometimes
-    return cover art from the anonymous "open in app" landing page rather
-    than the real frame.
+    Order of preference:
 
-    TikTok / TikWM exposes covers under ``data.cover`` with ``origin_cover``,
-    ``dynamic_cover``, and ``ai_dynamic_cover`` as fallbacks. The static
-    ``cover`` is the most stable JPEG; the dynamic variants are short
-    animated webp clips that we accept as a last resort.
+    1. ``preview_poster`` — jpeg extracted from the downloaded video in the
+       ingest pipeline (immune to TikTok web interstitials and flaky covers).
+    2. ``tiktok_oembed.thumbnail_url`` — official oEmbed at job creation (fast
+       before the pipeline uploads a poster).
+    3. TikWM / Apify CDN covers as a last resort.
 
-    Apify's Instagram reel scraper exposes ``displayUrl`` as the canonical
-    thumbnail; older actor versions sometimes put it under ``thumbnailUrl``
-    or nest it under ``image``.
-
-    Note: provider CDN URLs are signed and can rotate after a few hours,
-    which is fine for the import preview but means callers shouldn't rely
-    on these URLs for long-term display without re-hosting.
+    Note: CDN / signed URLs may expire; previews are short-lived.
     """
     if not isinstance(provider_meta, dict):
         return None
+
+    preview_poster = provider_meta.get("preview_poster")
+    if isinstance(preview_poster, dict):
+        bucket = preview_poster.get("bucket")
+        path = preview_poster.get("path")
+        if isinstance(bucket, str) and isinstance(path, str):
+            signed = supabase_db.create_signed_download_url_for_path(
+                bucket=bucket.strip(),
+                path=path.strip(),
+            )
+            if signed and signed.startswith("http"):
+                return signed
 
     tiktok_embed = provider_meta.get("tiktok_oembed")
     if isinstance(tiktok_embed, dict):

@@ -32,7 +32,9 @@ def _is_tiktok_shortlink(parsed) -> bool:
     host = _strip_host_port(parsed.netloc)
     if host in _TIKTOK_SHORTLINK_HOSTS:
         return True
-    if host == "www.tiktok.com" or host == "tiktok.com":
+    # Share-sheet / Copy link uses `m.tiktok.com/t/…`, regional hosts, etc. Those
+    # must be expanded via redirects to `@user/video/<id>` for oEmbed + scrapers.
+    if is_tiktok_host(host):
         return any(parsed.path.startswith(p) for p in _TIKTOK_SHORTLINK_PATH_PREFIXES)
     return False
 

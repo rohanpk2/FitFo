@@ -228,6 +228,56 @@ def _read_bytes(p: Path) -> bytes:
     return p.read_bytes()
 
 
+def _merge_preview_poster_into_meta(
+    job_id: str,
+    *,
+    bucket: str,
+    video_path: Path,
+    provider_meta: dict,
+) -> dict:
+    """
+    Upload a jpeg frame grabbed from local video storage for importer thumbnails.
+    Best-effort: failures leave provider_meta unchanged.
+    """
+    poster_path = video_path.parent / "_fitfo_preview_poster.jpg"
+    cmd = [
+        "ffmpeg",
+        "-y",
+        "-ss",
+        "0.5",
+        "-i",
+        str(video_path),
+        "-vf",
+        "scale=720:-2",
+        "-vframes",
+        "1",
+        "-q:v",
+        "4",
+        str(poster_path),
+    ]
+    try:
+        _run_ffmpeg(cmd, output_path=poster_path, error_prefix="ffmpeg poster grab failed")
+        supabase_db.upload_bytes_to_storage(
+            bucket=bucket,
+            path=f"jobs/{job_id}/poster.jpg",
+            content=_read_bytes(poster_path),
+            content_type="image/jpeg",
+            upsert=True,
+        )
+    except Exception as exc:
+        _log.warning("[job:%s] preview_poster_skipped reason=%s", job_id, exc)
+        return provider_meta
+    return supabase_db.merge_provider_meta(
+        provider_meta,
+        {
+            "preview_poster": {
+                "bucket": bucket,
+                "path": f"jobs/{job_id}/poster.jpg",
+            },
+        },
+    )
+
+
 _WHISPER_WEAK_CHARS = 30
 
 
@@ -538,6 +588,13 @@ async def _run_tiktok_pipeline(job_id: str, source_url: str) -> None:
         provider_meta = supabase_db.merge_provider_meta(
             provider_meta,
             {"downloaded": {"video_bytes": video_path.stat().st_size}},
+        )
+        bucket = _bucket()
+        provider_meta = _merge_preview_poster_into_meta(
+            job_id,
+            bucket=bucket,
+            video_path=video_path,
+            provider_meta=provider_meta,
         )
         supabase_db.update_ingestion_job(job_id, provider_meta=provider_meta)
 
