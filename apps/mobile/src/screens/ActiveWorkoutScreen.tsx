@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
-import CoachSheet from "../components/CoachSheet";
+import CoachSheet, { type CoachChatMessage } from "../components/CoachSheet";
 import { titleCase } from "../lib/fitfo";
 import type { WorkoutContext as ChatWorkoutContext } from "../lib/chat";
 import { F } from "../lib/fonts";
@@ -27,6 +27,9 @@ interface ActiveWorkoutScreenProps {
   session: ActiveSessionPreview;
   onBack: () => void;
   onFinish: () => void;
+  /** Lifted coach transcript so reopening from the Logs tab retains memory. */
+  coachMessages: CoachChatMessage[];
+  setCoachMessages: Dispatch<SetStateAction<CoachChatMessage[]>>;
   onScheduleAgain?: () => void;
   isSchedulingAgain?: boolean;
   themeMode?: ThemeMode;
@@ -61,6 +64,24 @@ function sanitizeWeight(value: string) {
 
 function sanitizeReps(value: string) {
   return value.replace(/\D/g, "");
+}
+
+function buildCoachDraftLoggedSummary(set: ActiveSetPreview): string | null {
+  const w = set.loggedWeight.trim();
+  const r = set.loggedReps.trim();
+  if (!w && !r) {
+    return null;
+  }
+  const parts: string[] = [];
+  if (w) {
+    parts.push(`${w} lb`);
+  }
+  if (r) {
+    parts.push(
+      set.targetDurationSec != null ? `${r}s held` : `${r} reps`,
+    );
+  }
+  return parts.join(" · ") || null;
 }
 
 function createId(prefix: string) {
@@ -763,6 +784,8 @@ export function ActiveWorkoutScreen({
   session,
   onBack,
   onFinish,
+  coachMessages,
+  setCoachMessages,
   onScheduleAgain,
   isSchedulingAgain = false,
   themeMode = "light",
@@ -841,30 +864,6 @@ export function ActiveWorkoutScreen({
     [exercises],
   );
 
-  // Snapshot the current workout into the shape the chat backend expects.
-  // Sets/reps come from the first target set on each exercise — that's what
-  // the user sees as the "prescription" for the exercise.
-  const coachWorkoutContext = useMemo<ChatWorkoutContext>(() => {
-    const plan = session.workoutPlan;
-    return {
-      title: session.title || null,
-      description: session.description || null,
-      workout_type: plan?.workout_type ?? null,
-      muscle_groups: plan?.muscle_groups?.length ? plan.muscle_groups : null,
-      equipment: plan?.equipment?.length ? plan.equipment : null,
-      exercises: exercises.map((exercise) => {
-        const referenceSet = exercise.sets[0];
-        return {
-          name: exercise.name,
-          sets: exercise.sets.length || null,
-          reps: referenceSet?.targetReps ?? null,
-          duration_sec: referenceSet?.targetDurationSec ?? null,
-          rest_sec: exercise.restSeconds ?? null,
-          notes: exercise.notes ?? null,
-        };
-      }),
-    };
-  }, [exercises, session]);
   const completedSetCount = useMemo(
     () =>
       exercises.reduce(
@@ -873,6 +872,106 @@ export function ActiveWorkoutScreen({
       ),
     [exercises],
   );
+
+  // Snapshot of workout + athlete position sent on every coach turn so the LLM
+  // sees the exact exercise/set. We cannot rely on expandedExerciseId alone: the UI
+  // often leaves a completed lift expanded while the athlete has moved on, which
+  // made the coach claim "you're on one of three sets".
+  //
+  // Anchor: logging row (selectedSet) wins; else first incomplete set top-to-bottom;
+  // else workout is checked off → last planned set so we still expose a coherent #.
+  const coachWorkoutContext = useMemo<ChatWorkoutContext>(() => {
+    const plan = session.workoutPlan;
+
+    let focusExercise: ActiveExercisePreview | undefined;
+    let focusExerciseIndexZero = -1;
+    let focusSet: ActiveSetPreview | undefined;
+    let focusSetNumber: number | null = null;
+
+    if (
+      selectedSet != null &&
+      exercises.some((e) => e.id === selectedSet.exerciseId)
+    ) {
+      const exIdx = exercises.findIndex((e) => e.id === selectedSet.exerciseId);
+      const exercise = exercises[exIdx];
+      const sIdx = exercise.sets.findIndex((set) => set.id === selectedSet.setId);
+      if (exIdx >= 0 && sIdx >= 0) {
+        focusExercise = exercise;
+        focusExerciseIndexZero = exIdx;
+        focusSet = exercise.sets[sIdx];
+        focusSetNumber = sIdx + 1;
+      }
+    }
+
+    if (focusExercise == null) {
+      for (let exIdx = 0; exIdx < exercises.length; exIdx += 1) {
+        const exercise = exercises[exIdx];
+        const sIdx = exercise.sets.findIndex((set) => !set.completed);
+        if (sIdx >= 0) {
+          focusExercise = exercise;
+          focusExerciseIndexZero = exIdx;
+          focusSet = exercise.sets[sIdx];
+          focusSetNumber = sIdx + 1;
+          break;
+        }
+      }
+    }
+
+    if (focusExercise == null && exercises.length > 0) {
+      focusExerciseIndexZero = exercises.length - 1;
+      focusExercise = exercises[focusExerciseIndexZero];
+      if (focusExercise.sets.length > 0) {
+        const last = focusExercise.sets.length - 1;
+        focusSet = focusExercise.sets[last];
+        focusSetNumber = last + 1;
+      }
+    }
+
+    const draftLogged =
+      focusSet != null ? buildCoachDraftLoggedSummary(focusSet) : null;
+
+    return {
+      title: session.title || null,
+      description: session.description || null,
+      workout_type: plan?.workout_type ?? null,
+      muscle_groups: plan?.muscle_groups?.length ? plan.muscle_groups : null,
+      equipment: plan?.equipment?.length ? plan.equipment : null,
+      exercises: exercises.map((exercise) => {
+        const referenceSet = exercise.sets[0];
+        const setsDone = exercise.sets.filter((set) => set.completed).length;
+        return {
+          name: exercise.name,
+          sets: exercise.sets.length || null,
+          reps: referenceSet?.targetReps ?? null,
+          duration_sec: referenceSet?.targetDurationSec ?? null,
+          rest_sec: exercise.restSeconds ?? null,
+          notes: exercise.notes ?? null,
+          sets_completed: exercise.sets.length > 0 ? setsDone : null,
+        };
+      }),
+      session_started_at_ms: session.startedAt,
+      elapsed_sec: elapsedSeconds,
+      timer_paused: isTimerPaused,
+      completed_set_count: completedSetCount,
+      total_set_count: totalSetCount,
+      current_exercise_index:
+        focusExerciseIndexZero >= 0 ? focusExerciseIndexZero + 1 : null,
+      current_exercise_name: focusExercise?.name ?? null,
+      current_set_number: focusSetNumber,
+      current_set_target_summary: focusSet ? getTargetCopy(focusSet) : null,
+      current_set_logged_summary: draftLogged,
+      source_workout_id: session.sourceWorkoutId ?? null,
+      source_job_id: session.sourceJobId ?? null,
+    };
+  }, [
+    completedSetCount,
+    elapsedSeconds,
+    exercises,
+    isTimerPaused,
+    selectedSet,
+    session,
+    totalSetCount,
+  ]);
 
   useEffect(() => {
     previousCompletedSetCountRef.current = 0;
@@ -1413,6 +1512,8 @@ export function ActiveWorkoutScreen({
       </Pressable>
     </ScrollView>
     <CoachSheet
+      messages={coachMessages}
+      setMessages={setCoachMessages}
       visible={coachOpen}
       onClose={() => setCoachOpen(false)}
       workout={coachWorkoutContext}

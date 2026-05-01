@@ -24,17 +24,21 @@ interface AddWorkoutModalProps {
   isScheduling?: boolean;
   isSaving?: boolean;
   job: JobResponse | null;
+  /** Canonical job id we're polling (must match job.id whenever job is shown). */
+  ingestionJobId?: string | null;
   routine: SavedRoutinePreview | null;
   error: string | null;
   initialUrl?: string | null;
   autoSubmit?: boolean;
   // When the user opts to "be notified when this is ready", we close the
   // modal but keep the polling alive in the background. `remember=true` means
-  // the user checked "always notify me" so future slow imports skip the card
-  // and auto-promote.
+  // the user checked "always notify me" so future slow imports still show this
+  // sheet but arrive with that checkbox already selected — they explicitly tap
+  // "Notify me" to minimize; nothing auto-dismisses mid-compile.
   onContinueInBackground?: (opts: { remember: boolean }) => void;
-  // True once the user has opted into auto-notify-on-slow-imports. Used to
-  // auto-promote at the threshold without showing the inline card.
+  // True once the user has opted into auto-notify-on-slow-imports. Pre-checks
+  // that preference on the slow-import sheet; modal stays visible until they
+  // choose "Notify me" or the workout finishes.
   autoNotifyImports?: boolean;
   onClose: () => void;
   onSubmit: (url: string) => void;
@@ -131,6 +135,7 @@ export function AddWorkoutModal({
   autoNotifyImports = false,
   initialUrl = null,
   autoSubmit = false,
+  ingestionJobId = null,
   themeMode = "light",
 }: AddWorkoutModalProps) {
   const [url, setUrl] = useState("");
@@ -145,8 +150,7 @@ export function AddWorkoutModal({
   const [slowImportElapsed, setSlowImportElapsed] = useState(false);
   const [slowImportDismissed, setSlowImportDismissed] = useState(false);
   const [rememberAutoNotify, setRememberAutoNotify] = useState(false);
-  // Make sure we only auto-promote a single time per import — otherwise the
-  // effect could fire twice if React re-renders before the parent closes us.
+  // Guards duplicate "Notify me" taps firing `onContinueInBackground` twice.
   const autoPromotedRef = useRef(false);
   const autoSubmittedRef = useRef<string | null>(null);
   const wasVisibleRef = useRef(visible);
@@ -190,14 +194,29 @@ export function AddWorkoutModal({
   }, [autoSubmit, initialUrl, onSubmit, visible]);
 
   const trimmedUrl = useMemo(() => url.trim(), [url]);
-  const isPolling = job != null && job.status !== "complete" && job.status !== "failed";
-  const info = getStatusInfo(job?.status ?? "pending", themeMode);
+
+  const effectiveJob =
+    ingestionJobId != null && job != null && job.id === ingestionJobId
+      ? job
+      : null;
+  const isPolling =
+    effectiveJob != null &&
+    effectiveJob.status !== "complete" &&
+    effectiveJob.status !== "failed";
+  const info = getStatusInfo(effectiveJob?.status ?? "pending", themeMode);
   const workoutPlan = routine?.workoutPlan ?? null;
   const hasImportedWorkout = workoutPlan != null;
+  // First poll round-trip: avoid briefly treating the job as "not running".
+  const buildInFlight =
+    ingestionJobId != null &&
+    effectiveJob === null &&
+    (error ?? "").trim() === "";
+
   // While the import job is running we hide the URL input + title and show
   // a focused "compiling" view instead. As soon as the parsed workout comes
   // back (`hasImportedWorkout` flips true) we transition to the preview card.
-  const isCompiling = !hasImportedWorkout && (isSubmitting || isPolling);
+  const isCompiling =
+    !hasImportedWorkout && (isSubmitting || isPolling || buildInFlight);
 
   // Track when this compile started so we can flip `slowImportElapsed` after
   // the threshold. Reset whenever we leave the compiling state so a future
@@ -233,36 +252,23 @@ export function AddWorkoutModal({
   // 15s wall clock would have caught it. When duration is missing (older
   // jobs, provider hiccup) we fall back to the timer below.
   const predictedSlow =
-    job?.video_duration_sec != null &&
-    job.video_duration_sec > PREDICTED_SLOW_DURATION_SEC;
+    effectiveJob?.video_duration_sec != null &&
+    effectiveJob.video_duration_sec > PREDICTED_SLOW_DURATION_SEC;
 
-  // Whether the inline opt-in card *would* show right now (modulo the user
-  // having opted into auto-promote). Centralised so the auto-promote effect
-  // and the renderer agree on the same gate. Triggered by either the
-  // predictive duration signal OR the elapsed-time fallback.
+  // Long-running import UX: offer to keep building in the background.
   const shouldOfferBackground =
     isCompiling &&
     (predictedSlow || slowImportElapsed) &&
-    SLOW_IMPORT_STATUSES.has(job?.status ?? "pending") &&
+    SLOW_IMPORT_STATUSES.has(effectiveJob?.status ?? "pending") &&
     onContinueInBackground != null;
 
-  // If the user previously opted into auto-notify, skip the card entirely
-  // and silently promote this import to background mode the moment it
-  // crosses the threshold.
   useEffect(() => {
-    if (
-      shouldOfferBackground &&
-      autoNotifyImports &&
-      !autoPromotedRef.current &&
-      onContinueInBackground
-    ) {
-      autoPromotedRef.current = true;
-      onContinueInBackground({ remember: true });
+    if (shouldOfferBackground && autoNotifyImports) {
+      setRememberAutoNotify(true);
     }
-  }, [autoNotifyImports, onContinueInBackground, shouldOfferBackground]);
+  }, [autoNotifyImports, shouldOfferBackground]);
 
-  const showSlowImportCard =
-    shouldOfferBackground && !autoNotifyImports && !slowImportDismissed;
+  const showSlowImportCard = shouldOfferBackground && !slowImportDismissed;
 
   const handleNotifyMe = () => {
     if (!onContinueInBackground || autoPromotedRef.current) {
@@ -367,8 +373,8 @@ export function AddWorkoutModal({
                 {showSlowImportCard ? (
                   <View style={styles.slowImportCard}>
                     <Text style={styles.slowImportTitle}>
-                      {predictedSlow && job?.video_duration_sec != null
-                        ? `This is a ${Math.round(job.video_duration_sec)}-second video.`
+                      {predictedSlow && effectiveJob?.video_duration_sec != null
+                        ? `This is a ${Math.round(effectiveJob.video_duration_sec)}-second video.`
                         : "This one\u2019s taking a minute."}
                     </Text>
                     <Text style={styles.slowImportBody}>
@@ -499,12 +505,12 @@ export function AddWorkoutModal({
 
             {hasImportedWorkout ? (
               <View style={styles.previewCard}>
-                {job?.thumbnail_url ? (
+                {effectiveJob?.thumbnail_url ? (
                   <View style={styles.previewThumbnailWrap}>
                     <Image
                       accessibilityIgnoresInvertColors
-                      key={`import-thumb:${job?.id}:${job?.updated_at ?? ""}:${job.thumbnail_url}`}
-                      source={{ uri: job.thumbnail_url }}
+                      key={`import-thumb:${effectiveJob?.id}:${effectiveJob?.updated_at ?? ""}:${effectiveJob.thumbnail_url}`}
+                      source={{ uri: effectiveJob.thumbnail_url }}
                       style={styles.previewThumbnail}
                       resizeMode="cover"
                     />

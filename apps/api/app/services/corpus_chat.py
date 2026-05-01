@@ -8,8 +8,9 @@ the question grounded in the chunks. Heavily anti-hallucination:
   - System prompt forces "ONLY use the context"
   - Empty / low-similarity retrieval → return a graceful "I don't have
     coverage on that" answer instead of inventing.
-  - Citations are returned as a structured list keyed to the [N] indices
-    the model emits inline.
+
+User-facing replies omit citations, indices, URLs, or "which video" sourcing —
+grounded coaching text only so the athlete stays in-session.
 """
 
 import json
@@ -52,6 +53,8 @@ class WorkoutExerciseContext:
     duration_sec: int | None
     rest_sec: int | None
     notes: str | None
+    # How many sets in this lift are marked complete (per-exercise progress)
+    sets_completed: int | None = None
 
 
 @dataclass
@@ -67,6 +70,18 @@ class WorkoutContext:
     muscle_groups: list[str] | None = None
     equipment: list[str] | None = None
     exercises: list[WorkoutExerciseContext] | None = None
+    elapsed_sec: int | None = None
+    timer_paused: bool | None = None
+    session_started_at_ms: int | None = None
+    completed_set_count: int | None = None
+    total_set_count: int | None = None
+    current_exercise_index: int | None = None
+    current_exercise_name: str | None = None
+    current_set_number: int | None = None
+    current_set_target_summary: str | None = None
+    current_set_logged_summary: str | None = None
+    source_workout_id: str | None = None
+    source_job_id: str | None = None
 
 
 @dataclass
@@ -90,9 +105,18 @@ mindset, and the user's CURRENT WORKOUT (if provided). For anything else, reply 
 "I'm your in-workout coach — ask me about your training."
 
 GROUNDING:
-- For coaching advice, use the COACHING CONTEXT below and append [N] for the chunk you \
-used. At most one citation per sentence. Skip citations entirely if you didn't use a chunk.
-- For the user's CURRENT WORKOUT, answer from that block directly — no citation.
+- For coaching advice, use the COACHING CONTEXT below silently. Speak in your own voice; \
+do NOT add footnotes, [1] markers, numbered references, TikTok/video mentions, URLs, or \
+"source/chunk" talk.
+- Do not tell the athlete where a cue came from; give coaching only.
+- For CURRENT WORKOUT, use the block at the end of this prompt (below retrieved tips). \
+It includes ATHLETE POSITION = the app's live snapshot (exercise #, working set #, timer). \
+That block overrides assumptions from generic programming advice elsewhere in the prompt.
+- If ATHLETE POSITION states exercise # / Working set #, questions like "what set am I \
+on?", "which exercise?", or "where am I in this workout?" MUST answer with those exact \
+counts and lift names — never vague hedges like "one of your sets" or "one of three."
+- For the user's CURRENT WORKOUT, answer from that snapshot as if you're next to them \
+mid-session — same plain style.
 - If context doesn't cover the question, say so in one line. Never invent.
 
 STYLE:
@@ -126,19 +150,34 @@ def _model() -> str:
     return (os.environ.get("OPENAI_CHAT_MODEL") or DEFAULT_MODEL).strip()
 
 
+def _sanitize_coach_answer(text: str) -> str:
+    """Strip [N] markers if the model still emits them."""
+    if not text:
+        return ""
+    cleaned = re.sub(r"\s*\[\d+\]\s*", " ", text)
+    return re.sub(r"\s{2,}", " ", cleaned).strip()
+
+
 def _build_context_block(chunks: list[corpus_retrieval.RetrievedChunk]) -> str:
     """
-    Format retrieved chunks as numbered context the LLM can cite. Source URL
-    is included so we have something to render as a clickable citation.
+    Format retrieved chunks as numbered context for grounding only.
+    Omit source URLs from the prompt so the model cannot echo them verbatim.
     """
     if not chunks:
         return "(no relevant coaching context retrieved)"
     lines: list[str] = []
     for index, chunk in enumerate(chunks, start=1):
         lines.append(f"[{index}] {chunk.chunk_text.strip()}")
-        if chunk.source_url:
-            lines.append(f"    source: {chunk.source_url}")
     return "\n".join(lines)
+
+
+def _format_mm_ss(total_sec: int) -> str:
+    safe = max(0, int(total_sec))
+    h, rem = divmod(safe, 3600)
+    m, s = divmod(rem, 60)
+    if h > 0:
+        return f"{h}:{m:02d}:{s:02d}"
+    return f"{m:02d}:{s:02d}"
 
 
 def _format_set_rep_summary(exercise: WorkoutExerciseContext) -> str:
@@ -165,6 +204,57 @@ def _build_workout_block(workout: WorkoutContext | None) -> str | None:
     lines: list[str] = []
     if workout.title:
         lines.append(f"Title: {workout.title}")
+    id_bits: list[str] = []
+    if workout.source_workout_id:
+        id_bits.append(f"saved/template id={workout.source_workout_id}")
+    if workout.source_job_id:
+        id_bits.append(f"import job id={workout.source_job_id}")
+    if id_bits:
+        lines.append("Workout ids: " + " · ".join(id_bits))
+
+    athlete: list[str] = []
+    if workout.completed_set_count is not None and workout.total_set_count is not None:
+        athlete.append(
+            f"Sets logged vs planned: {workout.completed_set_count}/{workout.total_set_count}",
+        )
+    elif workout.completed_set_count is not None:
+        athlete.append(f"Sets logged so far: {workout.completed_set_count}")
+    if workout.elapsed_sec is not None:
+        pause = " (timer paused)" if workout.timer_paused else ""
+        athlete.append(f"Session timer wall clock: {_format_mm_ss(workout.elapsed_sec)}{pause}")
+    if workout.current_exercise_name:
+        n_ex = len(workout.exercises) if workout.exercises else None
+        if workout.current_exercise_index is not None and n_ex:
+            athlete.append(
+                f"Athlete focus: exercise {workout.current_exercise_index} of "
+                f"{n_ex} — {workout.current_exercise_name}",
+            )
+        else:
+            athlete.append(f"Athlete focus: {workout.current_exercise_name}")
+    if workout.current_set_number is not None:
+        cur_ex = None
+        if (
+            workout.exercises is not None
+            and workout.current_exercise_index is not None
+        ):
+            ix = workout.current_exercise_index
+            if 1 <= ix <= len(workout.exercises):
+                cur_ex = workout.exercises[ix - 1]
+        if cur_ex is not None and cur_ex.sets is not None:
+            athlete.append(
+                f"Working set #: {workout.current_set_number} of {cur_ex.sets}",
+            )
+        else:
+            athlete.append(f"Working set #: {workout.current_set_number}")
+    if workout.current_set_target_summary:
+        athlete.append(f"This set prescription (targets): {workout.current_set_target_summary}")
+    if workout.current_set_logged_summary:
+        athlete.append(f"Draft / logged so far this set: {workout.current_set_logged_summary}")
+
+    if athlete:
+        lines.append("ATHLETE POSITION (right now):")
+        lines.extend(f"  - {segment}" for segment in athlete)
+
     if workout.workout_type:
         lines.append(f"Type: {workout.workout_type}")
     if workout.muscle_groups:
@@ -177,7 +267,13 @@ def _build_workout_block(workout: WorkoutContext | None) -> str | None:
         lines.append("Exercises:")
         for index, exercise in enumerate(workout.exercises, start=1):
             summary = _format_set_rep_summary(exercise)
-            head = f"  {index}. {exercise.name}"
+            prog = ""
+            if (
+                exercise.sets is not None
+                and exercise.sets_completed is not None
+            ):
+                prog = f" ({exercise.sets_completed}/{exercise.sets} sets done)"
+            head = f"  {index}. {exercise.name}{prog}"
             if summary:
                 head = f"{head} — {summary}"
             lines.append(head)
@@ -197,9 +293,17 @@ def _build_messages(
     workout_block = _build_workout_block(workout)
 
     sections: list[str] = [SYSTEM_PROMPT]
+    sections.append(
+        "═══ COACHING CONTEXT (internal — do not cite [N], name sources, URLs, "
+        "or videos in replies) ═══\n"
+        f"{context_block}"
+    )
     if workout_block:
-        sections.append(f"═══ CURRENT WORKOUT ═══\n{workout_block}")
-    sections.append(f"═══ COACHING CONTEXT (cite as [1], [2], …) ═══\n{context_block}")
+        sections.append(
+            "═══ CURRENT WORKOUT — TRUST THIS BEFORE ANYTHING ELSE ABOUT WHERE THE ATHLETE "
+            f"IS ═══\n{workout_block}",
+        )
+
     system_content = "\n\n".join(sections)
 
     messages: list[dict[str, str]] = [{"role": "system", "content": system_content}]
@@ -229,8 +333,7 @@ async def answer(
 
     When `workout` is provided, questions about that workout (which exercise,
     rest times, swaps, etc.) can be answered from the workout itself even if
-    retrieval returns nothing. Coaching advice still requires a chunk
-    citation per the system prompt.
+    retrieval returns nothing. Coaching advice stays grounded without exposing sources.
     """
     cleaned = (user_message or "").strip()
     if not cleaned:
@@ -297,21 +400,11 @@ async def answer(
     if not answer_text:
         answer_text = _FALLBACK_ANSWER
 
-    used = {int(m.group(1)) for m in re.finditer(r"\[(\d+)\]", answer_text)}
-    citations = [
-        ChatCitation(
-            index=index,
-            chunk_id=chunk.chunk_id,
-            source_url=chunk.source_url,
-            snippet=chunk.chunk_text[:200],
-        )
-        for index, chunk in enumerate(chunks, start=1)
-        if index in used
-    ]
+    answer_text = _sanitize_coach_answer(answer_text)
 
     return ChatResult(
         answer=answer_text,
-        citations=citations,
+        citations=[],
         retrieval=chunks,
         model=model,
     )

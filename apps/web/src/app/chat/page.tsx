@@ -4,9 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 import {
   ChatApiError,
-  ChatCitation,
   ChatTurn,
-  RetrievedChunk,
   sendChatMessage,
 } from "@/lib/chat";
 import { MarkdownBlock, MarkdownInline, parseMarkdown } from "@/lib/markdown";
@@ -26,15 +24,7 @@ const GOALS = [
   "recovery",
 ] as const;
 
-type Message =
-  | { role: "user"; content: string }
-  | {
-      role: "assistant";
-      content: string;
-      citations: ChatCitation[];
-      retrieval: RetrievedChunk[];
-      model?: string;
-    };
+type Message = { role: "user"; content: string } | { role: "assistant"; content: string };
 
 function chipClass(active: boolean): string {
   return [
@@ -55,11 +45,7 @@ function renderInline(inlines: MarkdownInline[]): React.ReactNode {
       );
     }
     if (inline.kind === "citation") {
-      return (
-        <sup key={idx} className="ml-0.5 text-primary-soft-text">
-          [{inline.index}]
-        </sup>
-      );
+      return <span key={idx} aria-hidden className="hidden" />;
     }
     return <span key={idx}>{inline.value}</span>;
   });
@@ -161,9 +147,6 @@ export default function ChatPage() {
         {
           role: "assistant",
           content: result.answer,
-          citations: result.citations,
-          retrieval: result.retrieval,
-          model: result.model,
         },
       ]);
     } catch (exc) {
@@ -185,7 +168,8 @@ export default function ChatPage() {
       <header className="mb-4">
         <h1 className="font-display text-3xl font-bold">Coach chat</h1>
         <p className="mt-1 text-sm text-text-secondary">
-          Grounded in approved Jacob chunks. Cites sources inline.
+          Internal testing: retrieval-grounded replies; coach UI for members is plain
+          coaching text without source links.
         </p>
       </header>
 
@@ -228,8 +212,8 @@ export default function ChatPage() {
       >
         {messages.length === 0 && !pending && (
           <p className="text-text-secondary">
-            Ask a training question. The chatbot will answer using approved
-            chunks from Jacob's TikTok library and cite each source.
+            Ask a training question. Answers are retrieval-grounded; they don&apos;t
+            link out to citation cards.
           </p>
         )}
 
@@ -249,32 +233,6 @@ export default function ChatPage() {
                 <div className="rounded-2xl bg-surface-muted px-4 py-3 text-text-primary">
                   {renderAnswerMarkdown(message.content)}
                 </div>
-                {message.citations.length > 0 && (
-                  <div className="mt-2 space-y-1">
-                    {message.citations.map((cite) => (
-                      <a
-                        key={`${idx}-${cite.index}`}
-                        href={cite.source_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="block rounded-lg border border-border bg-surface-raised px-3 py-2 text-xs text-text-secondary hover:border-border-soft hover:text-text-primary"
-                      >
-                        <span className="mr-2 font-medium text-primary-soft-text">
-                          [{cite.index}]
-                        </span>
-                        <span className="text-text-primary">{cite.snippet}</span>
-                        <div className="mt-1 truncate text-text-muted">
-                          {cite.source_url}
-                        </div>
-                      </a>
-                    ))}
-                  </div>
-                )}
-                {message.model && (
-                  <div className="mt-1 text-[10px] uppercase tracking-wide text-text-muted">
-                    {message.model} · {message.retrieval.length} chunks retrieved
-                  </div>
-                )}
               </div>
             </div>
           );

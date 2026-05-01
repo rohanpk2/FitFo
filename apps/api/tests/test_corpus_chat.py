@@ -66,6 +66,56 @@ class BuildContextBlockTests(unittest.TestCase):
         block = corpus_chat._build_context_block([])
         self.assertIn("no relevant", block.lower())
 
+    def test_context_block_has_no_urls(self) -> None:
+        chunks = [_retrieval_chunk("tip body", chunk_id="z")]
+        block = corpus_chat._build_context_block(chunks)
+        self.assertNotIn("http", block.lower())
+
+
+class BuildWorkoutBlockTests(unittest.TestCase):
+    def test_athlete_position_and_per_exercise_completion(self) -> None:
+        workout = corpus_chat.WorkoutContext(
+            title="Legs",
+            completed_set_count=4,
+            total_set_count=12,
+            elapsed_sec=185,
+            timer_paused=False,
+            current_exercise_index=2,
+            current_exercise_name="RDL",
+            current_set_number=2,
+            current_set_target_summary="8 reps target",
+            current_set_logged_summary="185 lb · 10 reps",
+            source_workout_id="sw_abc",
+            exercises=[
+                corpus_chat.WorkoutExerciseContext(
+                    "Squat", 4, 8, None, 120, None, sets_completed=2,
+                ),
+                corpus_chat.WorkoutExerciseContext(
+                    "RDL", 3, 8, None, 90, None, sets_completed=1,
+                ),
+            ],
+        )
+        block = corpus_chat._build_workout_block(workout)
+        self.assertIsNotNone(block)
+        assert block is not None
+        self.assertIn("ATHLETE POSITION", block)
+        self.assertIn("Sets logged vs planned: 4/12", block)
+        self.assertIn("03:05", block)
+        self.assertIn("Athlete focus: exercise 2 of 2 — RDL", block)
+        self.assertIn("Working set #: 2 of 3", block)
+        self.assertIn("saved/template id=sw_abc", block)
+        self.assertIn("(2/4 sets done)", block)
+        self.assertIn("(1/3 sets done)", block)
+
+
+class SanitizeCoachAnswerTests(unittest.TestCase):
+    def test_strips_citation_tokens(self) -> None:
+        raw = "Drive elbows under [1] and stay stacked [2]."
+        out = corpus_chat._sanitize_coach_answer(raw)
+        self.assertNotIn("[1]", out)
+        self.assertNotIn("[2]", out)
+        self.assertIn("Drive elbows under", out)
+
 
 class AnswerTests(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
@@ -127,19 +177,13 @@ class AnswerTests(unittest.IsolatedAsyncioTestCase):
         ):
             result = await corpus_chat.answer("how do I grow my triceps?")
 
-        self.assertIn("[1]", result.answer)
-        self.assertIn("[2]", result.answer)
-        self.assertEqual(len(result.citations), 2)
-        self.assertEqual(result.citations[0].index, 1)
-        self.assertEqual(result.citations[0].chunk_id, "c1")
-        self.assertEqual(result.citations[1].chunk_id, "c2")
-        # The system message should include the actual chunk text so the LLM
-        # has grounding to cite from.
+        self.assertNotIn("[1]", result.answer)
+        self.assertNotIn("[2]", result.answer)
+        self.assertEqual(result.citations, [])
         system_content = capture["json"]["messages"][0]["content"]
         self.assertIn("pressing movements", system_content)
         self.assertIn("[1]", system_content)
-        # The Accept-Encoding header should sidestep the brotlicffi bug.
-        self.assertEqual(capture["headers"].get("Accept-Encoding"), "gzip")
+        self.assertNotIn("tiktok.com", system_content.lower())
 
     async def test_workout_context_appears_in_system_message(self) -> None:
         chunks = [_retrieval_chunk("Drive your feet for stability.", chunk_id="c1")]

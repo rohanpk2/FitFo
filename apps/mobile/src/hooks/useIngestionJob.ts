@@ -27,6 +27,7 @@ export function useIngestionJob(
   const [error, setError] = useState<string | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const trackedJobSessionRef = useRef<string | null>(null);
 
   const stopPolling = useCallback(() => {
     if (intervalRef.current) {
@@ -42,14 +43,23 @@ export function useIngestionJob(
   useEffect(() => {
     if (!jobId || !accessToken) {
       stopPolling();
+      trackedJobSessionRef.current = null;
       setJob(null);
       setWorkout(null);
       setError(null);
       return;
     }
 
-    setJob(null);
-    setWorkout(null);
+    // Only wipe job/workout when the *ingestion session* (`jobId`) changes.
+    // Re-running this effect solely because `accessToken` refreshed used to call
+    // `setJob(null)` synchronously, which made the compile modal snap back to the
+    // URL sheet for one frame mid-import.
+    const isNewImportSession = trackedJobSessionRef.current !== jobId;
+    trackedJobSessionRef.current = jobId;
+    if (isNewImportSession) {
+      setJob(null);
+      setWorkout(null);
+    }
     setError(null);
 
     const poll = async () => {

@@ -12,6 +12,7 @@ import { useFonts } from "expo-font";
 
 import { applyDefaultFont } from "./src/lib/fonts";
 import { AddWorkoutModal } from "./src/components/AddWorkoutModal";
+import type { CoachChatMessage } from "./src/components/CoachSheet";
 import { FitfoLoadingAnimation } from "./src/components/FitfoLoadingAnimation";
 
 // Patch <Text> and <TextInput> globally so every screen in the app inherits
@@ -202,6 +203,10 @@ export default function App() {
     null,
   );
   const [isActiveWorkoutVisible, setIsActiveWorkoutVisible] = useState(false);
+  /** AI coach turns per in-progress session (`startedAt`), survives hub ↔ workout navigation. */
+  const [coachMessagesByStartedAt, setCoachMessagesByStartedAt] = useState<
+    Record<string, CoachChatMessage[]>
+  >({});
   const [selectedCompletedWorkout, setSelectedCompletedWorkout] =
     useState<CompletedWorkoutRecord | null>(null);
   const [selectedSavedRoutine, setSelectedSavedRoutine] =
@@ -286,6 +291,7 @@ export default function App() {
     setActiveTab("saved");
     setActiveSession(null);
     setIsActiveWorkoutVisible(false);
+    setCoachMessagesByStartedAt({});
     setSelectedCompletedWorkout(null);
     setSelectedSavedRoutine(null);
   }, []);
@@ -1222,9 +1228,21 @@ export default function App() {
 
   const handleFinishWorkout = useCallback(async () => {
     const session = activeSession;
+    const finishedCoachKey = session ? String(session.startedAt) : null;
+
     setActiveSession(null);
     setIsActiveWorkoutVisible(false);
     setActiveTab("logs");
+
+    if (finishedCoachKey) {
+      setCoachMessagesByStartedAt((prev) => {
+        if (!(finishedCoachKey in prev)) {
+          return prev;
+        }
+        const { [finishedCoachKey]: _removed, ...rest } = prev;
+        return rest;
+      });
+    }
 
     if (!session || !accessToken) {
       return;
@@ -1802,9 +1820,23 @@ export default function App() {
 
   const renderAuthenticatedScreen = () => {
     if (activeSession && isActiveWorkoutVisible) {
+      const activeCoachKey = String(activeSession.startedAt);
       return (
         <ActiveWorkoutScreen
           session={activeSession}
+          coachMessages={coachMessagesByStartedAt[activeCoachKey] ?? []}
+          setCoachMessages={(update) =>
+            setCoachMessagesByStartedAt((prev) => {
+              const current = prev[activeCoachKey] ?? [];
+              const next =
+                typeof update === "function"
+                  ? (update as (c: CoachChatMessage[]) => CoachChatMessage[])(
+                      current,
+                    )
+                  : update;
+              return { ...prev, [activeCoachKey]: next };
+            })
+          }
           onBack={() => {
             // Keep the session alive so the user can resume from the Logs tab.
             setIsActiveWorkoutVisible(false);
@@ -2126,6 +2158,7 @@ export default function App() {
         isScheduling={isSchedulingWorkout}
         isSubmitting={isExtractSubmitting}
         job={job}
+        ingestionJobId={jobId}
         onClose={handleCloseAddWorkout}
         onContinueInBackground={handleSendImportToBackground}
         onCreateManual={handleCreateManualWorkout}

@@ -1,8 +1,14 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
-  Linking,
   Modal,
   Platform,
   Pressable,
@@ -16,7 +22,6 @@ import { Ionicons } from "@expo/vector-icons";
 
 import {
   ChatApiError,
-  ChatCitation,
   ChatTurn,
   WorkoutContext,
   sendChatMessage,
@@ -25,18 +30,18 @@ import { F } from "../lib/fonts";
 import { MarkdownBlock, MarkdownInline, parseMarkdown } from "../lib/markdown";
 import { getTheme, radii, type ThemeMode } from "../theme";
 
+export interface CoachChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
 interface CoachSheetProps {
   visible: boolean;
   onClose: () => void;
   workout: WorkoutContext | null;
+  messages: CoachChatMessage[];
+  setMessages: Dispatch<SetStateAction<CoachChatMessage[]>>;
   themeMode?: ThemeMode;
-}
-
-interface CoachMessage {
-  role: "user" | "assistant";
-  content: string;
-  citations?: ChatCitation[];
-  model?: string;
 }
 
 const SUGGESTIONS = [
@@ -49,27 +54,21 @@ export default function CoachSheet({
   visible,
   onClose,
   workout,
+  messages,
+  setMessages,
   themeMode = "dark",
 }: CoachSheetProps) {
   const theme = getTheme(themeMode);
   const styles = useMemo(() => createStyles(theme), [theme]);
 
-  const [messages, setMessages] = useState<CoachMessage[]>([]);
   const [input, setInput] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<ScrollView | null>(null);
-
+  const workoutRef = useRef(workout);
   useEffect(() => {
-    if (!visible) {
-      // Reset on close so the next open is fresh; backend gets no leaked
-      // history from a previous workout session.
-      setMessages([]);
-      setInput("");
-      setPending(false);
-      setError(null);
-    }
-  }, [visible]);
+    workoutRef.current = workout;
+  }, [workout]);
 
   useEffect(() => {
     if (!visible) return;
@@ -84,7 +83,7 @@ export default function CoachSheet({
     if (!trimmed || pending) return;
     setError(null);
 
-    const newUser: CoachMessage = { role: "user", content: trimmed };
+    const newUser: CoachChatMessage = { role: "user", content: trimmed };
     const updated = [...messages, newUser];
     setMessages(updated);
     setInput("");
@@ -99,7 +98,7 @@ export default function CoachSheet({
       const result = await sendChatMessage({
         message: trimmed,
         history,
-        workout: workout ?? undefined,
+        workout: workoutRef.current ?? undefined,
         top_k: 8,
       });
       setMessages([
@@ -107,8 +106,6 @@ export default function CoachSheet({
         {
           role: "assistant",
           content: result.answer,
-          citations: result.citations,
-          model: result.model,
         },
       ]);
     } catch (exc) {
@@ -129,11 +126,7 @@ export default function CoachSheet({
         );
       }
       if (inline.kind === "citation") {
-        return (
-          <Text key={key} style={styles.citation}>
-            {`[${inline.index}]`}
-          </Text>
-        );
+        return <Text key={key} />;
       }
       return <Text key={key}>{inline.value}</Text>;
     });
@@ -254,30 +247,6 @@ export default function CoachSheet({
                     <View style={styles.assistantBubble}>
                       {renderMarkdown(message.content, `m${idx}`)}
                     </View>
-                    {message.citations && message.citations.length > 0 && (
-                      <View style={styles.citationList}>
-                        {message.citations.map((cite) => (
-                          <Pressable
-                            key={`${idx}-${cite.index}`}
-                            style={styles.citationCard}
-                            onPress={() => Linking.openURL(cite.source_url)}
-                          >
-                            <Text style={styles.citationIndex}>
-                              [{cite.index}]
-                            </Text>
-                            <Text style={styles.citationSnippet} numberOfLines={2}>
-                              {cite.snippet}
-                            </Text>
-                            <Text style={styles.citationUrl} numberOfLines={1}>
-                              {cite.source_url}
-                            </Text>
-                          </Pressable>
-                        ))}
-                      </View>
-                    )}
-                    {message.model && (
-                      <Text style={styles.modelHint}>{message.model}</Text>
-                    )}
                   </View>
                 );
               })}
@@ -508,48 +477,6 @@ function createStyles(theme: ReturnType<typeof getTheme>) {
     bold: {
       color: colors.textPrimary,
       fontFamily: F.bold,
-    },
-    citation: {
-      color: colors.primaryLight,
-      fontSize: 11,
-      lineHeight: 21,
-      fontFamily: F.bold,
-    },
-    citationList: {
-      gap: 6,
-      maxWidth: "92%",
-    },
-    citationCard: {
-      backgroundColor: colors.surfaceStrong,
-      borderRadius: radii.small,
-      paddingHorizontal: 10,
-      paddingVertical: 8,
-      borderWidth: 1,
-      borderColor: colors.borderSoft,
-    },
-    citationIndex: {
-      color: colors.primaryLight,
-      fontSize: 11,
-      fontFamily: F.bold,
-      marginBottom: 2,
-    },
-    citationSnippet: {
-      color: colors.textPrimary,
-      fontSize: 12,
-      lineHeight: 16,
-      fontFamily: F.regular,
-    },
-    citationUrl: {
-      color: colors.textMuted,
-      fontSize: 10,
-      marginTop: 4,
-      fontFamily: F.regular,
-    },
-    modelHint: {
-      color: colors.textMuted,
-      fontSize: 10,
-      marginTop: 2,
-      fontFamily: F.regular,
     },
     thinking: {
       flexDirection: "row",

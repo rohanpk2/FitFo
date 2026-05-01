@@ -44,6 +44,8 @@ export interface WorkoutExerciseContext {
   duration_sec?: number | null;
   rest_sec?: number | null;
   notes?: string | null;
+  /** Completed sets within this lift (coach sees lift-level progress). */
+  sets_completed?: number | null;
 }
 
 export interface WorkoutContext {
@@ -53,6 +55,25 @@ export interface WorkoutContext {
   muscle_groups?: string[] | null;
   equipment?: string[] | null;
   exercises?: WorkoutExerciseContext[] | null;
+  /** Millis since epoch when this training session began (same as active session identity). */
+  session_started_at_ms?: number | null;
+  elapsed_sec?: number | null;
+  timer_paused?: boolean | null;
+  completed_set_count?: number | null;
+  total_set_count?: number | null;
+  /** 1-based exercise index within this workout session. */
+  current_exercise_index?: number | null;
+  /** Exercise the athlete is treating as primary focus (expanded or next incomplete work). */
+  current_exercise_name?: string | null;
+  /** 1-based set within the focus exercise (selected row, else next incomplete set). */
+  current_set_number?: number | null;
+  current_set_target_summary?: string | null;
+  /** Typed weight/reps while logging (not necessarily marked complete yet). */
+  current_set_logged_summary?: string | null;
+  /** Saved/template workout id when the session originated from the library (optional). */
+  source_workout_id?: string | null;
+  /** Import/job id when the session came from TikTok ingest (optional). */
+  source_job_id?: string | null;
 }
 
 export interface ChatRequestBody {
@@ -67,6 +88,7 @@ export interface ChatRequestBody {
 
 export interface ChatResponse {
   answer: string;
+  /** Always empty — coach UX does not expose source/evidence chips. */
   citations: ChatCitation[];
   retrieval: RetrievedChunk[];
   model: string;

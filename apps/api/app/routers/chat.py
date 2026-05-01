@@ -6,6 +6,9 @@ Chat endpoint over the creator corpus.
 Retrieval-augmented generation:
   user msg → embed → pgvector search → top-K approved chunks → LLM → answer
 
+Answers are grounded on chunks but omit citation markers or source URLs in text.
+The citations field stays in the HTTP schema but is always returned empty.
+
 Same env-var gate as /admin/corpus/* (CORPUS_ADMIN_ENABLED=1) so chat is
 opt-in for now. Flip to a profile-allowlist `Depends` when you want to ship
 chat to real users.
@@ -46,6 +49,7 @@ class WorkoutExerciseContextSchema(BaseModel):
     duration_sec: Optional[int] = Field(default=None, ge=0, le=10_000)
     rest_sec: Optional[int] = Field(default=None, ge=0, le=3_600)
     notes: Optional[str] = Field(default=None, max_length=600)
+    sets_completed: Optional[int] = Field(default=None, ge=0, le=99)
 
 
 class WorkoutContextSchema(BaseModel):
@@ -58,6 +62,18 @@ class WorkoutContextSchema(BaseModel):
         default=None,
         max_length=40,
     )
+    elapsed_sec: Optional[int] = Field(default=None, ge=0, le=864_000)
+    timer_paused: Optional[bool] = None
+    session_started_at_ms: Optional[int] = Field(default=None, ge=0)
+    completed_set_count: Optional[int] = Field(default=None, ge=0, le=9999)
+    total_set_count: Optional[int] = Field(default=None, ge=0, le=9999)
+    current_exercise_index: Optional[int] = Field(default=None, ge=1, le=999)
+    current_exercise_name: Optional[str] = Field(default=None, max_length=200)
+    current_set_number: Optional[int] = Field(default=None, ge=1, le=999)
+    current_set_target_summary: Optional[str] = Field(default=None, max_length=200)
+    current_set_logged_summary: Optional[str] = Field(default=None, max_length=240)
+    source_workout_id: Optional[str] = Field(default=None, max_length=80)
+    source_job_id: Optional[str] = Field(default=None, max_length=80)
 
 
 class ChatRequest(BaseModel):
@@ -110,6 +126,7 @@ def _coerce_workout(schema: Optional[WorkoutContextSchema]) -> Optional[corpus_c
                 duration_sec=ex.duration_sec,
                 rest_sec=ex.rest_sec,
                 notes=ex.notes,
+                sets_completed=ex.sets_completed,
             )
             for ex in schema.exercises
         ]
@@ -120,6 +137,18 @@ def _coerce_workout(schema: Optional[WorkoutContextSchema]) -> Optional[corpus_c
         muscle_groups=schema.muscle_groups,
         equipment=schema.equipment,
         exercises=exercises,
+        elapsed_sec=schema.elapsed_sec,
+        timer_paused=schema.timer_paused,
+        session_started_at_ms=schema.session_started_at_ms,
+        completed_set_count=schema.completed_set_count,
+        total_set_count=schema.total_set_count,
+        current_exercise_index=schema.current_exercise_index,
+        current_exercise_name=schema.current_exercise_name,
+        current_set_number=schema.current_set_number,
+        current_set_target_summary=schema.current_set_target_summary,
+        current_set_logged_summary=schema.current_set_logged_summary,
+        source_workout_id=schema.source_workout_id,
+        source_job_id=schema.source_job_id,
     )
 
 
