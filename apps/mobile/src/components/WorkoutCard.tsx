@@ -13,11 +13,11 @@ import { getCreatorDisplayLabel } from "../lib/fitfo";
 import { getTheme } from "../theme";
 import type { SavedRoutinePreview } from "../types";
 
-// Brand wedge on light-mode hub tiles; mirrors dark theme primary.
+// Kept for older imports. Use theme colors for actual rendering.
 export const BRAND_ORANGE = "#FF6F22";
 
 export function getBrandAccent(theme: ReturnType<typeof getTheme>): string {
-  return theme.mode === "dark" ? theme.colors.primary : BRAND_ORANGE;
+  return theme.colors.primary;
 }
 
 export type WorkoutCardAccent = "saved" | "scheduled" | "lastHit";
@@ -384,8 +384,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     retryButton: {
       marginTop: 4,
       borderRadius: 999,
-      backgroundColor:
-        theme.mode === "dark" ? theme.colors.primary : BRAND_ORANGE,
+      backgroundColor: theme.colors.primary,
       paddingHorizontal: 16,
       paddingVertical: 10,
     },
@@ -410,7 +409,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       borderColor:
         theme.mode === "dark"
           ? "rgba(255, 111, 34, 0.24)"
-          : "rgba(255, 111, 34, 0.18)",
+          : "rgba(71, 88, 240, 0.18)",
     },
     lastHitWorkoutCard: {
       borderColor:
@@ -462,7 +461,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       backgroundColor:
         theme.mode === "dark"
           ? "rgba(255, 111, 34, 0.14)"
-          : "rgba(255, 111, 34, 0.12)",
+          : "rgba(71, 88, 240, 0.12)",
     },
     workoutBadgeText: {
       fontSize: 11,

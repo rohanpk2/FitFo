@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, type ReactNode, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -21,7 +21,7 @@ import { VideoView, useVideoPlayer } from "expo-video";
 import { AppleSignInButton } from "../components/AppleSignInButton";
 import { isAppleSignInAvailable } from "../lib/appleAuth";
 import { F } from "../lib/fonts";
-import type { ThemeMode } from "../theme";
+import { getTheme, type ThemeMode } from "../theme";
 import type {
   AuthMode,
   ExperienceLevel,
@@ -31,13 +31,73 @@ import type {
   TrainingSplit,
 } from "../types";
 
-const ORANGE = "#FF6F22";
-const AUTH_SLIDE_INDEX = 11;
+const AUTH_SLIDE_INDEX = 10;
+const ONBOARDING_STEP_COUNT = AUTH_SLIDE_INDEX - 1;
 const AGE_ITEM_WIDTH = 64;
 const AGE_ITEM_GAP = 10;
 const AGE_SNAP_INTERVAL = AGE_ITEM_WIDTH + AGE_ITEM_GAP;
+const TRY_DEMO_SLIDE_INDEX = 7;
 const WORKOUT_VIDEO = require("../../assets/my-workout.mp4");
-const BRAND_LOGO_MARK = require("../../assets/logo_no_bg.png");
+const NUNO_VIDEO = require("../../assets/nuno.mov");
+const SAMANTHA_VIDEO = require("../../assets/samantha2.mov");
+const FITFO_APP_ICON = require("../../assets/icon.png");
+
+function createAuthColors(mode: ThemeMode) {
+  const theme = getTheme(mode);
+  const isDark = mode === "dark";
+  return {
+    mode,
+    isDark,
+    accent: theme.colors.primary,
+    accentBright: theme.colors.primaryBright,
+    accentLight: theme.colors.primaryLight,
+    accentSoft: isDark ? "rgba(255, 111, 34, 0.12)" : "rgba(71, 88, 240, 0.12)",
+    accentMedium: isDark ? "rgba(255, 111, 34, 0.20)" : "rgba(71, 88, 240, 0.18)",
+    accentStrong: isDark ? "rgba(255, 111, 34, 0.34)" : "rgba(71, 88, 240, 0.28)",
+    accentBorder: isDark ? "rgba(255, 111, 34, 0.34)" : "rgba(71, 88, 240, 0.28)",
+    accentBorderStrong: isDark ? "rgba(255, 111, 34, 0.55)" : "rgba(71, 88, 240, 0.44)",
+    background: theme.colors.background,
+    welcomeBackground: isDark ? "#0F0802" : theme.colors.background,
+    stepBackground: isDark ? "#080706" : theme.colors.background,
+    authBackground: isDark ? "#090909" : theme.colors.background,
+    surface: theme.colors.surface,
+    surfaceMuted: theme.colors.surfaceMuted,
+    surfaceStrong: theme.colors.surfaceStrong,
+    darkSurface: isDark ? "#111111" : theme.colors.surface,
+    border: theme.colors.borderSoft,
+    borderStrong: theme.colors.border,
+    text: theme.colors.textPrimary,
+    textInverse: "#FFFFFF",
+    textSecondary: theme.colors.textSecondary,
+    textMuted: theme.colors.textMuted,
+    textFaint: isDark ? "rgba(255, 255, 255, 0.25)" : "rgba(22, 40, 103, 0.42)",
+    onAccent: isDark ? "#150803" : "#FFFFFF",
+    onAccentDark: "#150803",
+    buttonText: isDark ? "#080808" : "#FFFFFF",
+    inputPlaceholder: theme.colors.textMuted,
+    error: theme.colors.error,
+    errorSoft: theme.colors.errorSoft,
+    noticeSoft: isDark ? "rgba(255, 111, 34, 0.12)" : "rgba(71, 88, 240, 0.10)",
+  };
+}
+
+type AuthColors = ReturnType<typeof createAuthColors>;
+
+function createAuthTheme(mode: ThemeMode) {
+  const colors = createAuthColors(mode);
+  return {
+    colors,
+    styles: createAuthStyles(colors),
+  };
+}
+
+type AuthThemeValue = ReturnType<typeof createAuthTheme>;
+
+const AuthThemeContext = createContext<AuthThemeValue>(createAuthTheme("dark"));
+
+function useAuthTheme() {
+  return useContext(AuthThemeContext);
+}
 
 interface AuthLandingScreenProps {
   activeIndex: number;
@@ -121,9 +181,21 @@ export function AuthLandingScreen({
   themeMode = "dark",
 }: AuthLandingScreenProps) {
   const { width } = useWindowDimensions();
+  const authTheme = useMemo(() => createAuthTheme(themeMode), [themeMode]);
+  const { colors, styles } = authTheme;
   const scrollRef = useRef<ScrollView>(null);
   const ageScrollRef = useRef<ScrollView>(null);
   const workoutVideoPlayer = useVideoPlayer(WORKOUT_VIDEO, (player) => {
+    player.loop = true;
+    player.muted = true;
+    player.play();
+  });
+  const nunoVideoPlayer = useVideoPlayer(NUNO_VIDEO, (player) => {
+    player.loop = true;
+    player.muted = true;
+    player.play();
+  });
+  const samanthaVideoPlayer = useVideoPlayer(SAMANTHA_VIDEO, (player) => {
     player.loop = true;
     player.muted = true;
     player.play();
@@ -141,6 +213,10 @@ export function AuthLandingScreen({
   const [heightFeet, setHeightFeet] = useState("5");
   const [heightInches, setHeightInches] = useState("9");
   const [tryStage, setTryStage] = useState<"tiktok" | "share" | "import" | "workout">("tiktok");
+  const tryDemoVideoPlayer = sex === "female" ? samanthaVideoPlayer : nunoVideoPlayer;
+  const demoCreatorName = sex === "female" ? "Samantha" : "Nuno";
+  const demoCreatorHandle = sex === "female" ? "@samantha.fit" : "@nuno.fit";
+  const demoWorkoutTitle = `${demoCreatorName}'s Push Day`;
 
   useEffect(() => { setFullName(initialFullName ?? ""); }, [initialFullName]);
   useEffect(() => { setPhoneNumber(initialPhoneNumber ?? ""); }, [initialPhoneNumber]);
@@ -274,23 +350,37 @@ export function AuthLandingScreen({
     });
   };
 
-  const updateTryStage = () => {
-    setTryStage((current) =>
-      current === "tiktok"
-        ? "share"
-        : current === "share"
-          ? "import"
-          : current === "import"
-            ? "workout"
-            : "workout",
-    );
+  useEffect(() => {
+    if (tryStage !== "import") {
+      return undefined;
+    }
+
+    const timer = setTimeout(() => {
+      setTryStage("workout");
+    }, 3000);
+
+    return () => clearTimeout(timer);
+  }, [tryStage]);
+
+  const openTryShareSheet = () => setTryStage("share");
+  const startTryImport = () => setTryStage("import");
+  const resetTryDemo = () => {
+    setTryStage("tiktok");
+    tryDemoVideoPlayer.replay();
   };
 
+  useEffect(() => {
+    if (activeIndex === TRY_DEMO_SLIDE_INDEX && tryStage === "tiktok") {
+      tryDemoVideoPlayer.replay();
+    }
+  }, [activeIndex, tryDemoVideoPlayer, tryStage]);
+
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-      style={S.root}
-    >
+    <AuthThemeContext.Provider value={authTheme}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        style={styles.root}
+      >
       <ScrollView
         ref={scrollRef}
         bounces={false}
@@ -300,29 +390,43 @@ export function AuthLandingScreen({
         pagingEnabled
         scrollEventThrottle={16}
         showsHorizontalScrollIndicator={false}
-        style={S.carousel}
+        style={styles.carousel}
       >
-        <View style={[S.slide, { width }]}>
-          <LinearGradient colors={["#050505", "#130906", "#080808"]} style={S.welcome}>
-            <View style={S.logoStack}>
-              <View style={S.logoRing} />
-              <Image
-                accessibilityLabel="Fitfo"
-                accessibilityRole="image"
-                resizeMode="contain"
-                source={BRAND_LOGO_MARK}
-                style={S.welcomeLogo}
-              />
+        <View style={[styles.slide, { width }]}>
+          <LinearGradient
+            colors={colors.isDark ? ["#050505", "#130906", "#080808"] : [colors.background, colors.background]}
+            style={styles.welcome}
+          >
+            <View style={styles.centerCopy}>
+              <Text style={styles.wordmark}>fit<Text style={styles.wordmarkAccent}>fo</Text></Text>
+              <Text style={styles.welcomeTitle}>
+                Turn fitness videos into <Text style={styles.welcomeAccent}>real workouts.</Text>
+              </Text>
             </View>
-            <View style={S.centerCopy}>
-              <Text style={S.wordmark}>fit<Text style={S.wordmarkAccent}>fo</Text></Text>
-              <Text style={S.welcomeTitle}>Turn any reel into your next workout.</Text>
-              <Text style={S.bodyText}>Build your setup first. Then Fitfo saves, schedules, and tracks the workouts you already want to try.</Text>
+            <View style={styles.welcomeVideoStage}>
+              <View style={styles.welcomeVideoCard}>
+                <VideoView
+                  allowsPictureInPicture={false}
+                  contentFit="contain"
+                  fullscreenOptions={{ enable: false }}
+                  nativeControls={false}
+                  player={workoutVideoPlayer}
+                  playsInline
+                  style={styles.welcomeVideo}
+                />
+                <LinearGradient
+                  colors={["rgba(0,0,0,0.02)", "transparent", "rgba(0,0,0,0.38)"]}
+                  pointerEvents="none"
+                  style={styles.welcomeVideoScrim}
+                />
+              </View>
             </View>
-            <View style={S.bottomStack}>
-              <PrimaryButton label="Get started" onPress={next} />
-              <Pressable onPress={() => onSelectMode("login")} style={S.ghostTextButton}>
-                <Text style={S.ghostText}>I already have an account</Text>
+            <View style={styles.bottomStack}>
+              <PrimaryButton label="Build your first workout" onPress={next} />
+              <Text style={styles.welcomeTrust}>Takes 10 seconds. Works with TikTok & Instagram.</Text>
+              <Text style={styles.welcomeLegal}>By continuing you agree to our Terms & Privacy.</Text>
+              <Pressable onPress={() => onSelectMode("login")} style={styles.ghostTextButton}>
+                <Text style={styles.ghostText}>I already have an account</Text>
               </Pressable>
             </View>
           </LinearGradient>
@@ -337,13 +441,13 @@ export function AuthLandingScreen({
           subtitle="So we can keep intensity, examples, and progress defaults grounded."
           width={width}
         >
-          <View style={S.ageCard}>
-            <View style={S.ageWheelWindow}>
-              <View pointerEvents="none" style={S.ageWheelCenter} />
+          <View style={styles.ageCard}>
+            <View style={styles.ageWheelWindow}>
+              <View pointerEvents="none" style={styles.ageWheelCenter} />
               <ScrollView
                 ref={ageScrollRef}
                 contentContainerStyle={[
-                  S.ageRow,
+                  styles.ageRow,
                   { paddingHorizontal: ageWheelSidePadding },
                 ]}
                 decelerationRate="fast"
@@ -360,9 +464,9 @@ export function AuthLandingScreen({
                     <Pressable
                       key={option}
                       onPress={() => selectAge(option)}
-                      style={[S.ageWheelItem, selected && S.ageWheelItemActive]}
+                      style={[styles.ageWheelItem, selected && styles.ageWheelItemActive]}
                     >
-                      <Text style={[S.ageWheelText, selected && S.ageWheelTextActive]}>
+                      <Text style={[styles.ageWheelText, selected && styles.ageWheelTextActive]}>
                         {option}
                       </Text>
                     </Pressable>
@@ -370,8 +474,8 @@ export function AuthLandingScreen({
                 })}
               </ScrollView>
             </View>
-            <Text style={S.ageReadout}>{age}</Text>
-            <Text style={S.mutedCaps}>years old</Text>
+            <Text style={styles.ageReadout}>{age}</Text>
+            <Text style={styles.mutedCaps}>years old</Text>
           </View>
         </StepSlide>
 
@@ -384,7 +488,7 @@ export function AuthLandingScreen({
           subtitle="Used for creator-style previews and personalization. You can skip the signal."
           width={width}
         >
-          <View style={S.optionList}>
+          <View style={styles.optionList}>
             {sexOptions.map((option) => (
               <OptionRow
                 key={option.value}
@@ -406,7 +510,7 @@ export function AuthLandingScreen({
           subtitle="This calibrates workout language, rest defaults, and load suggestions."
           width={width}
         >
-          <View style={S.optionList}>
+          <View style={styles.optionList}>
             {experienceOptions.map((option) => (
               <OptionRow
                 key={option.value}
@@ -422,59 +526,24 @@ export function AuthLandingScreen({
 
         <StepSlide
           back={back}
-          canContinue
-          index={4}
-          next={next}
-          title="See Fitfo in action."
-          subtitle="This looping walkthrough shows how to share a workout video into Fitfo and turn it into a routine."
-          width={width}
-        >
-          <View style={S.walkthroughShell}>
-            <VideoView
-              allowsPictureInPicture={false}
-              contentFit="cover"
-              fullscreenOptions={{ enable: false }}
-              nativeControls={false}
-              player={workoutVideoPlayer}
-              playsInline
-              style={S.walkthroughVideo}
-            />
-            <LinearGradient
-              colors={["rgba(0,0,0,0.08)", "transparent", "rgba(0,0,0,0.68)"]}
-              pointerEvents="none"
-              style={S.walkthroughScrim}
-            />
-            <View style={S.walkthroughBadge}>
-              <Ionicons color={ORANGE} name="play-circle-outline" size={15} />
-              <Text style={S.walkthroughBadgeText}>How it works</Text>
-            </View>
-            <View style={S.walkthroughCaption}>
-              <Text style={S.walkthroughTitle}>Share video. Get workout.</Text>
-              <Text style={S.walkthroughBody}>Watch the exact flow before you try it.</Text>
-            </View>
-          </View>
-        </StepSlide>
-
-        <StepSlide
-          back={back}
           canContinue={selectedGoals.length > 0}
-          index={5}
+          index={4}
           next={next}
           title="What drives you?"
           subtitle="Pick all that fit. Fitfo will bias your setup around these goals."
           width={width}
         >
-          <View style={S.goalGrid}>
+          <View style={styles.goalGrid}>
             {goals.map((goal) => {
               const active = selectedGoals.includes(goal.value);
               return (
                 <Pressable
                   key={goal.value}
                   onPress={() => toggleGoal(goal.value)}
-                  style={[S.goalChip, active && S.goalChipActive]}
+                  style={[styles.goalChip, active && styles.goalChipActive]}
                 >
-                  <Ionicons color={active ? "#150803" : ORANGE} name={goal.icon} size={17} />
-                  <Text style={[S.goalText, active && S.goalTextActive]}>{goal.label}</Text>
+                  <Ionicons color={active ? colors.onAccent : colors.accent} name={goal.icon} size={17} />
+                  <Text style={[styles.goalText, active && styles.goalTextActive]}>{goal.label}</Text>
                 </Pressable>
               );
             })}
@@ -484,13 +553,13 @@ export function AuthLandingScreen({
         <StepSlide
           back={back}
           canContinue={Boolean(split)}
-          index={6}
+          index={5}
           next={next}
           title="Pick your split."
           subtitle="Sets your weekly cadence. You can change this later."
           width={width}
         >
-          <View style={S.optionList}>
+          <View style={styles.optionList}>
             {splitOptions.map((option) => (
               <OptionRow
                 key={option.value}
@@ -510,18 +579,18 @@ export function AuthLandingScreen({
         <StepSlide
           back={back}
           canContinue={Number.isFinite(numericWeight) && Number.isFinite(totalHeightInches)}
-          index={7}
+          index={6}
           next={next}
           title="How tall and heavy?"
           subtitle="This gives progress charts a baseline. You can edit it any time."
           width={width}
         >
-          <View style={S.statsCard}>
-            <View style={S.fieldGrid}>
+          <View style={styles.statsCard}>
+            <View style={styles.fieldGrid}>
               <StatInput label="Weight" onChange={setWeightLbs} suffix="lb" value={weightLbs} />
               <StatInput label="Age" onChange={(value) => setAge(Number(value.replace(/\D/g, "") || 0))} suffix="yrs" value={String(age)} />
             </View>
-            <View style={S.fieldGrid}>
+            <View style={styles.fieldGrid}>
               <StatInput label="Feet" onChange={setHeightFeet} suffix="ft" value={heightFeet} />
               <StatInput label="Inches" onChange={setHeightInches} suffix="in" value={heightInches} />
             </View>
@@ -531,59 +600,226 @@ export function AuthLandingScreen({
         <StepSlide
           back={back}
           canContinue
-          index={8}
+          compact
+          index={7}
           next={next}
+          showContinue={tryStage === "workout"}
           title="Take it for a spin."
-          subtitle="Tap the card to walk through TikTok to Fitfo in a few seconds."
+          subtitle="Tap Share, choose Fitfo, and watch the workout appear."
           width={width}
         >
-          <Pressable onPress={updateTryStage} style={S.tryCard}>
-            {tryStage === "tiktok" ? (
-              <>
-                <Ionicons color={ORANGE} name="share-outline" size={34} />
-                <Text style={S.tryTitle}>You find a workout reel.</Text>
-                <Text style={S.bodyText}>Tap to open the share sheet.</Text>
-              </>
-            ) : tryStage === "share" ? (
-              <>
-                <View style={S.shareRow}>
-                  {["Messages", "Fitfo", "Copy"].map((label) => (
-                    <View key={label} style={[S.shareItem, label === "Fitfo" && S.shareItemActive]}>
-                      <Ionicons color={label === "Fitfo" ? "#150803" : "#FFFFFF"} name={label === "Fitfo" ? "flash" : "link-outline"} size={18} />
-                      <Text style={[S.shareText, label === "Fitfo" && S.shareTextActive]}>{label}</Text>
-                    </View>
-                  ))}
+          <View style={styles.tryPhoneShell}>
+            <View style={styles.tryPhoneScreen}>
+              <VideoView
+                allowsPictureInPicture={false}
+                contentFit="cover"
+                fullscreenOptions={{ enable: false }}
+                nativeControls={false}
+                player={tryDemoVideoPlayer}
+                playsInline
+                style={styles.tiktokVideo}
+              />
+              <LinearGradient
+                colors={["rgba(0,0,0,0.55)", "rgba(0,0,0,0.04)", "rgba(0,0,0,0.7)"]}
+                pointerEvents="none"
+                style={styles.tiktokScrim}
+              />
+
+              <View style={styles.tiktokStatus}>
+                <Text style={styles.tiktokTime}>8:57</Text>
+                <View style={styles.tiktokStatusIcons}>
+                  <Ionicons color="#FFFFFF" name="cellular" size={14} />
+                  <Ionicons color="#FFFFFF" name="wifi" size={14} />
+                  <Ionicons color="#FFFFFF" name="battery-full" size={18} />
                 </View>
-                <Text style={S.tryTitle}>Choose Fitfo.</Text>
-              </>
-            ) : tryStage === "import" ? (
-              <>
-                <View style={S.importBadge}>
-                  <Ionicons color="#150803" name="flash" size={28} />
+              </View>
+
+              <View style={styles.tiktokTabs}>
+                <Text style={styles.tiktokTabMuted}>Explore</Text>
+                <Text style={styles.tiktokTabMuted}>Following</Text>
+                <View style={styles.tiktokTabActiveWrap}>
+                  <Text style={styles.tiktokTabActive}>For You</Text>
+                  <View style={styles.tiktokTabUnderline} />
                 </View>
-                <Text style={S.tryTitle}>Importing workout...</Text>
-                <Text style={S.bodyText}>Parsing the clip into exercises.</Text>
-              </>
-            ) : (
-              <>
-                <Ionicons color={ORANGE} name="checkmark-circle-outline" size={38} />
-                <Text style={S.tryTitle}>Push Day · Chest Focus</Text>
-                {["Incline DB press", "Machine chest press", "Cable fly"].map((name, itemIndex) => (
-                  <View key={name} style={S.exerciseRow}>
-                    <Text style={S.exerciseIndex}>{itemIndex + 1}</Text>
-                    <Text style={S.exerciseName}>{name}</Text>
-                    <Text style={S.exerciseMeta}>3x10</Text>
+                <Ionicons color="#FFFFFF" name="search" size={24} />
+              </View>
+
+              <View style={styles.tiktokSideRail}>
+                <View style={styles.tiktokAvatar}>
+                  <Text style={styles.tiktokAvatarText}>N</Text>
+                  <View style={styles.tiktokAvatarPlus}>
+                    <Ionicons color="#FFFFFF" name="add" size={13} />
                   </View>
-                ))}
-              </>
-            )}
-          </Pressable>
+                </View>
+                <TikTokAction icon="heart" label="65" />
+                <TikTokAction icon="chatbubble-ellipses" label="Add 1st" />
+                <TikTokAction icon="bookmark" label="6" />
+                <Pressable
+                  onPress={openTryShareSheet}
+                  style={({ pressed }) => [
+                    styles.tiktokAction,
+                    styles.tiktokShareAction,
+                    tryStage === "tiktok" && styles.tiktokShareActionPrompt,
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  <Ionicons color="#FFFFFF" name="arrow-redo" size={32} />
+                  <Text style={styles.tiktokActionText}>Share</Text>
+                </Pressable>
+              </View>
+
+              <View style={styles.tiktokCaption}>
+                <Text style={styles.tiktokCreator}>{demoCreatorHandle}</Text>
+                <Text style={styles.tiktokCaptionText}>Push day from a saved reel. Share it into Fitfo.</Text>
+              </View>
+
+              <View style={styles.tiktokBottomNav}>
+                <View style={styles.tiktokNavItem}>
+                  <Ionicons color="#FFFFFF" name="home" size={22} />
+                  <Text style={styles.tiktokNavTextActive}>Home</Text>
+                </View>
+                <View style={styles.tiktokNavItem}>
+                  <Ionicons color="rgba(255,255,255,0.72)" name="people-outline" size={22} />
+                  <Text style={styles.tiktokNavText}>Friends</Text>
+                </View>
+                <View style={styles.tiktokPostButton}>
+                  <Ionicons color="#050505" name="add" size={24} />
+                </View>
+                <View style={styles.tiktokNavItem}>
+                  <Ionicons color="rgba(255,255,255,0.72)" name="chatbox-outline" size={22} />
+                  <Text style={styles.tiktokNavText}>Inbox</Text>
+                </View>
+                <View style={styles.tiktokNavItem}>
+                  <Ionicons color="rgba(255,255,255,0.72)" name="person-outline" size={22} />
+                  <Text style={styles.tiktokNavText}>Profile</Text>
+                </View>
+              </View>
+
+              {tryStage === "tiktok" ? (
+                <View style={styles.tapShareCallout}>
+                  <Text style={styles.tapShareTitle}>Tap Share</Text>
+                  <Text style={styles.tapShareBody}>Start like you would in TikTok.</Text>
+                </View>
+              ) : null}
+
+              {tryStage === "share" ? (
+                <View style={styles.tiktokShareSheet}>
+                  <View style={styles.shareSheetHandle} />
+                  <View style={styles.shareSheetHeader}>
+                    <Ionicons color="#FFFFFF" name="search" size={24} />
+                    <Text style={styles.shareSheetTitle}>Send to</Text>
+                    <Pressable onPress={() => setTryStage("tiktok")} hitSlop={10}>
+                      <Ionicons color="#FFFFFF" name="close" size={26} />
+                    </Pressable>
+                  </View>
+                  <View style={styles.shareContactRow}>
+                    {["Maya", "Sam", "Ari", "Dev"].map((name) => (
+                      <View key={name} style={styles.shareContact}>
+                        <View style={styles.shareContactAvatar}>
+                          <Text style={styles.shareContactInitial}>{name[0]}</Text>
+                        </View>
+                        <Text numberOfLines={1} style={styles.shareContactName}>{name}</Text>
+                      </View>
+                    ))}
+                  </View>
+                  <View style={styles.shareAppRow}>
+                    <ShareAppButton color={colors.isDark ? colors.surfaceStrong : colors.accent} icon="chatbubble" label="SMS" />
+                    <ShareAppButton color={colors.isDark ? colors.surfaceStrong : colors.accent} icon="link" label="Copy link" />
+                    <Pressable onPress={startTryImport} style={({ pressed }) => [styles.fitfoShareButton, pressed && styles.pressed]}>
+                      <View style={styles.fitfoShareIcon}>
+                        <Image resizeMode="cover" source={FITFO_APP_ICON} style={styles.fitfoShareLogoImage} />
+                      </View>
+                      <Text style={styles.fitfoShareText}>Fitfo</Text>
+                    </Pressable>
+                    <ShareAppButton color={colors.isDark ? colors.surfaceStrong : colors.accent} icon="logo-instagram" label="Instagram" />
+                  </View>
+                  <Text style={styles.fitfoPrompt}>Tap Fitfo to import this workout.</Text>
+                </View>
+              ) : null}
+
+              {tryStage === "import" ? (
+                <View style={styles.importOverlay}>
+                  <View style={styles.importModal}>
+                    <View style={styles.importBadge}>
+                      <ActivityIndicator color={colors.onAccent} size="small" />
+                    </View>
+                    <Text style={styles.importTitle}>Importing to Fitfo</Text>
+                    <Text style={styles.importBody}>Reading caption, frames, and exercises...</Text>
+                    <View style={styles.importPulseRow}>
+                      <View style={[styles.importPulseDot, styles.importPulseDotHot]} />
+                      <View style={styles.importPulseDot} />
+                      <View style={styles.importPulseDot} />
+                    </View>
+                  </View>
+                </View>
+              ) : null}
+
+              {tryStage === "workout" ? (
+                <View style={styles.importedWorkoutSheet}>
+                  <View style={styles.importedTopBar}>
+                    <Pressable onPress={resetTryDemo} style={({ pressed }) => [styles.importedRoundButton, pressed && styles.pressed]}>
+                      <Ionicons color={colors.accent} name="chevron-back" size={20} />
+                    </Pressable>
+                    <Image resizeMode="cover" source={FITFO_APP_ICON} style={styles.importedLogo} />
+                    <View style={[styles.importedRoundButton, styles.importedCoachButton]}>
+                      <Ionicons color="#FFFFFF" name="barbell-outline" size={18} />
+                    </View>
+                  </View>
+
+                  <View style={styles.importedWorkoutContent}>
+                    <View style={styles.importedHeader}>
+                      <Text style={styles.importedKicker}>Current session</Text>
+                      <View style={styles.importedStatusPill}>
+                        <Ionicons color={colors.accent} name="checkmark-circle" size={13} />
+                        <Text style={styles.importedStatusText}>Imported</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.importedTitle}>{demoWorkoutTitle}</Text>
+                    <Text style={styles.importedSubtitle}>
+                      Imported from TikTok and tagged as push day.
+                    </Text>
+                    <View style={styles.originalReelPill}>
+                      <Ionicons color={colors.accent} name="play-circle-outline" size={15} />
+                      <Text style={styles.originalReelText}>View original reel</Text>
+                      <Ionicons color={colors.accent} name="open-outline" size={13} />
+                    </View>
+                    <View style={styles.importedTimerCard}>
+                      <Text style={styles.importedTimerLabel}>Time elapsed</Text>
+                      <Text style={styles.importedTimerValue}>00:17</Text>
+                      <Text style={styles.importedTimerMeta}>0 of 9 sets logged</Text>
+                    </View>
+                    <View style={styles.importedExerciseList}>
+                      {["Flat Press/fly", "Incline Press/low T...", "Shoulder Press"].map((name) => (
+                        <View key={name} style={styles.importedExerciseCard}>
+                          <View style={styles.importedExerciseIcon}>
+                            <Ionicons color={colors.accent} name="barbell-outline" size={18} />
+                          </View>
+                          <View style={styles.importedExerciseCopy}>
+                            <Text numberOfLines={1} style={styles.importedExerciseName}>{name}</Text>
+                            <Text style={styles.importedExerciseSub}>Follow coach notes</Text>
+                          </View>
+                          <Text style={styles.importedSetPill}>0/3</Text>
+                          <View style={styles.importedTrash}>
+                            <Ionicons color={colors.accent} name="trash-outline" size={16} />
+                          </View>
+                        </View>
+                      ))}
+                    </View>
+                    <Pressable onPress={resetTryDemo} style={({ pressed }) => [styles.tryAgainButton, pressed && styles.pressed]}>
+                      <Ionicons color={colors.onAccent} name="refresh" size={18} />
+                      <Text style={styles.tryAgainText}>Try it again</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              ) : null}
+            </View>
+          </View>
         </StepSlide>
 
         <StepSlide
           back={back}
           canContinue
-          index={9}
+          index={8}
           next={next}
           title="Schedule it. Show up to it."
           subtitle="Drop imported workouts into your week and get a nudge when it is time."
@@ -595,38 +831,38 @@ export function AuthLandingScreen({
         <StepSlide
           back={back}
           canContinue
-          index={10}
+          index={9}
           next={next}
-          title="Every set. Every PR. Logged."
-          subtitle="Your training archive shows up automatically. No spreadsheets."
+          title="Coach in your pocket."
+          subtitle="Form cues, swaps, and progression notes while you train."
           width={width}
         >
-          <FeatureCard type="archive" />
+          <FeatureCard type="coach" />
         </StepSlide>
 
-        <View style={[S.slide, { width }]}>
-          <View style={S.authSlide}>
+        <View style={[styles.slide, { width }]}>
+          <View style={styles.authSlide}>
             <View>
-              <Text style={S.authTitle}>
+              <Text style={styles.authTitle}>
                 {authMode === "login" ? "Welcome\nBack" : "Save\nYour Setup"}
-                <Text style={S.authDot}>.</Text>
+                <Text style={styles.authDot}>.</Text>
               </Text>
-              <Text style={S.authSub}>
+              <Text style={styles.authSub}>
                 {authMode === "login"
                   ? "Log in to pick up where you left off."
                   : "Create an account so your imports, split, and progress sync everywhere."}
               </Text>
 
-              <View style={S.tabs}>
-                <Pressable onPress={() => onSelectMode("signup")} style={[S.tab, authMode === "signup" && S.tabActive]}>
-                  <Text style={[S.tabText, authMode === "signup" && S.tabTextActive]}>Sign Up</Text>
+              <View style={styles.tabs}>
+                <Pressable onPress={() => onSelectMode("signup")} style={[styles.tab, authMode === "signup" && styles.tabActive]}>
+                  <Text style={[styles.tabText, authMode === "signup" && styles.tabTextActive]}>Sign Up</Text>
                 </Pressable>
-                <Pressable onPress={() => onSelectMode("login")} style={[S.tab, authMode === "login" && S.tabActive]}>
-                  <Text style={[S.tabText, authMode === "login" && S.tabTextActive]}>Log In</Text>
+                <Pressable onPress={() => onSelectMode("login")} style={[styles.tab, authMode === "login" && styles.tabActive]}>
+                  <Text style={[styles.tabText, authMode === "login" && styles.tabTextActive]}>Log In</Text>
                 </Pressable>
               </View>
 
-              <View style={S.authCard}>
+              <View style={styles.authCard}>
                 {isAppleAvailable ? (
                   <>
                     <AppleSignInButton
@@ -634,10 +870,10 @@ export function AuthLandingScreen({
                       onPress={onAppleSignIn}
                       themeMode={themeMode}
                     />
-                    <View style={S.orRow}>
-                      <View style={S.orLine} />
-                      <Text style={S.orText}>or</Text>
-                      <View style={S.orLine} />
+                    <View style={styles.orRow}>
+                      <View style={styles.orLine} />
+                      <Text style={styles.orText}>or</Text>
+                      <View style={styles.orLine} />
                     </View>
                   </>
                 ) : null}
@@ -662,13 +898,13 @@ export function AuthLandingScreen({
                 />
 
                 {notice ? (
-                  <View style={S.noticeCard}>
-                    <Text style={S.noticeText}>{notice}</Text>
+                  <View style={styles.noticeCard}>
+                    <Text style={styles.noticeText}>{notice}</Text>
                   </View>
                 ) : null}
                 {error ? (
-                  <View style={S.errorCard}>
-                    <Text style={S.errorText}>{error}</Text>
+                  <View style={styles.errorCard}>
+                    <Text style={styles.errorText}>{error}</Text>
                   </View>
                 ) : null}
 
@@ -676,30 +912,31 @@ export function AuthLandingScreen({
                   disabled={!canSubmit}
                   onPress={handleSubmit}
                   style={({ pressed }) => [
-                    S.submitBtn,
-                    !canSubmit && S.submitBtnDisabled,
-                    pressed && S.pressed,
+                    styles.submitBtn,
+                    !canSubmit && styles.submitBtnDisabled,
+                    pressed && styles.pressed,
                   ]}
                 >
                   {isSubmitting ? (
                     <>
-                      <ActivityIndicator color="#080808" size="small" />
-                      <Text style={S.submitBtnText}>Sending Code</Text>
+                      <ActivityIndicator color={colors.buttonText} size="small" />
+                      <Text style={styles.submitBtnText}>Sending Code</Text>
                     </>
                   ) : (
                     <>
-                      <Text style={S.submitBtnText}>Send Code</Text>
-                      <Ionicons color="#080808" name="arrow-forward" size={18} />
+                      <Text style={styles.submitBtnText}>Send Code</Text>
+                      <Ionicons color={colors.buttonText} name="arrow-forward" size={18} />
                     </>
                   )}
                 </Pressable>
               </View>
             </View>
-            <Text style={S.legal}>Privacy Policy & Terms</Text>
+            <Text style={styles.legal}>Privacy Policy & Terms</Text>
           </View>
         </View>
       </ScrollView>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </AuthThemeContext.Provider>
   );
 }
 
@@ -707,8 +944,10 @@ function StepSlide({
   back,
   canContinue,
   children,
+  compact,
   index,
   next,
+  showContinue = true,
   subtitle,
   title,
   width,
@@ -716,31 +955,36 @@ function StepSlide({
   back: () => void;
   canContinue: boolean;
   children: ReactNode;
+  compact?: boolean;
   index: number;
   next: () => void;
+  showContinue?: boolean;
   subtitle: string;
   title: string;
   width: number;
 }) {
+  const { colors, styles } = useAuthTheme();
   return (
-    <View style={[S.slide, { width }]}>
-      <View style={S.stepSlide}>
-        <View style={S.progressShell}>
-          <Text style={S.progressText}>{String(index).padStart(2, "0")} · Onboarding</Text>
-          <View style={S.progressTrack}>
-            <View style={[S.progressFill, { width: `${(index / AUTH_SLIDE_INDEX) * 100}%` }]} />
+    <View style={[styles.slide, { width }]}>
+      <View style={[styles.stepSlide, compact && styles.stepSlideCompact]}>
+        <View style={styles.progressShell}>
+          <Text style={styles.progressText}>
+            Step {index} of {ONBOARDING_STEP_COUNT}
+          </Text>
+          <View style={styles.progressTrack}>
+            <View style={[styles.progressFill, { width: `${(index / ONBOARDING_STEP_COUNT) * 100}%` }]} />
           </View>
         </View>
-        <View style={S.stepHeader}>
-          <Text style={S.stepTitle}>{title}</Text>
-          <Text style={S.bodyText}>{subtitle}</Text>
+        <View style={styles.stepHeader}>
+          <Text style={styles.stepTitle}>{title}</Text>
+          <Text style={styles.bodyText}>{subtitle}</Text>
         </View>
-        <View style={S.stepBody}>{children}</View>
-        <View style={S.footer}>
-          <Pressable onPress={back} style={S.backButton}>
-            <Ionicons color="#FFFFFF" name="arrow-back" size={18} />
+        <View style={[styles.stepBody, compact && styles.stepBodyCompact]}>{children}</View>
+        <View style={styles.footer}>
+          <Pressable onPress={back} style={styles.backButton}>
+            <Ionicons color={colors.text} name="arrow-back" size={18} />
           </Pressable>
-          <PrimaryButton disabled={!canContinue} label="Continue" onPress={next} />
+          {showContinue ? <PrimaryButton disabled={!canContinue} label="Continue" onPress={next} /> : null}
         </View>
       </View>
     </View>
@@ -756,15 +1000,52 @@ function PrimaryButton({
   label: string;
   onPress: () => void;
 }) {
+  const { colors, styles } = useAuthTheme();
   return (
     <Pressable
       disabled={disabled}
       onPress={onPress}
-      style={({ pressed }) => [S.primaryButton, disabled && S.primaryButtonDisabled, pressed && S.pressed]}
+      style={({ pressed }) => [styles.primaryButton, disabled && styles.primaryButtonDisabled, pressed && styles.pressed]}
     >
-      <Text style={S.primaryButtonText}>{label}</Text>
-      <Ionicons color="#080808" name="arrow-forward" size={18} />
+      <Text style={styles.primaryButtonText}>{label}</Text>
+      <Ionicons color={colors.buttonText} name="arrow-forward" size={18} />
     </Pressable>
+  );
+}
+
+function TikTokAction({
+  icon,
+  label,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+}) {
+  const { styles } = useAuthTheme();
+  return (
+    <View style={styles.tiktokAction}>
+      <Ionicons color="#FFFFFF" name={icon} size={30} />
+      <Text style={styles.tiktokActionText}>{label}</Text>
+    </View>
+  );
+}
+
+function ShareAppButton({
+  color,
+  icon,
+  label,
+}: {
+  color: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+}) {
+  const { styles } = useAuthTheme();
+  return (
+    <View style={styles.shareAppButton}>
+      <View style={[styles.shareAppIcon, { backgroundColor: color }]}>
+        <Ionicons color="#FFFFFF" name={icon} size={24} />
+      </View>
+      <Text numberOfLines={2} style={styles.shareAppText}>{label}</Text>
+    </View>
   );
 }
 
@@ -783,28 +1064,29 @@ function OptionRow({
   sub: string;
   weekDots?: number;
 }) {
+  const { colors, styles } = useAuthTheme();
   return (
-    <Pressable onPress={onPress} style={[S.optionRow, active && S.optionRowActive]}>
+    <Pressable onPress={onPress} style={[styles.optionRow, active && styles.optionRowActive]}>
       {meter ? (
-        <View style={S.meter}>
+        <View style={styles.meter}>
           {[1, 2, 3].map((bar) => (
-            <View key={bar} style={[S.meterBar, { height: 9 + bar * 8 }, bar <= meter && S.meterBarActive]} />
+            <View key={bar} style={[styles.meterBar, { height: 9 + bar * 8 }, bar <= meter && styles.meterBarActive]} />
           ))}
         </View>
       ) : null}
-      <View style={S.optionCopy}>
-        <Text style={S.optionTitle}>{label}</Text>
-        <Text style={S.optionSub}>{sub}</Text>
+      <View style={styles.optionCopy}>
+        <Text style={styles.optionTitle}>{label}</Text>
+        <Text style={styles.optionSub}>{sub}</Text>
       </View>
       {weekDots !== undefined ? (
-        <View style={S.weekDots}>
+        <View style={styles.weekDots}>
           {Array.from({ length: 7 }, (_, index) => (
-            <View key={index} style={[S.weekDot, index < weekDots && S.weekDotActive]} />
+            <View key={index} style={[styles.weekDot, index < weekDots && styles.weekDotActive]} />
           ))}
         </View>
       ) : (
-        <View style={[S.radio, active && S.radioActive]}>
-          {active ? <Ionicons color="#150803" name="checkmark" size={13} /> : null}
+        <View style={[styles.radio, active && styles.radioActive]}>
+          {active ? <Ionicons color={colors.onAccent} name="checkmark" size={13} /> : null}
         </View>
       )}
     </Pressable>
@@ -822,18 +1104,19 @@ function StatInput({
   suffix: string;
   value: string;
 }) {
+  const { colors, styles } = useAuthTheme();
   return (
-    <View style={S.statInputGroup}>
-      <Text style={S.fieldLabel}>{label}</Text>
-      <View style={S.statInputShell}>
+    <View style={styles.statInputGroup}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <View style={styles.statInputShell}>
         <TextInput
           keyboardType="number-pad"
           onChangeText={(text) => onChange(text.replace(/[^0-9.]/g, "").slice(0, 5))}
-          placeholderTextColor="#555555"
-          style={S.statInput}
+          placeholderTextColor={colors.inputPlaceholder}
+          style={styles.statInput}
           value={value}
         />
-        <Text style={S.statSuffix}>{suffix}</Text>
+        <Text style={styles.statSuffix}>{suffix}</Text>
       </View>
     </View>
   );
@@ -854,18 +1137,19 @@ function Field({
   placeholder: string;
   value: string;
 }) {
+  const { colors, styles } = useAuthTheme();
   return (
-    <View style={S.fieldGroup}>
-      <Text style={S.fieldLabel}>{label}</Text>
-      <View style={S.fieldShell}>
-        <Ionicons color={ORANGE} name={icon} size={18} />
+    <View style={styles.fieldGroup}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <View style={styles.fieldShell}>
+        <Ionicons color={colors.accent} name={icon} size={18} />
         <TextInput
           autoCapitalize={label === "Full Name" ? "words" : "none"}
           keyboardType={keyboardType}
           onChangeText={onChangeText}
           placeholder={placeholder}
-          placeholderTextColor="#555555"
-          style={S.fieldInput}
+          placeholderTextColor={colors.inputPlaceholder}
+          style={styles.fieldInput}
           value={value}
         />
       </View>
@@ -873,60 +1157,90 @@ function Field({
   );
 }
 
-function FeatureCard({ type }: { type: "calendar" | "archive" }) {
+function FeatureCard({ type }: { type: "calendar" | "coach" }) {
+  const { colors, styles } = useAuthTheme();
   if (type === "calendar") {
     return (
-      <View style={S.featureCard}>
-        <Text style={S.mutedCaps}>This week</Text>
-        <View style={S.calendarRow}>
+      <View style={styles.featureCard}>
+        <Text style={styles.mutedCaps}>This week</Text>
+        <View style={styles.calendarRow}>
           {["M", "T", "W", "T", "F", "S", "S"].map((day, index) => {
             const active = index === 2 || index === 4;
             return (
-              <View key={`${day}-${index}`} style={[S.calendarDay, active && S.calendarDayActive]}>
-                <Text style={[S.calendarText, active && S.calendarTextActive]}>{day}</Text>
-                <Text style={[S.calendarDate, active && S.calendarTextActive]}>{index + 1}</Text>
+              <View key={`${day}-${index}`} style={[styles.calendarDay, active && styles.calendarDayActive]}>
+                <Text style={[styles.calendarText, active && styles.calendarTextActive]}>{day}</Text>
+                <Text style={[styles.calendarDate, active && styles.calendarTextActive]}>{index + 1}</Text>
               </View>
             );
           })}
         </View>
-        <View style={S.eventCard}>
-          <Ionicons color={ORANGE} name="barbell-outline" size={20} />
-          <View style={S.optionCopy}>
-            <Text style={S.optionTitle}>Push Day · Chest Focus</Text>
-            <Text style={S.optionSub}>6:30 PM · 5 exercises</Text>
+        <View style={styles.eventCard}>
+          <Ionicons color={colors.accent} name="barbell-outline" size={20} />
+          <View style={styles.optionCopy}>
+            <Text style={styles.optionTitle}>Push Day · Chest Focus</Text>
+            <Text style={styles.optionSub}>6:30 PM · 5 exercises</Text>
           </View>
-          <Text style={S.eventBadge}>QUEUED</Text>
+          <Text style={styles.eventBadge}>QUEUED</Text>
         </View>
       </View>
     );
   }
 
   return (
-    <View style={S.featureCard}>
-      <View style={S.statCards}>
-        <View style={S.smallStat}>
-          <Text style={S.mutedCaps}>This month</Text>
-          <Text style={S.smallStatValue}>24</Text>
-          <Text style={S.optionSub}>sessions</Text>
+    <View style={[styles.featureCard, styles.coachFeatureCard]}>
+      <View style={styles.coachCardHeader}>
+        <View style={styles.coachIcon}>
+          <Image resizeMode="cover" source={FITFO_APP_ICON} style={styles.coachIconImage} />
         </View>
-        <View style={S.smallStat}>
-          <Text style={S.mutedCaps}>Streak</Text>
-          <Text style={[S.smallStatValue, S.orangeText]}>11</Text>
-          <Text style={S.optionSub}>days</Text>
+        <View style={styles.optionCopy}>
+          <Text style={styles.coachTitle}>Fitfo AI Coach</Text>
+          <Text style={styles.optionSub}>Live help for your current workout</Text>
+        </View>
+        <Ionicons color={colors.accent} name="sparkles-outline" size={22} />
+      </View>
+
+      <View style={styles.coachChatPanel}>
+        <View style={[styles.coachBubble, styles.coachBubbleUser]}>
+          <Text style={styles.coachBubbleUserText}>Why do I feel this in my shoulders?</Text>
+        </View>
+        <View style={[styles.coachBubble, styles.coachBubbleFitfo]}>
+          <Text style={styles.coachBubbleText}>
+            Tuck elbows slightly, keep your chest up, and stop when shoulders take over.
+          </Text>
         </View>
       </View>
-      <View style={S.chart}>
-        {[42, 58, 73, 65, 80, 92, 88, 95].map((height, index) => (
-          <View key={`${height}-${index}`} style={[S.chartBar, { height }, index === 7 && S.chartBarHot]} />
+
+      <View style={styles.coachCueList}>
+        {[
+          ["Form cue", "Elbows 30-45 degrees"],
+          ["Swap", "Use machine press if shoulders pinch"],
+          ["Progress", "Add 5 lb after all 3 sets feel clean"],
+        ].map(([label, detail]) => (
+          <View key={label} style={styles.coachCueRow}>
+            <Ionicons color={colors.accent} name="checkmark-circle-outline" size={18} />
+            <View style={styles.optionCopy}>
+              <Text style={styles.coachCueLabel}>{label}</Text>
+              <Text style={styles.coachCueDetail}>{detail}</Text>
+            </View>
+          </View>
+        ))}
+      </View>
+
+      <View style={styles.coachChipRow}>
+        {["Explain set", "Swap move", "Next weight"].map((label) => (
+          <View key={label} style={styles.coachChip}>
+            <Text style={styles.coachChipText}>{label}</Text>
+          </View>
         ))}
       </View>
     </View>
   );
 }
 
-const S = StyleSheet.create({
+function createAuthStyles(colors: AuthColors) {
+  return StyleSheet.create({
   root: {
-    backgroundColor: "#050505",
+    backgroundColor: colors.background,
     flex: 1,
   },
   carousel: {
@@ -936,61 +1250,84 @@ const S = StyleSheet.create({
     flex: 1,
   },
   welcome: {
+    backgroundColor: colors.welcomeBackground,
     flex: 1,
     justifyContent: "space-between",
-    paddingBottom: Platform.OS === "ios" ? 34 : 24,
-    paddingHorizontal: 28,
-    paddingTop: Platform.OS === "ios" ? 70 : 46,
-  },
-  logoStack: {
-    alignItems: "center",
-    justifyContent: "center",
-    minHeight: 190,
-  },
-  logoRing: {
-    position: "absolute",
-    width: 172,
-    height: 172,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "rgba(255, 111, 34,0.42)",
-  },
-  welcomeLogo: {
-    width: 128,
-    height: 88,
+    paddingBottom: Platform.OS === "ios" ? 24 : 18,
+    paddingHorizontal: 24,
+    paddingTop: Platform.OS === "ios" ? 28 : 22,
   },
   centerCopy: {
-    alignItems: "center",
-    gap: 13,
+    alignItems: "flex-start",
+    gap: 12,
+    marginTop: 0,
+    width: "100%",
   },
   wordmark: {
-    color: "#FFFFFF",
+    color: colors.text,
     fontFamily: F.black,
-    fontSize: 58,
-    letterSpacing: -2,
-    lineHeight: 64,
+    fontSize: 28,
+    letterSpacing: 0,
+    lineHeight: 32,
   },
   wordmarkAccent: {
-    color: ORANGE,
+    color: colors.accent,
   },
   welcomeTitle: {
-    color: "#FFFFFF",
+    color: colors.text,
     fontFamily: F.display,
-    fontSize: 30,
-    letterSpacing: -0.8,
-    lineHeight: 35,
-    maxWidth: 320,
-    textAlign: "center",
+    fontSize: 38,
+    letterSpacing: 0,
+    lineHeight: 42,
+    maxWidth: 380,
+    textAlign: "left",
+  },
+  welcomeAccent: {
+    color: colors.accent,
+    fontFamily: F.display,
+  },
+  welcomeVideoStage: {
+    alignItems: "center",
+    height: 438,
+    justifyContent: "center",
+    width: "100%",
+  },
+  welcomeVideoCard: {
+    backgroundColor: "transparent",
+    borderRadius: 0,
+    height: "100%",
+    overflow: "hidden",
+    width: 306,
+  },
+  welcomeVideo: {
+    height: "100%",
+    width: "100%",
+  },
+  welcomeVideoScrim: {
+    ...StyleSheet.absoluteFillObject,
   },
   bodyText: {
-    color: "#918A86",
+    color: colors.textSecondary,
     fontFamily: F.medium,
     fontSize: 15,
     lineHeight: 22,
     textAlign: "center",
   },
   bottomStack: {
-    gap: 12,
+    gap: 8,
+  },
+  welcomeTrust: {
+    color: colors.textMuted,
+    fontFamily: F.medium,
+    fontSize: 12,
+    lineHeight: 17,
+    textAlign: "center",
+  },
+  welcomeLegal: {
+    color: colors.textFaint,
+    fontFamily: F.medium,
+    fontSize: 10,
+    textAlign: "center",
   },
   ghostTextButton: {
     alignItems: "center",
@@ -998,23 +1335,27 @@ const S = StyleSheet.create({
     justifyContent: "center",
   },
   ghostText: {
-    color: "#8A827D",
+    color: colors.textMuted,
     fontFamily: F.bold,
     fontSize: 14,
   },
   stepSlide: {
-    backgroundColor: "#080706",
+    backgroundColor: colors.stepBackground,
     flex: 1,
     gap: 20,
     paddingBottom: Platform.OS === "ios" ? 24 : 20,
     paddingHorizontal: 24,
     paddingTop: Platform.OS === "ios" ? 58 : 34,
   },
+  stepSlideCompact: {
+    gap: 12,
+    paddingTop: Platform.OS === "ios" ? 32 : 22,
+  },
   progressShell: {
     gap: 9,
   },
   progressText: {
-    color: ORANGE,
+    color: colors.accent,
     fontFamily: F.bold,
     fontSize: 11,
     letterSpacing: 1.8,
@@ -1023,19 +1364,19 @@ const S = StyleSheet.create({
   progressTrack: {
     height: 5,
     borderRadius: 999,
-    backgroundColor: "#211A17",
+    backgroundColor: colors.surfaceMuted,
     overflow: "hidden",
   },
   progressFill: {
     height: "100%",
     borderRadius: 999,
-    backgroundColor: ORANGE,
+    backgroundColor: colors.accent,
   },
   stepHeader: {
     gap: 10,
   },
   stepTitle: {
-    color: "#FFFFFF",
+    color: colors.text,
     fontFamily: F.display,
     fontSize: 36,
     letterSpacing: -1,
@@ -1044,6 +1385,10 @@ const S = StyleSheet.create({
   stepBody: {
     flex: 1,
     justifyContent: "center",
+  },
+  stepBodyCompact: {
+    alignItems: "center",
+    justifyContent: "flex-start",
   },
   footer: {
     flexDirection: "row",
@@ -1054,13 +1399,13 @@ const S = StyleSheet.create({
     borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#171313",
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: "#2A2220",
+    borderColor: colors.border,
   },
   primaryButton: {
     alignItems: "center",
-    backgroundColor: ORANGE,
+    backgroundColor: colors.accent,
     borderRadius: 999,
     flex: 1,
     flexDirection: "row",
@@ -1073,7 +1418,7 @@ const S = StyleSheet.create({
     opacity: 0.4,
   },
   primaryButtonText: {
-    color: "#080808",
+    color: colors.buttonText,
     fontFamily: F.black,
     fontSize: 16,
   },
@@ -1086,8 +1431,8 @@ const S = StyleSheet.create({
     gap: 12,
     borderRadius: 28,
     borderWidth: 1,
-    borderColor: "#2A2220",
-    backgroundColor: "#151211",
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
     paddingVertical: 20,
     overflow: "hidden",
   },
@@ -1098,8 +1443,8 @@ const S = StyleSheet.create({
   },
   ageWheelCenter: {
     alignSelf: "center",
-    backgroundColor: "rgba(255, 111, 34, 0.12)",
-    borderColor: "rgba(255, 111, 34, 0.55)",
+    backgroundColor: colors.accentSoft,
+    borderColor: colors.accentBorderStrong,
     borderRadius: 22,
     borderWidth: 1,
     height: 82,
@@ -1122,24 +1467,24 @@ const S = StyleSheet.create({
     opacity: 1,
   },
   ageWheelText: {
-    color: "#9B918B",
+    color: colors.textMuted,
     fontFamily: F.black,
     fontSize: 28,
     lineHeight: 34,
   },
   ageWheelTextActive: {
-    color: ORANGE,
+    color: colors.accent,
     fontSize: 52,
     lineHeight: 58,
   },
   ageReadout: {
-    color: "#FFFFFF",
+    color: colors.text,
     fontFamily: F.black,
     fontSize: 24,
     lineHeight: 30,
   },
   mutedCaps: {
-    color: "#7B726D",
+    color: colors.textMuted,
     fontFamily: F.bold,
     fontSize: 11,
     letterSpacing: 1.4,
@@ -1152,29 +1497,29 @@ const S = StyleSheet.create({
     minHeight: 78,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: "#2A2220",
-    backgroundColor: "#151211",
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
     flexDirection: "row",
     alignItems: "center",
     gap: 14,
     padding: 16,
   },
   optionRowActive: {
-    borderColor: ORANGE,
-    backgroundColor: "rgba(255, 111, 34,0.1)",
+    borderColor: colors.accent,
+    backgroundColor: colors.accentSoft,
   },
   optionCopy: {
     flex: 1,
     gap: 3,
   },
   optionTitle: {
-    color: "#FFFFFF",
+    color: colors.text,
     fontFamily: F.black,
     fontSize: 16,
     lineHeight: 21,
   },
   optionSub: {
-    color: "#817873",
+    color: colors.textSecondary,
     fontFamily: F.bold,
     fontSize: 12,
     lineHeight: 17,
@@ -1184,19 +1529,19 @@ const S = StyleSheet.create({
     height: 24,
     borderRadius: 999,
     borderWidth: 2,
-    borderColor: "#463B35",
+    borderColor: colors.borderStrong,
     alignItems: "center",
     justifyContent: "center",
   },
   radioActive: {
-    backgroundColor: ORANGE,
-    borderColor: ORANGE,
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
   },
   meter: {
     width: 42,
     height: 42,
     borderRadius: 14,
-    backgroundColor: "#211C19",
+    backgroundColor: colors.surfaceMuted,
     flexDirection: "row",
     gap: 4,
     alignItems: "flex-end",
@@ -1206,10 +1551,10 @@ const S = StyleSheet.create({
   meterBar: {
     width: 6,
     borderRadius: 4,
-    backgroundColor: "#3A322D",
+    backgroundColor: colors.border,
   },
   meterBarActive: {
-    backgroundColor: ORANGE,
+    backgroundColor: colors.accent,
   },
   weekDots: {
     flexDirection: "row",
@@ -1219,69 +1564,10 @@ const S = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 3,
-    backgroundColor: "#332B26",
+    backgroundColor: colors.border,
   },
   weekDotActive: {
-    backgroundColor: ORANGE,
-  },
-  walkthroughShell: {
-    alignSelf: "center",
-    aspectRatio: 9 / 16,
-    backgroundColor: "#050505",
-    borderRadius: 28,
-    borderWidth: 1,
-    borderColor: "#2A2220",
-    maxHeight: 430,
-    minHeight: 360,
-    overflow: "hidden",
-    width: "82%",
-  },
-  walkthroughVideo: {
-    height: "100%",
-    width: "100%",
-  },
-  walkthroughScrim: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  walkthroughBadge: {
-    alignItems: "center",
-    backgroundColor: "rgba(8, 8, 8, 0.76)",
-    borderColor: "rgba(255, 111, 34, 0.28)",
-    borderRadius: 999,
-    borderWidth: 1,
-    flexDirection: "row",
-    gap: 6,
-    left: 14,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    position: "absolute",
-    top: 14,
-  },
-  walkthroughBadgeText: {
-    color: "#FFFFFF",
-    fontFamily: F.black,
-    fontSize: 11,
-    letterSpacing: 0.8,
-    textTransform: "uppercase",
-  },
-  walkthroughCaption: {
-    bottom: 16,
-    gap: 4,
-    left: 16,
-    position: "absolute",
-    right: 16,
-  },
-  walkthroughTitle: {
-    color: "#FFFFFF",
-    fontFamily: F.black,
-    fontSize: 18,
-    lineHeight: 23,
-  },
-  walkthroughBody: {
-    color: "rgba(255, 255, 255, 0.76)",
-    fontFamily: F.bold,
-    fontSize: 12,
-    lineHeight: 17,
+    backgroundColor: colors.accent,
   },
   exerciseRow: {
     alignSelf: "stretch",
@@ -1289,22 +1575,22 @@ const S = StyleSheet.create({
     gap: 10,
     alignItems: "center",
     borderRadius: 12,
-    backgroundColor: "#211C19",
+    backgroundColor: colors.surfaceMuted,
     padding: 10,
   },
   exerciseIndex: {
     width: 22,
-    color: ORANGE,
+    color: colors.accent,
     fontFamily: F.black,
   },
   exerciseName: {
     flex: 1,
-    color: "#FFFFFF",
+    color: colors.text,
     fontFamily: F.bold,
     fontSize: 13,
   },
   exerciseMeta: {
-    color: "#817873",
+    color: colors.textSecondary,
     fontFamily: F.bold,
     fontSize: 11,
   },
@@ -1318,33 +1604,33 @@ const S = StyleSheet.create({
     minHeight: 62,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: "#2A2220",
-    backgroundColor: "#151211",
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
     flexDirection: "row",
     alignItems: "center",
     gap: 9,
     padding: 12,
   },
   goalChipActive: {
-    backgroundColor: ORANGE,
-    borderColor: ORANGE,
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
   },
   goalText: {
     flex: 1,
-    color: "#FFFFFF",
+    color: colors.text,
     fontFamily: F.black,
     fontSize: 13,
     lineHeight: 17,
   },
   goalTextActive: {
-    color: "#150803",
+    color: colors.onAccent,
   },
   statsCard: {
     gap: 14,
     borderRadius: 26,
     borderWidth: 1,
-    borderColor: "#2A2220",
-    backgroundColor: "#151211",
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
     padding: 18,
   },
   fieldGrid: {
@@ -1356,7 +1642,7 @@ const S = StyleSheet.create({
     gap: 8,
   },
   fieldLabel: {
-    color: "#8A817B",
+    color: colors.textMuted,
     fontFamily: F.bold,
     fontSize: 11,
     letterSpacing: 1.6,
@@ -1365,9 +1651,9 @@ const S = StyleSheet.create({
   statInputShell: {
     minHeight: 54,
     borderRadius: 15,
-    backgroundColor: "#211C19",
+    backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
-    borderColor: "#302824",
+    borderColor: colors.border,
     paddingHorizontal: 13,
     flexDirection: "row",
     alignItems: "center",
@@ -1375,73 +1661,606 @@ const S = StyleSheet.create({
   },
   statInput: {
     flex: 1,
-    color: "#FFFFFF",
+    color: colors.text,
     fontFamily: F.black,
     fontSize: 18,
   },
   statSuffix: {
-    color: "#817873",
+    color: colors.textSecondary,
     fontFamily: F.bold,
     fontSize: 11,
     textTransform: "uppercase",
   },
-  tryCard: {
-    minHeight: 360,
-    borderRadius: 26,
+  tryPhoneShell: {
+    alignSelf: "center",
+    backgroundColor: "#070707",
+    borderColor: colors.border,
+    borderRadius: 38,
     borderWidth: 1,
-    borderColor: "#2A2220",
-    backgroundColor: "#151211",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 14,
-    padding: 18,
+    height: 500,
+    padding: 6,
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.45,
+    shadowRadius: 28,
+    width: 300,
   },
-  tryTitle: {
+  tryPhoneScreen: {
+    backgroundColor: "#000000",
+    borderRadius: 32,
+    flex: 1,
+    overflow: "hidden",
+  },
+  tiktokVideo: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  tiktokScrim: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  tiktokStatus: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    left: 18,
+    position: "absolute",
+    right: 18,
+    top: 13,
+    zIndex: 2,
+  },
+  tiktokTime: {
     color: "#FFFFFF",
     fontFamily: F.black,
-    fontSize: 20,
-    lineHeight: 25,
-    textAlign: "center",
+    fontSize: 15,
   },
-  shareRow: {
-    alignSelf: "stretch",
-    flexDirection: "row",
-    gap: 10,
-  },
-  shareItem: {
-    flex: 1,
+  tiktokStatusIcons: {
     alignItems: "center",
-    gap: 8,
+    flexDirection: "row",
+    gap: 5,
+  },
+  tiktokTabs: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 14,
+    left: 16,
+    position: "absolute",
+    right: 13,
+    top: 47,
+    zIndex: 2,
+  },
+  tiktokTabMuted: {
+    color: "rgba(255, 255, 255, 0.72)",
+    fontFamily: F.black,
+    fontSize: 13,
+  },
+  tiktokTabActiveWrap: {
+    alignItems: "center",
+    gap: 5,
+  },
+  tiktokTabActive: {
+    color: "#FFFFFF",
+    fontFamily: F.black,
+    fontSize: 14,
+  },
+  tiktokTabUnderline: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 999,
+    height: 2,
+    width: 28,
+  },
+  tiktokSideRail: {
+    alignItems: "center",
+    gap: 13,
+    position: "absolute",
+    right: 10,
+    top: 156,
+    zIndex: 3,
+  },
+  tiktokAvatar: {
+    alignItems: "center",
+    backgroundColor: "#111111",
+    borderColor: colors.accent,
+    borderRadius: 999,
+    borderWidth: 3,
+    height: 48,
+    justifyContent: "center",
+    width: 48,
+  },
+  tiktokAvatarText: {
+    color: colors.accent,
+    fontFamily: F.black,
+    fontSize: 22,
+  },
+  tiktokAvatarPlus: {
+    alignItems: "center",
+    backgroundColor: colors.accent,
+    borderRadius: 999,
+    bottom: -9,
+    height: 22,
+    justifyContent: "center",
+    position: "absolute",
+    width: 22,
+  },
+  tiktokAction: {
+    alignItems: "center",
+    gap: 2,
+    minWidth: 52,
+  },
+  tiktokShareAction: {
+    borderColor: "transparent",
+    borderRadius: 18,
+    borderWidth: 1,
+    paddingHorizontal: 4,
+    paddingVertical: 5,
+  },
+  tiktokShareActionPrompt: {
+    backgroundColor: colors.accentMedium,
+    borderColor: colors.accent,
+  },
+  tiktokActionText: {
+    color: "#FFFFFF",
+    fontFamily: F.black,
+    fontSize: 10,
+    textShadowColor: "rgba(0, 0, 0, 0.55)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  tiktokCaption: {
+    bottom: 54,
+    gap: 4,
+    left: 16,
+    position: "absolute",
+    right: 78,
+    zIndex: 2,
+  },
+  tiktokCreator: {
+    color: "#FFFFFF",
+    fontFamily: F.black,
+    fontSize: 15,
+  },
+  tiktokCaptionText: {
+    color: "#FFFFFF",
+    fontFamily: F.bold,
+    fontSize: 13,
+    lineHeight: 17,
+  },
+  tiktokBottomNav: {
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.78)",
+    borderTopColor: "rgba(255, 255, 255, 0.12)",
+    borderTopWidth: 1,
+    bottom: 0,
+    flexDirection: "row",
+    height: 48,
+    justifyContent: "space-around",
+    left: 0,
+    paddingHorizontal: 8,
+    position: "absolute",
+    right: 0,
+    zIndex: 2,
+  },
+  tiktokNavItem: {
+    alignItems: "center",
+    gap: 1,
+    width: 45,
+  },
+  tiktokNavText: {
+    color: "rgba(255, 255, 255, 0.72)",
+    fontFamily: F.bold,
+    fontSize: 9,
+  },
+  tiktokNavTextActive: {
+    color: "#FFFFFF",
+    fontFamily: F.black,
+    fontSize: 9,
+  },
+  tiktokPostButton: {
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderColor: colors.accent,
+    borderRadius: 10,
+    borderRightWidth: 3,
+    borderLeftColor: colors.accent,
+    borderLeftWidth: 3,
+    height: 31,
+    justifyContent: "center",
+    width: 44,
+  },
+  tapShareCallout: {
+    backgroundColor: "rgba(8, 8, 8, 0.78)",
+    borderColor: colors.accentBorderStrong,
     borderRadius: 16,
-    backgroundColor: "#211C19",
-    paddingVertical: 14,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    position: "absolute",
+    right: 66,
+    top: 333,
+    width: 132,
+    zIndex: 4,
   },
-  shareItemActive: {
-    backgroundColor: ORANGE,
+  tapShareTitle: {
+    color: colors.accent,
+    fontFamily: F.black,
+    fontSize: 12,
+    textTransform: "uppercase",
   },
-  shareText: {
+  tapShareBody: {
     color: "#FFFFFF",
     fontFamily: F.bold,
     fontSize: 11,
+    lineHeight: 14,
   },
-  shareTextActive: {
-    color: "#150803",
+  tiktokShareSheet: {
+    backgroundColor: "#1B1B1D",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    bottom: 0,
+    gap: 13,
+    left: 0,
+    paddingBottom: 18,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    position: "absolute",
+    right: 0,
+    zIndex: 6,
+  },
+  shareSheetHandle: {
+    alignSelf: "center",
+    backgroundColor: "#404043",
+    borderRadius: 999,
+    height: 4,
+    width: 42,
+  },
+  shareSheetHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  shareSheetTitle: {
+    color: "#FFFFFF",
+    fontFamily: F.black,
+    fontSize: 18,
+  },
+  shareContactRow: {
+    flexDirection: "row",
+    gap: 11,
+  },
+  shareContact: {
+    alignItems: "center",
+    flex: 1,
+    gap: 6,
+  },
+  shareContactAvatar: {
+    alignItems: "center",
+    backgroundColor: "#37373A",
+    borderRadius: 999,
+    height: 44,
+    justifyContent: "center",
+    width: 44,
+  },
+  shareContactInitial: {
+    color: "#FFFFFF",
+    fontFamily: F.black,
+    fontSize: 15,
+  },
+  shareContactName: {
+    color: "#E8E8E8",
+    fontFamily: F.medium,
+    fontSize: 10,
+    maxWidth: 56,
+  },
+  shareAppRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  shareAppButton: {
+    alignItems: "center",
+    flex: 1,
+    gap: 6,
+  },
+  shareAppIcon: {
+    alignItems: "center",
+    borderRadius: 999,
+    height: 48,
+    justifyContent: "center",
+    width: 48,
+  },
+  shareAppText: {
+    color: "#E8E8E8",
+    fontFamily: F.medium,
+    fontSize: 10,
+    lineHeight: 12,
+    minHeight: 24,
+    textAlign: "center",
+  },
+  fitfoShareButton: {
+    alignItems: "center",
+    flex: 1,
+    gap: 6,
+  },
+  fitfoShareIcon: {
+    alignItems: "center",
+    backgroundColor: "#050505",
+    borderRadius: 999,
+    height: 52,
+    justifyContent: "center",
+    overflow: "hidden",
+    width: 52,
+  },
+  fitfoShareLogoImage: {
+    height: 52,
+    width: 52,
+  },
+  fitfoShareText: {
+    color: colors.accent,
+    fontFamily: F.black,
+    fontSize: 11,
+  },
+  fitfoPrompt: {
+    color: "rgba(255, 255, 255, 0.72)",
+    fontFamily: F.bold,
+    fontSize: 12,
+    textAlign: "center",
   },
   importBadge: {
     width: 64,
     height: 64,
     borderRadius: 22,
-    backgroundColor: ORANGE,
+    backgroundColor: colors.accent,
     alignItems: "center",
     justifyContent: "center",
+  },
+  importOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.68)",
+    justifyContent: "center",
+    zIndex: 8,
+  },
+  importModal: {
+    alignItems: "center",
+    backgroundColor: colors.surface,
+    borderColor: colors.accentBorder,
+    borderRadius: 24,
+    borderWidth: 1,
+    gap: 10,
+    padding: 18,
+    width: "78%",
+  },
+  importTitle: {
+    color: colors.text,
+    fontFamily: F.black,
+    fontSize: 19,
+    textAlign: "center",
+  },
+  importBody: {
+    color: colors.textSecondary,
+    fontFamily: F.medium,
+    fontSize: 12,
+    lineHeight: 17,
+    textAlign: "center",
+  },
+  importPulseRow: {
+    flexDirection: "row",
+    gap: 6,
+    paddingTop: 2,
+  },
+  importPulseDot: {
+    backgroundColor: colors.border,
+    borderRadius: 999,
+    height: 7,
+    width: 7,
+  },
+  importPulseDotHot: {
+    backgroundColor: colors.accent,
+    width: 20,
+  },
+  importedWorkoutSheet: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: colors.stepBackground,
+    gap: 8,
+    paddingBottom: 12,
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    position: "absolute",
+    zIndex: 7,
+  },
+  importedTopBar: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  importedRoundButton: {
+    alignItems: "center",
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 999,
+    borderWidth: 1,
+    height: 34,
+    justifyContent: "center",
+    width: 34,
+  },
+  importedCoachButton: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+    shadowColor: colors.accent,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.32,
+    shadowRadius: 14,
+  },
+  importedLogo: {
+    borderRadius: 10,
+    height: 34,
+    width: 34,
+  },
+  importedWorkoutContent: {
+    gap: 7,
+  },
+  importedHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  importedKicker: {
+    color: colors.accent,
+    fontFamily: F.black,
+    fontSize: 9,
+    letterSpacing: 1.8,
+    textTransform: "uppercase",
+  },
+  importedStatusPill: {
+    alignItems: "center",
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: 999,
+    flexDirection: "row",
+    gap: 4,
+    paddingHorizontal: 7,
+    paddingVertical: 4,
+  },
+  importedStatusText: {
+    color: colors.accent,
+    fontFamily: F.black,
+    fontSize: 9,
+  },
+  importedTitle: {
+    color: colors.text,
+    fontFamily: F.black,
+    fontSize: 24,
+    lineHeight: 27,
+  },
+  importedSubtitle: {
+    color: colors.textSecondary,
+    fontFamily: F.medium,
+    fontSize: 10,
+    lineHeight: 13,
+  },
+  originalReelPill: {
+    alignItems: "center",
+    alignSelf: "flex-start",
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  originalReelText: {
+    color: colors.accent,
+    fontFamily: F.black,
+    fontSize: 10,
+  },
+  importedTimerCard: {
+    alignItems: "center",
+    backgroundColor: colors.accent,
+    borderRadius: 17,
+    gap: 2,
+    marginTop: 2,
+    paddingVertical: 9,
+  },
+  importedTimerLabel: {
+    color: colors.onAccent,
+    fontFamily: F.black,
+    fontSize: 9,
+    letterSpacing: 1.5,
+    textTransform: "uppercase",
+  },
+  importedTimerValue: {
+    color: colors.onAccent,
+    fontFamily: F.black,
+    fontSize: 30,
+    lineHeight: 34,
+  },
+  importedTimerMeta: {
+    color: colors.onAccent,
+    fontFamily: F.bold,
+    fontSize: 10,
+  },
+  importedExerciseList: {
+    gap: 8,
+  },
+  importedExerciseCard: {
+    alignItems: "center",
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 18,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: 9,
+    minHeight: 51,
+    paddingHorizontal: 10,
+  },
+  importedExerciseIcon: {
+    alignItems: "center",
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: 12,
+    height: 35,
+    justifyContent: "center",
+    width: 35,
+  },
+  importedExerciseCopy: {
+    flex: 1,
+    gap: 2,
+  },
+  importedExerciseName: {
+    color: colors.text,
+    fontFamily: F.black,
+    fontSize: 14,
+    lineHeight: 18,
+  },
+  importedExerciseSub: {
+    color: colors.textSecondary,
+    fontFamily: F.bold,
+    fontSize: 10,
+  },
+  importedSetPill: {
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: 999,
+    color: colors.accent,
+    fontFamily: F.black,
+    fontSize: 10,
+    overflow: "hidden",
+    paddingHorizontal: 7,
+    paddingVertical: 5,
+  },
+  importedTrash: {
+    alignItems: "center",
+    backgroundColor: colors.accentSoft,
+    borderColor: colors.accentBorderStrong,
+    borderRadius: 999,
+    borderWidth: 1,
+    height: 28,
+    justifyContent: "center",
+    width: 28,
+  },
+  tryAgainButton: {
+    alignItems: "center",
+    alignSelf: "stretch",
+    backgroundColor: colors.accent,
+    borderRadius: 999,
+    flexDirection: "row",
+    gap: 8,
+    justifyContent: "center",
+    marginTop: 2,
+    minHeight: 40,
+  },
+  tryAgainText: {
+    color: colors.onAccent,
+    fontFamily: F.black,
+    fontSize: 16,
   },
   featureCard: {
     gap: 14,
     borderRadius: 26,
     borderWidth: 1,
-    borderColor: "#2A2220",
-    backgroundColor: "#151211",
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
     padding: 18,
+  },
+  coachFeatureCard: {
+    gap: 10,
+    padding: 14,
   },
   calendarRow: {
     flexDirection: "row",
@@ -1453,40 +2272,141 @@ const S = StyleSheet.create({
     borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#211C19",
+    backgroundColor: colors.surfaceMuted,
   },
   calendarDayActive: {
-    backgroundColor: ORANGE,
+    backgroundColor: colors.accent,
   },
   calendarText: {
-    color: "#817873",
+    color: colors.textSecondary,
     fontFamily: F.black,
     fontSize: 10,
   },
   calendarDate: {
-    color: "#FFFFFF",
+    color: colors.text,
     fontFamily: F.black,
     fontSize: 18,
     marginTop: 2,
   },
   calendarTextActive: {
-    color: "#150803",
+    color: colors.onAccent,
   },
   eventCard: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
     borderRadius: 16,
-    backgroundColor: "rgba(255, 111, 34,0.10)",
+    backgroundColor: colors.accentSoft,
     borderWidth: 1,
-    borderColor: "rgba(255, 111, 34,0.24)",
+    borderColor: colors.accentBorder,
     padding: 14,
   },
   eventBadge: {
-    color: ORANGE,
+    color: colors.accent,
     fontFamily: F.black,
     fontSize: 10,
     letterSpacing: 1,
+  },
+  coachCardHeader: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 10,
+  },
+  coachIcon: {
+    alignItems: "center",
+    borderRadius: 14,
+    height: 44,
+    justifyContent: "center",
+    overflow: "hidden",
+    width: 44,
+  },
+  coachIconImage: {
+    height: 44,
+    width: 44,
+  },
+  coachTitle: {
+    color: colors.text,
+    fontFamily: F.black,
+    fontSize: 16,
+    lineHeight: 19,
+  },
+  coachChatPanel: {
+    gap: 7,
+  },
+  coachBubble: {
+    borderRadius: 16,
+    maxWidth: "92%",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  coachBubbleUser: {
+    alignSelf: "flex-end",
+    backgroundColor: colors.accent,
+    borderBottomRightRadius: 6,
+  },
+  coachBubbleFitfo: {
+    alignSelf: "flex-start",
+    backgroundColor: colors.surfaceMuted,
+    borderBottomLeftRadius: 6,
+    borderColor: colors.border,
+    borderWidth: 1,
+  },
+  coachBubbleUserText: {
+    color: colors.onAccent,
+    fontFamily: F.black,
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  coachBubbleText: {
+    color: colors.text,
+    fontFamily: F.bold,
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  coachCueList: {
+    gap: 7,
+  },
+  coachCueRow: {
+    alignItems: "center",
+    backgroundColor: colors.surfaceMuted,
+    borderRadius: 14,
+    flexDirection: "row",
+    gap: 9,
+    minHeight: 46,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  coachCueLabel: {
+    color: colors.text,
+    fontFamily: F.black,
+    fontSize: 12,
+  },
+  coachCueDetail: {
+    color: colors.textSecondary,
+    fontFamily: F.bold,
+    fontSize: 10,
+    lineHeight: 13,
+  },
+  coachChipRow: {
+    flexDirection: "row",
+    gap: 7,
+  },
+  coachChip: {
+    alignItems: "center",
+    backgroundColor: colors.accentSoft,
+    borderColor: colors.accentBorder,
+    borderRadius: 999,
+    borderWidth: 1,
+    flex: 1,
+    minHeight: 30,
+    justifyContent: "center",
+    paddingHorizontal: 6,
+  },
+  coachChipText: {
+    color: colors.accent,
+    fontFamily: F.black,
+    fontSize: 9,
+    textAlign: "center",
   },
   statCards: {
     flexDirection: "row",
@@ -1495,17 +2415,17 @@ const S = StyleSheet.create({
   smallStat: {
     flex: 1,
     borderRadius: 18,
-    backgroundColor: "#211C19",
+    backgroundColor: colors.surfaceMuted,
     padding: 16,
   },
   smallStatValue: {
-    color: "#FFFFFF",
+    color: colors.text,
     fontFamily: F.black,
     fontSize: 34,
     marginTop: 6,
   },
   orangeText: {
-    color: ORANGE,
+    color: colors.accent,
   },
   chart: {
     height: 110,
@@ -1513,19 +2433,19 @@ const S = StyleSheet.create({
     alignItems: "flex-end",
     gap: 7,
     borderRadius: 18,
-    backgroundColor: "#211C19",
+    backgroundColor: colors.surfaceMuted,
     padding: 16,
   },
   chartBar: {
     flex: 1,
     borderRadius: 5,
-    backgroundColor: "#403631",
+    backgroundColor: colors.border,
   },
   chartBarHot: {
-    backgroundColor: ORANGE,
+    backgroundColor: colors.accent,
   },
   authSlide: {
-    backgroundColor: "#090909",
+    backgroundColor: colors.authBackground,
     flex: 1,
     justifyContent: "space-between",
     paddingBottom: 36,
@@ -1533,25 +2453,25 @@ const S = StyleSheet.create({
     paddingTop: Platform.OS === "ios" ? 56 : 36,
   },
   authTitle: {
-    color: "#FFFFFF",
+    color: colors.text,
     fontFamily: F.display,
     fontSize: 52,
     letterSpacing: -1.6,
     lineHeight: 52,
   },
   authDot: {
-    color: ORANGE,
+    color: colors.accent,
     fontFamily: F.display,
   },
   authSub: {
-    color: "#8F8782",
+    color: colors.textSecondary,
     fontFamily: F.medium,
     fontSize: 15,
     lineHeight: 22,
     marginTop: 12,
   },
   tabs: {
-    backgroundColor: "#181818",
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 16,
     flexDirection: "row",
     marginTop: 24,
@@ -1565,20 +2485,20 @@ const S = StyleSheet.create({
     minHeight: 48,
   },
   tabActive: {
-    backgroundColor: ORANGE,
+    backgroundColor: colors.accent,
   },
   tabText: {
-    color: "#666666",
+    color: colors.textMuted,
     fontFamily: F.extraBold,
     fontSize: 14,
   },
   tabTextActive: {
-    color: "#050505",
+    color: colors.onAccent,
   },
   authCard: {
-    backgroundColor: "#191919",
+    backgroundColor: colors.surface,
     borderRadius: 26,
-    borderColor: "#2A2320",
+    borderColor: colors.border,
     borderWidth: 1,
     gap: 16,
     marginTop: 20,
@@ -1590,12 +2510,12 @@ const S = StyleSheet.create({
     gap: 12,
   },
   orLine: {
-    backgroundColor: "#2E2E2E",
+    backgroundColor: colors.border,
     flex: 1,
     height: 1,
   },
   orText: {
-    color: "#555555",
+    color: colors.textMuted,
     fontFamily: F.extraBold,
     fontSize: 11,
     letterSpacing: 1.5,
@@ -1606,7 +2526,7 @@ const S = StyleSheet.create({
   },
   fieldShell: {
     alignItems: "center",
-    backgroundColor: "#2A2A2A",
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 14,
     flexDirection: "row",
     gap: 10,
@@ -1614,36 +2534,36 @@ const S = StyleSheet.create({
     paddingHorizontal: 16,
   },
   fieldInput: {
-    color: "#FFFFFF",
+    color: colors.text,
     flex: 1,
     fontFamily: F.bold,
     fontSize: 16,
   },
   noticeCard: {
-    backgroundColor: "rgba(255, 111, 34, 0.12)",
+    backgroundColor: colors.noticeSoft,
     borderRadius: 14,
     padding: 14,
   },
   noticeText: {
-    color: ORANGE,
+    color: colors.accent,
     fontFamily: F.bold,
     fontSize: 14,
     lineHeight: 20,
   },
   errorCard: {
-    backgroundColor: "rgba(255, 105, 60, 0.14)",
+    backgroundColor: colors.errorSoft,
     borderRadius: 14,
     padding: 14,
   },
   errorText: {
-    color: "#DCA8A3",
+    color: colors.error,
     fontFamily: F.bold,
     fontSize: 14,
     lineHeight: 20,
   },
   submitBtn: {
     alignItems: "center",
-    backgroundColor: ORANGE,
+    backgroundColor: colors.accent,
     borderRadius: 14,
     flexDirection: "row",
     gap: 10,
@@ -1655,17 +2575,18 @@ const S = StyleSheet.create({
     opacity: 0.45,
   },
   submitBtnText: {
-    color: "#080808",
+    color: colors.buttonText,
     fontFamily: F.black,
     fontSize: 17,
     letterSpacing: 0.3,
   },
   legal: {
-    color: "#3A3A3A",
+    color: colors.textFaint,
     fontFamily: F.bold,
     fontSize: 11,
     letterSpacing: 1.4,
     textAlign: "center",
     textTransform: "uppercase",
   },
-});
+  });
+}

@@ -12,9 +12,6 @@ import Svg, {
 import { F } from "../lib/fonts";
 import { getTheme, type ThemeMode } from "../theme";
 
-const ORANGE = "#FF6F22";
-const ORANGE_HI = "#FF9648";
-const BG = "#000000";
 const DURATION = 2400;
 const HOLD = 900;
 const FADE = 600;
@@ -129,6 +126,7 @@ export function FitfoLoadingAnimation({
   }, []);
 
   const radius = size * 0.2237;
+  const markBackground = theme.mode === "dark" ? "#000000" : theme.colors.surface;
 
   return (
     <View
@@ -151,11 +149,11 @@ export function FitfoLoadingAnimation({
             </ClipPath>
           </Defs>
           <G clipPath={`url(#${clipId})`}>
-            <Rect x={0} y={0} width={1024} height={1024} fill={BG} />
+            <Rect x={0} y={0} width={1024} height={1024} fill={markBackground} />
             <Path
               d={fullPath}
               fill="none"
-              stroke={ORANGE}
+              stroke={theme.colors.primary}
               strokeLinecap="square"
               strokeLinejoin="miter"
               strokeOpacity={0.06}
@@ -164,7 +162,7 @@ export function FitfoLoadingAnimation({
             <Path
               d={frame.d || `M ${PTS[0].x} ${PTS[0].y}`}
               fill="none"
-              stroke={ORANGE}
+              stroke={theme.colors.primary}
               strokeLinecap="square"
               strokeLinejoin="miter"
               strokeWidth={88}
@@ -173,14 +171,14 @@ export function FitfoLoadingAnimation({
             <Circle
               cx={frame.headX}
               cy={frame.headY}
-              fill={ORANGE_HI}
+              fill={theme.colors.primaryBright}
               opacity={frame.headOpacity}
               r={36}
             />
             <Circle
               cx={APEX.x}
               cy={APEX.y}
-              fill={ORANGE_HI}
+              fill={theme.colors.primaryBright}
               opacity={frame.apexOpacity}
               r={36}
             />

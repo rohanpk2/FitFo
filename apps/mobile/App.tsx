@@ -149,7 +149,7 @@ interface ScheduledConfirmationState {
   origin: "share" | "manual";
 }
 
-const AUTH_LANDING_AUTH_INDEX = 11;
+const AUTH_LANDING_AUTH_INDEX = 10;
 const TRIAL_LENGTH_MS = 7 * 24 * 60 * 60 * 1000;
 
 function isWithinInitialTrial(createdAt: string | null | undefined) {

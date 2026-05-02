@@ -322,7 +322,7 @@ function QuickAddRow({
             backgroundColor:
               theme.mode === "dark"
                 ? "rgba(255, 111, 34, 0.16)"
-                : "rgba(255, 111, 34, 0.12)",
+                : "rgba(71, 88, 240, 0.12)",
           },
         ]}
       >
@@ -731,7 +731,7 @@ export function SavedWorkoutsScreen({
                 borderColor:
                   theme.mode === "dark"
                     ? "rgba(255, 111, 34, 0.32)"
-                    : "rgba(255, 111, 34, 0.22)",
+                    : "rgba(71, 88, 240, 0.22)",
               },
               pressed ? styles.bentoPressed : null,
             ]}
@@ -856,7 +856,7 @@ export function SavedWorkoutsScreen({
                         backgroundColor:
                           theme.mode === "dark"
                             ? "rgba(255, 111, 34, 0.14)"
-                            : "rgba(255, 111, 34, 0.10)",
+                            : "rgba(71, 88, 240, 0.10)",
                       },
                     ]}
                   >
@@ -986,7 +986,12 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
 
     libraryBento: {
       borderRadius: 20,
-      backgroundColor: theme.mode === "dark" ? "#161616" : "#101010",
+      backgroundColor: theme.mode === "dark" ? "#161616" : theme.colors.surface,
+      borderWidth: 1,
+      borderColor:
+        theme.mode === "dark"
+          ? "rgba(255, 255, 255, 0.06)"
+          : "rgba(71, 88, 240, 0.12)",
       paddingVertical: 12,
       paddingHorizontal: 14,
       flexDirection: "row",
@@ -1015,7 +1020,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       textTransform: "uppercase",
     },
     libraryBentoTitle: {
-      color: "#FFFFFF",
+      color: theme.mode === "dark" ? "#FFFFFF" : theme.colors.textPrimary,
       fontSize: 17,
       lineHeight: 21,
       fontFamily: "Satoshi-Bold",
@@ -1024,7 +1029,10 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       marginTop: 1,
     },
     libraryBentoBody: {
-      color: "rgba(255, 255, 255, 0.62)",
+      color:
+        theme.mode === "dark"
+          ? "rgba(255, 255, 255, 0.62)"
+          : theme.colors.textSecondary,
       fontSize: 11,
       lineHeight: 15,
       marginTop: 2,
@@ -1037,7 +1045,10 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       borderRadius: 999,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: "rgba(255, 255, 255, 0.12)",
+      backgroundColor:
+        theme.mode === "dark"
+          ? "rgba(255, 255, 255, 0.12)"
+          : theme.colors.primary,
     },
 
     statsRow: {

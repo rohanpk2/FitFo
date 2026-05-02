@@ -128,7 +128,7 @@ function StatTile({
           {
             backgroundColor: isDark
               ? "rgba(255, 111, 34, 0.18)"
-              : "rgba(255, 111, 34, 0.12)",
+              : "rgba(71, 88, 240, 0.12)",
           },
         ]}
       >
@@ -917,7 +917,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       backgroundColor:
         theme.mode === "dark"
           ? "rgba(255, 111, 34, 0.14)"
-          : "rgba(255, 111, 34, 0.12)",
+          : "rgba(71, 88, 240, 0.12)",
       paddingHorizontal: 10,
       paddingVertical: 4,
     },
