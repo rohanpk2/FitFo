@@ -629,9 +629,7 @@ export function SavedWorkoutsScreen({
       <View style={styles.section} onLayout={handleScheduledSectionLayout}>
         <Text style={[styles.sectionEyebrow, { color: accent }]}>CALENDAR</Text>
         <Text style={styles.sectionTitle}>Scheduled Workouts</Text>
-        <Text style={styles.sectionBody}>
-          Plans and finished workouts by day.
-        </Text>
+        
 
         <View style={styles.calendarPagerRow}>
           <Pressable
