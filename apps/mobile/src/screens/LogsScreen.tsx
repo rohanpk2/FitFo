@@ -85,12 +85,31 @@ export function LogsScreen({
       return;
     }
 
+    if (activeWorkout.hubTimerFrozenWallMs != null) {
+      return;
+    }
+
     const intervalId = setInterval(() => {
       setNowTick(Date.now());
     }, 1000);
 
     return () => clearInterval(intervalId);
   }, [activeWorkout]);
+
+  useEffect(() => {
+    const frozenAt = activeWorkout?.hubTimerFrozenWallMs;
+    if (!activeWorkout || frozenAt == null) {
+      return;
+    }
+
+    const sync = Math.min(frozenAt, Date.now());
+    setNowTick(sync);
+    return undefined;
+  }, [activeWorkout, activeWorkout?.hubTimerFrozenWallMs]);
+
+  const elapsedNowMs =
+    activeWorkout?.hubTimerFrozenWallMs ?? nowTick;
+  const isHubWorkoutPaused = activeWorkout?.hubTimerFrozenWallMs != null;
 
   return (
     <ScrollView
@@ -182,7 +201,9 @@ export function LogsScreen({
         <View style={styles.activeWorkoutCard}>
           <View style={styles.activeWorkoutHeader}>
             <View>
-              <Text style={styles.activeWorkoutEyebrow}>Active Workout</Text>
+              <Text style={styles.activeWorkoutEyebrow}>
+              {isHubWorkoutPaused ? "Paused workout" : "Active Workout"}
+            </Text>
               <Text style={styles.activeWorkoutTitle}>{activeWorkout.title}</Text>
             </View>
             <View style={styles.activeWorkoutPulse}>
@@ -191,7 +212,8 @@ export function LogsScreen({
           </View>
 
           <Text style={styles.activeWorkoutBody}>
-            In progress for {formatElapsed(activeWorkout.startedAt, nowTick)} with{" "}
+            {isHubWorkoutPaused ? "Paused for" : "In progress for"}{" "}
+            {formatElapsed(activeWorkout.startedAt, elapsedNowMs)} with{" "}
             {loggedSetCount} of {activeWorkoutSetCount} sets logged.
           </Text>
 
@@ -217,106 +239,108 @@ export function LogsScreen({
         </View>
       ) : null}
 
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Recent Sessions</Text>
+      <View style={styles.recentSessionsSection}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Recent Sessions</Text>
+        </View>
+
+        {isLoading ? (
+          <View style={styles.feedbackCard}>
+            <ActivityIndicator color={theme.colors.primary} size="small" />
+            <Text style={styles.feedbackTitle}>Loading workout history</Text>
+            <Text style={styles.feedbackBody}>
+              Syncing completed workouts from your Fitfo account.
+            </Text>
+          </View>
+        ) : error ? (
+          <View style={styles.feedbackCard}>
+            <Ionicons color={theme.colors.error} name="alert-circle-outline" size={20} />
+            <Text style={styles.feedbackTitle}>Couldn&apos;t load workout history</Text>
+            <Text style={styles.feedbackBody}>{error}</Text>
+            <Pressable onPress={onRetry} style={styles.retryButton}>
+              <Text style={styles.retryButtonText}>Try Again</Text>
+            </Pressable>
+          </View>
+        ) : workouts.length > 0 ? (
+          <View style={styles.sessionList}>
+            {workouts.map((item) => {
+              const meta = getCompletedWorkoutMeta(item);
+              const displayTitle = getRoutineDisplayTitle({
+                sourceUrl: item.source_url,
+                title: item.title,
+                workoutPlan: item.workout_plan,
+              });
+
+              const isSchedulingThis = schedulingWorkoutId === item.id;
+
+              return (
+                <Pressable
+                  key={item.id}
+                  onPress={() => onOpenWorkout(item)}
+                  style={styles.sessionCard}
+                >
+                  <View style={styles.sessionTop}>
+                    <View style={styles.sessionImageShell}>
+                      <Ionicons color={theme.colors.primary} name="barbell-outline" size={18} />
+                    </View>
+                    <View style={styles.sessionCopy}>
+                      <Text style={styles.sessionDate}>
+                        {formatCompletedWorkoutDate(item.completed_at)}
+                      </Text>
+                      <Text style={styles.sessionTitle}>{displayTitle}</Text>
+                      <Text style={styles.sessionSummary}>
+                        {getCompletedWorkoutDisplaySummary(item)}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.sessionStats}>
+                    <View>
+                      <Text style={styles.sessionStatLabel}>Summary</Text>
+                      <Text style={styles.sessionStatValue}>{meta.metaLeft}</Text>
+                    </View>
+                    <View>
+                      <Text style={styles.sessionStatLabel}>Sets</Text>
+                      <Text style={styles.sessionStatValue}>{meta.metaRight}</Text>
+                    </View>
+                  </View>
+                  {onScheduleAgain ? (
+                    <Pressable
+                      disabled={isSchedulingThis}
+                      onPress={() => onScheduleAgain(item)}
+                      style={[
+                        styles.scheduleAgainButton,
+                        isSchedulingThis ? styles.scheduleAgainButtonBusy : null,
+                      ]}
+                      hitSlop={6}
+                    >
+                      {isSchedulingThis ? (
+                        <ActivityIndicator color={theme.colors.primary} size="small" />
+                      ) : (
+                        <Ionicons
+                          color={theme.colors.primary}
+                          name="calendar-outline"
+                          size={14}
+                        />
+                      )}
+                      <Text style={styles.scheduleAgainButtonText}>
+                        {isSchedulingThis ? "Scheduling..." : "Schedule Again"}
+                      </Text>
+                    </Pressable>
+                  ) : null}
+                </Pressable>
+              );
+            })}
+          </View>
+        ) : (
+          <View style={styles.feedbackCard}>
+            <Ionicons color={theme.colors.primary} name="receipt-outline" size={20} />
+            <Text style={styles.feedbackTitle}>No workout logs yet</Text>
+            <Text style={styles.feedbackBody}>
+              Finish a workout and it will show up here with a full summary you can reopen later.
+            </Text>
+          </View>
+        )}
       </View>
-
-      {isLoading ? (
-        <View style={styles.feedbackCard}>
-          <ActivityIndicator color={theme.colors.primary} size="small" />
-          <Text style={styles.feedbackTitle}>Loading workout history</Text>
-          <Text style={styles.feedbackBody}>
-            Syncing completed workouts from your Fitfo account.
-          </Text>
-        </View>
-      ) : error ? (
-        <View style={styles.feedbackCard}>
-          <Ionicons color={theme.colors.error} name="alert-circle-outline" size={20} />
-          <Text style={styles.feedbackTitle}>Couldn&apos;t load workout history</Text>
-          <Text style={styles.feedbackBody}>{error}</Text>
-          <Pressable onPress={onRetry} style={styles.retryButton}>
-            <Text style={styles.retryButtonText}>Try Again</Text>
-          </Pressable>
-        </View>
-      ) : workouts.length > 0 ? (
-        <View style={styles.sessionList}>
-          {workouts.map((item) => {
-            const meta = getCompletedWorkoutMeta(item);
-            const displayTitle = getRoutineDisplayTitle({
-              sourceUrl: item.source_url,
-              title: item.title,
-              workoutPlan: item.workout_plan,
-            });
-
-            const isSchedulingThis = schedulingWorkoutId === item.id;
-
-            return (
-              <Pressable
-                key={item.id}
-                onPress={() => onOpenWorkout(item)}
-                style={styles.sessionCard}
-              >
-                <View style={styles.sessionTop}>
-                  <View style={styles.sessionImageShell}>
-                    <Ionicons color={theme.colors.primary} name="barbell-outline" size={18} />
-                  </View>
-                  <View style={styles.sessionCopy}>
-                    <Text style={styles.sessionDate}>
-                      {formatCompletedWorkoutDate(item.completed_at)}
-                    </Text>
-                    <Text style={styles.sessionTitle}>{displayTitle}</Text>
-                    <Text style={styles.sessionSummary}>
-                      {getCompletedWorkoutDisplaySummary(item)}
-                    </Text>
-                  </View>
-                </View>
-                <View style={styles.sessionStats}>
-                  <View>
-                    <Text style={styles.sessionStatLabel}>Summary</Text>
-                    <Text style={styles.sessionStatValue}>{meta.metaLeft}</Text>
-                  </View>
-                  <View>
-                    <Text style={styles.sessionStatLabel}>Sets</Text>
-                    <Text style={styles.sessionStatValue}>{meta.metaRight}</Text>
-                  </View>
-                </View>
-                {onScheduleAgain ? (
-                  <Pressable
-                    disabled={isSchedulingThis}
-                    onPress={() => onScheduleAgain(item)}
-                    style={[
-                      styles.scheduleAgainButton,
-                      isSchedulingThis ? styles.scheduleAgainButtonBusy : null,
-                    ]}
-                    hitSlop={6}
-                  >
-                    {isSchedulingThis ? (
-                      <ActivityIndicator color={theme.colors.primary} size="small" />
-                    ) : (
-                      <Ionicons
-                        color={theme.colors.primary}
-                        name="calendar-outline"
-                        size={14}
-                      />
-                    )}
-                    <Text style={styles.scheduleAgainButtonText}>
-                      {isSchedulingThis ? "Scheduling..." : "Schedule Again"}
-                    </Text>
-                  </Pressable>
-                ) : null}
-              </Pressable>
-            );
-          })}
-        </View>
-      ) : (
-        <View style={styles.feedbackCard}>
-          <Ionicons color={theme.colors.primary} name="receipt-outline" size={20} />
-          <Text style={styles.feedbackTitle}>No workout logs yet</Text>
-          <Text style={styles.feedbackBody}>
-            Finish a workout and it will show up here with a full summary you can reopen later.
-          </Text>
-        </View>
-      )}
     </ScrollView>
   );
 }
@@ -557,12 +581,16 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       alignItems: "center",
       justifyContent: "space-between",
     },
+    recentSessionsSection: {
+      gap: 12,
+    },
     sectionTitle: {
       color: theme.colors.textPrimary,
       fontSize: 26,
       fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       letterSpacing: -0.8,
+      lineHeight: 30,
     },
     feedbackCard: {
       borderRadius: theme.radii.large,

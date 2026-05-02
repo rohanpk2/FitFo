@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Image,
   InputAccessoryView,
   Keyboard,
   KeyboardAvoidingView,
@@ -15,6 +16,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 
+import { requestNotificationPermissionForOnboarding } from "../lib/notifications";
 import { getTheme, type ThemeMode } from "../theme";
 import type {
   ExperienceLevel,
@@ -45,8 +47,10 @@ type RequiredStepId =
   | "split"
   | "stats"
   | "tryit"
+  | "coach"
   | "calendar"
   | "archive"
+  | "spotlight"
   | "done";
 
 type EditStepId = "age" | "sex" | "experience" | "goals" | "split" | "stats" | "done";
@@ -67,8 +71,10 @@ const requiredSteps: StepConfig[] = [
   { id: "split", label: "Split" },
   { id: "stats", label: "Stats" },
   { id: "tryit", label: "Try it" },
+  { id: "coach", label: "Coach" },
   { id: "calendar", label: "Calendar" },
   { id: "archive", label: "Archive" },
+  { id: "spotlight", label: "Spotlight" },
   { id: "done", label: "Done" },
 ];
 
@@ -195,6 +201,7 @@ export function OnboardingScreen({
   const steps = isEditing ? editSteps : requiredSteps;
   const theme = getTheme(themeMode);
   const styles = createStyles(theme);
+  const calendarNotifyPromptedRef = useRef(false);
   const [stepIndex, setStepIndex] = useState(0);
   const currentStep = steps[stepIndex]?.id ?? "welcome";
   const doneIndex = steps.findIndex((step) => step.id === "done");
@@ -230,6 +237,7 @@ export function OnboardingScreen({
   const [tryItStage, setTryItStage] = useState<"tiktok" | "share" | "import" | "workout">(
     "tiktok",
   );
+  const [nunoSpotlightStage, setNunoSpotlightStage] = useState<"video" | "parsed">("video");
 
   const firstName = profile.full_name.trim().split(/\s+/)[0] || "you";
   const weightLbs = Number.parseFloat(weightLbsInput);
@@ -324,6 +332,11 @@ export function OnboardingScreen({
       await submitOnboarding();
       setStepIndex(doneIndex);
       return;
+    }
+
+    if (currentStep === "calendar" && !isEditing && !calendarNotifyPromptedRef.current) {
+      calendarNotifyPromptedRef.current = true;
+      void requestNotificationPermissionForOnboarding();
     }
 
     setStepIndex((current) => Math.min(current + 1, steps.length - 1));
@@ -846,10 +859,45 @@ export function OnboardingScreen({
     </>
   );
 
+  const renderCoachStep = () => (
+    <>
+      {renderScreenIntro(
+        "Step 09 · Coach",
+        "Your trainer in the corner.",
+        "During any session, tap the coach avatar (top-right)—same spot on every workout. Ask about form cues, exercise swaps or order, footwear, reps and weight—it answers from the workout you're actually logging, not generic internet advice.",
+      )}
+      <View style={styles.featureCard}>
+        <View style={styles.coachHeroRow}>
+          <Image
+            accessibilityIgnoresInvertColors
+            accessibilityRole="image"
+            accessibilityLabel="Personal coach shortcut"
+            source={require("../../assets/coach.png")}
+            style={styles.coachIntroIcon}
+          />
+          <Text style={styles.coachHeroHint}>
+            Minimize anytime to punch in sets; open again and your chat sticks for that
+            workout.
+          </Text>
+        </View>
+        {[
+          "Coaching only—training, lifts, scheduling around your workout.",
+          "Keeps rough context of exercise # / set while you bounce between Chat and logs.",
+          "Answers stay short—quick cues mid-set, then back to lifting.",
+        ].map((item) => (
+          <View key={item} style={styles.featureBullet}>
+            <Ionicons color={theme.colors.primaryLight} name="checkmark-circle" size={16} />
+            <Text style={styles.featureBulletText}>{item}</Text>
+          </View>
+        ))}
+      </View>
+    </>
+  );
+
   const renderCalendarStep = () => (
     <>
       {renderScreenIntro(
-        "Step 09 · Feature",
+        "Step 10 · Feature",
         "Schedule it. Show up to it.",
         "Drop any imported workout onto a day. Fitfo keeps the week clear and nudges you when it is time.",
       )}
@@ -891,7 +939,7 @@ export function OnboardingScreen({
   const renderArchiveStep = () => (
     <>
       {renderScreenIntro(
-        "Step 10 · Feature",
+        "Step 11 · Feature",
         "Every set. Every PR. Logged.",
         "Your training archive and body-weight baseline are ready when you are.",
       )}
@@ -936,6 +984,68 @@ export function OnboardingScreen({
     </>
   );
 
+  const renderSpotlightStep = () => (
+    <>
+      {renderScreenIntro(
+        "Step 12 · Spotlight reel",
+        "Nuno clips land the same way.",
+        "Jacob opened the funnel on push day — Nuno reels follow the identical share → compile → save rhythm. Flip the card once to peek at exactly what we'd pull from captions, audio, and video.",
+      )}
+      <View style={styles.demoPhone}>
+        <LinearGradient
+          colors={["#1E3D59", "#2B6F8C", "#0F1C24"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.demoVideo}
+        >
+          <View style={styles.demoTopRow}>
+            <Text style={styles.demoTopMuted}>Following</Text>
+            <Text style={styles.demoTopActive}>For You</Text>
+          </View>
+          <View style={styles.demoPerson}>
+            <Text style={styles.demoPersonText}>N</Text>
+          </View>
+          <View style={styles.demoCaption}>
+            <Text style={styles.demoCreator}>@nunosfitness</Text>
+            <Text style={styles.demoCaptionText}>Posterior chain day you actually stick with</Text>
+            <Text style={styles.demoTag}>Back · legs</Text>
+          </View>
+        </LinearGradient>
+        <Pressable
+          onPress={() =>
+            setNunoSpotlightStage((current) => (current === "video" ? "parsed" : "video"))
+          }
+          style={styles.parseOverlay}
+        >
+          <View style={styles.parseHeader}>
+            <Ionicons color={theme.colors.primaryLight} name="sparkles-outline" size={16} />
+            <Text style={styles.parseEyebrow}>
+              {nunoSpotlightStage === "video" ? "Tap to parse" : "Workout found"}
+            </Text>
+          </View>
+          {nunoSpotlightStage === "parsed" ? (
+            <View style={styles.parsedList}>
+              {[
+                { label: "Romanian deadlift", meta: "4x8" },
+                { label: "Lat pulldown", meta: "3x12" },
+                { label: "Walking lunge", meta: "3x10" },
+                { label: "Leg curl", meta: "3x12" },
+              ].map((item, index) => (
+                <View key={item.label} style={styles.parsedRow}>
+                  <Text style={styles.parsedIndex}>{index + 1}</Text>
+                  <Text style={styles.parsedText}>{item.label}</Text>
+                  <Text style={styles.parsedMeta}>{item.meta}</Text>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <Text style={styles.parseBody}>Fitfo tags each lift straight from the TikTok playbook.</Text>
+          )}
+        </Pressable>
+      </View>
+    </>
+  );
+
   const renderDoneStep = () => (
     <View style={styles.doneScreen}>
       <View style={styles.doneBadge}>
@@ -970,10 +1080,14 @@ export function OnboardingScreen({
         return renderStatsStep();
       case "tryit":
         return renderTryItStep();
+      case "coach":
+        return renderCoachStep();
       case "calendar":
         return renderCalendarStep();
       case "archive":
         return renderArchiveStep();
+      case "spotlight":
+        return renderSpotlightStep();
       case "done":
         return renderDoneStep();
       default:
@@ -1846,6 +1960,24 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       fontSize: 13,
       fontFamily: "Satoshi-Bold",
       fontWeight: "800",
+    },
+    coachHeroRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 14,
+      paddingVertical: 4,
+    },
+    coachIntroIcon: {
+      width: 56,
+      height: 56,
+    },
+    coachHeroHint: {
+      flex: 1,
+      color: theme.colors.textSecondary,
+      fontSize: 13,
+      fontFamily: "Satoshi-Bold",
+      fontWeight: "800",
+      lineHeight: 18,
     },
     statGrid: {
       flexDirection: "row",

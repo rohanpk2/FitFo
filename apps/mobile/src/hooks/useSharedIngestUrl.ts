@@ -1,8 +1,9 @@
 import { useEffect, useRef } from "react";
-import { Linking } from "react-native";
+import { InteractionManager, Linking } from "react-native";
+import { parse as parseExpoUrl } from "expo-linking";
 
 /**
- * Subscribe to incoming `fitfo://ingest?url=...` deep links (see also
+ * Subscribe to incoming `fitfo://ingest?url=…` deep links (see also
  * `expo-share-intent` in `App.tsx` for native TikTok / Instagram shares).
  */
 export function useSharedIngestUrl(onUrl: (sharedUrl: string) => void) {
@@ -18,20 +19,22 @@ export function useSharedIngestUrl(onUrl: (sharedUrl: string) => void) {
       if (!incoming) {
         return;
       }
-      const parsed = extractIngestUrl(incoming);
-      if (!parsed) {
+      const extracted = extractIngestUrl(incoming);
+      if (!extracted) {
         return;
       }
-      if (handledUrls.current.has(parsed)) {
+      if (handledUrls.current.has(extracted)) {
         return;
       }
-      handledUrls.current.add(parsed);
-      handler.current(parsed);
+      handledUrls.current.add(extracted);
+      handler.current(extracted);
     };
 
-    Linking.getInitialURL()
-      .then(maybeHandle)
-      .catch(() => undefined);
+    void Linking.getInitialURL().then(maybeHandle).catch(() => undefined);
+
+    InteractionManager.runAfterInteractions(() => {
+      void Linking.getInitialURL().then(maybeHandle).catch(() => undefined);
+    });
 
     const subscription = Linking.addEventListener("url", (event) => {
       maybeHandle(event.url);
@@ -43,28 +46,79 @@ export function useSharedIngestUrl(onUrl: (sharedUrl: string) => void) {
   }, []);
 }
 
-function extractIngestUrl(rawLink: string): string | null {
+function coerceQueryUrlParam(raw: unknown): string | null {
+  if (Array.isArray(raw)) {
+    return coerceQueryUrlParam(raw[0]);
+  }
+  if (typeof raw !== "string") {
+    return null;
+  }
+  const trimmed = raw.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function unwrapOneOrTwoLayerEncodedParam(trimmed: string): string {
+  let out = trimmed;
   try {
-    const url = new URL(rawLink);
-    // Accept both `fitfo://ingest?url=...` and `fitfo:///ingest?url=...`.
-    if (url.protocol !== "fitfo:" && url.protocol !== "fitfo") {
+    if (/%[0-9A-Fa-f]{2}/u.test(out)) {
+      out = decodeURIComponent(out);
+    }
+    if (/%[0-9A-Fa-f]{2}/u.test(out)) {
+      try {
+        out = decodeURIComponent(out);
+      } catch {
+        /* keep partially decoded */
+      }
+    }
+  } catch {
+    return trimmed.trim();
+  }
+  return out.trim();
+}
+
+/** Deep links routed into Fitfo (`fitfo:` or dev clients like `exp+fitfo:`). */
+function isTrustedFitfoIngestDeepLink(parsed: ReturnType<typeof parseExpoUrl>): boolean {
+  const scheme = (parsed.scheme ?? "").toLowerCase();
+  return scheme === "fitfo" || scheme.endsWith("+fitfo");
+}
+
+function extractIngestUrl(rawLink: string): string | null {
+  const trimmed = rawLink.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  try {
+    const expoParsed = parseExpoUrl(trimmed);
+    const param = coerceQueryUrlParam(expoParsed.queryParams?.url);
+    if (param && isTrustedFitfoIngestDeepLink(expoParsed)) {
+      return unwrapOneOrTwoLayerEncodedParam(param) || null;
+    }
+  } catch {
+    /* fall through */
+  }
+
+  try {
+    const url = new URL(trimmed);
+    const schemeNorm = url.protocol.replace(/:$/u, "").toLowerCase();
+    if (!(schemeNorm === "fitfo" || schemeNorm.endsWith("+fitfo"))) {
       return null;
     }
-    const encoded = url.searchParams.get("url");
+    const encoded = coerceQueryUrlParam(url.searchParams.get("url"));
     if (!encoded) {
       return null;
     }
-    const decoded = decodeURIComponent(encoded).trim();
-    return decoded || null;
+    return unwrapOneOrTwoLayerEncodedParam(encoded) || null;
   } catch {
-    // RN's URL impl can be finicky with custom schemes; fall back to a regex.
-    const match = rawLink.match(/[?&]url=([^&]+)/);
-    if (!match) {
+    const match = trimmed.match(/[?&]url=([^&]+)/u);
+    if (!match?.[1]) {
+      return null;
+    }
+    if (!/^fitfo:/iu.test(trimmed)) {
       return null;
     }
     try {
-      const decoded = decodeURIComponent(match[1]).trim();
-      return decoded || null;
+      return unwrapOneOrTwoLayerEncodedParam(decodeURIComponent(match[1])) || null;
     } catch {
       return null;
     }

@@ -4,6 +4,7 @@ import {
   type LayoutChangeEvent,
   Platform,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -19,10 +20,10 @@ import {
   getBrandAccent,
 } from "../components/WorkoutCard";
 import {
-  getLastHitRoutinePreview,
-  getStreakDays,
-  getThisWeekStats,
-} from "../lib/stats";
+  formatCompletedWorkoutDate,
+  getRoutineDisplayTitle,
+} from "../lib/fitfo";
+import { getStreakDays, getThisWeekStats } from "../lib/stats";
 import { getTheme, type ThemeMode } from "../theme";
 import type {
   CompletedWorkoutRecord,
@@ -31,12 +32,16 @@ import type {
 
 interface SavedWorkoutsScreenProps {
   completedWorkouts: CompletedWorkoutRecord[];
+  completedWorkoutsError: string | null;
+  completedWorkoutsLoading: boolean;
   importedWorkouts: SavedRoutinePreview[];
   isScheduleLoading: boolean;
   onAddWorkout: () => void;
   onOpenProfile: () => void;
+  onOpenCompletedSession: (workout: CompletedWorkoutRecord) => void;
   onOpenSavedList: () => void;
   onOpenWorkout: (routine: SavedRoutinePreview) => void;
+  onPullToRefresh?: () => void | Promise<void>;
   onRemoveWorkout: (savedWorkoutId: string) => void;
   onRetry: () => void;
   onScheduleWorkout: (routine: SavedRoutinePreview) => void;
@@ -71,7 +76,10 @@ function toIsoDate(date: Date): string {
 }
 
 const CALENDAR_PAGE_SIZE = 5;
+/** First paint: show yesterday onward. Pagination can move farther back via `MIN_…`. */
 const INITIAL_CALENDAR_START_OFFSET = -1;
+/** ~15 mo of backward paging (`calendarStartOffset` is consumed as day shift with `addDays`). */
+const MIN_CALENDAR_START_OFFSET = -450;
 const UPCOMING_PREVIEW_LIMIT = 4;
 
 function addDays(date: Date, offset: number): Date {
@@ -331,12 +339,16 @@ function QuickAddRow({
 
 export function SavedWorkoutsScreen({
   completedWorkouts,
+  completedWorkoutsError,
+  completedWorkoutsLoading,
   importedWorkouts,
   isScheduleLoading,
   onAddWorkout,
   onOpenProfile,
+  onOpenCompletedSession,
   onOpenSavedList,
   onOpenWorkout,
+  onPullToRefresh,
   onRemoveWorkout,
   onRetry,
   onScheduleWorkout,
@@ -351,6 +363,12 @@ export function SavedWorkoutsScreen({
   const accent = getBrandAccent(theme);
   const scrollViewRef = useRef<ScrollView | null>(null);
   const [scheduledSectionY, setScheduledSectionY] = useState(0);
+  const [pullRefreshing, setPullRefreshing] = useState(false);
+
+  const historyLoadBlocked =
+    Boolean(completedWorkoutsError) && completedWorkouts.length === 0;
+  const historyLoadingCold =
+    completedWorkoutsLoading && completedWorkouts.length === 0;
 
   const todayIso = useMemo(() => {
     const today = new Date();
@@ -373,11 +391,15 @@ export function SavedWorkoutsScreen({
     }
   }, []);
 
-  const lastHitRoutine = useMemo(
-    () =>
-      getLastHitRoutinePreview(completedWorkouts, importedWorkouts[0] ?? null),
-    [completedWorkouts, importedWorkouts],
-  );
+  const handlePullToRefresh = () => {
+    if (!onPullToRefresh || pullRefreshing) {
+      return;
+    }
+    setPullRefreshing(true);
+    void Promise.resolve(onPullToRefresh()).finally(() => {
+      setPullRefreshing(false);
+    });
+  };
 
   const thisWeekStats = useMemo(
     () => getThisWeekStats(completedWorkouts),
@@ -389,6 +411,12 @@ export function SavedWorkoutsScreen({
   );
 
   const thisWeekCaption = useMemo(() => {
+    if (historyLoadBlocked) {
+      return "Connect to refresh";
+    }
+    if (historyLoadingCold) {
+      return "Fetching from server…";
+    }
     if (completedWorkouts.length === 0) {
       return "Log your first session";
     }
@@ -398,9 +426,20 @@ export function SavedWorkoutsScreen({
     }
     const sign = delta > 0 ? "+" : "";
     return `${sign}${delta} from last week`;
-  }, [completedWorkouts.length, thisWeekStats.deltaFromLastWeek]);
+  }, [
+    completedWorkouts.length,
+    historyLoadBlocked,
+    historyLoadingCold,
+    thisWeekStats.deltaFromLastWeek,
+  ]);
 
   const streakCaption = useMemo(() => {
+    if (historyLoadBlocked) {
+      return "History unavailable";
+    }
+    if (historyLoadingCold) {
+      return "Just a moment";
+    }
     if (streakDays === 0) {
       return "Start a new streak";
     }
@@ -408,8 +447,12 @@ export function SavedWorkoutsScreen({
       return "Keep it going!";
     }
     return "Stay consistent";
-  }, [streakDays]);
+  }, [historyLoadBlocked, historyLoadingCold, streakDays]);
 
+  const weekTileValue =
+    historyLoadBlocked ? "—" : historyLoadingCold ? "…" : `${thisWeekStats.count}`;
+  const streakTileValue =
+    historyLoadBlocked ? "—" : historyLoadingCold ? "…" : `${streakDays}`;
   const scheduledByDate = useMemo(() => {
     const map = new Map<string, SavedRoutinePreview[]>();
     for (const routine of scheduledWorkouts) {
@@ -424,6 +467,28 @@ export function SavedWorkoutsScreen({
     return map;
   }, [scheduledWorkouts]);
 
+  const completedByDate = useMemo(() => {
+    const map = new Map<string, CompletedWorkoutRecord[]>();
+    for (const workout of completedWorkouts) {
+      const completedAtMs = new Date(workout.completed_at).getTime();
+      if (!Number.isFinite(completedAtMs)) {
+        continue;
+      }
+      const key = toIsoDate(new Date(completedAtMs));
+      const list = map.get(key) || [];
+      list.push(workout);
+      map.set(key, list);
+    }
+    for (const [, list] of map) {
+      list.sort((a, b) => {
+        return (
+          new Date(b.completed_at).getTime() - new Date(a.completed_at).getTime()
+        );
+      });
+    }
+    return map;
+  }, [completedWorkouts]);
+
   const visibleCalendarDays = useMemo(() => {
     return Array.from({ length: CALENDAR_PAGE_SIZE }, (_, index) =>
       addDays(todayDate, calendarStartOffset + index),
@@ -435,6 +500,9 @@ export function SavedWorkoutsScreen({
     return new Date(year, (month || 1) - 1, day || 1);
   }, [selectedDate]);
   const scheduledForSelected = scheduledByDate.get(selectedDate) || [];
+  const completedForSelected = completedByDate.get(selectedDate) || [];
+  const selectionHasPlans = scheduledForSelected.length > 0;
+  const selectionHasLogs = completedForSelected.length > 0;
 
   const upcomingAfterSelected = useMemo(() => {
     const selectedTime = selectedDateObject.getTime();
@@ -456,7 +524,7 @@ export function SavedWorkoutsScreen({
   const hasMoreUpcoming =
     upcomingAfterSelected.length > UPCOMING_PREVIEW_LIMIT;
 
-  const canPageBackward = calendarStartOffset > INITIAL_CALENDAR_START_OFFSET;
+  const canPageBackward = calendarStartOffset > MIN_CALENDAR_START_OFFSET;
 
   const shiftCalendarWindow = (direction: "backward" | "forward") => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -465,7 +533,7 @@ export function SavedWorkoutsScreen({
         direction === "forward"
           ? currentOffset + CALENDAR_PAGE_SIZE
           : Math.max(
-              INITIAL_CALENDAR_START_OFFSET,
+              MIN_CALENDAR_START_OFFSET,
               currentOffset - CALENDAR_PAGE_SIZE,
             );
       const nextSelectedDate = toIsoDate(addDays(todayDate, nextOffset + 1));
@@ -487,6 +555,16 @@ export function SavedWorkoutsScreen({
 
   return (
     <ScrollView
+      refreshControl={
+        onPullToRefresh ? (
+          <RefreshControl
+            colors={[accent]}
+            onRefresh={handlePullToRefresh}
+            refreshing={pullRefreshing}
+            tintColor={accent}
+          />
+        ) : undefined
+      }
       ref={scrollViewRef}
       style={styles.container}
       contentContainerStyle={styles.content}
@@ -515,6 +593,17 @@ export function SavedWorkoutsScreen({
 
       <SavedLibraryBento onPress={onOpenSavedList} theme={theme} />
 
+      {completedWorkoutsError ? (
+        <FeedbackCard
+          actionLabel="Try again"
+          body={completedWorkoutsError}
+          icon="alert-circle-outline"
+          onAction={onRetry}
+          theme={theme}
+          title="Couldn't load workout history"
+        />
+      ) : null}
+
       <View style={styles.statsRow}>
         <StatTile
           caption={thisWeekCaption}
@@ -522,7 +611,7 @@ export function SavedWorkoutsScreen({
           iconName="trending-up-outline"
           label="This Week"
           theme={theme}
-          value={`${thisWeekStats.count}`}
+          value={weekTileValue}
         />
         <StatTile
           caption={streakCaption}
@@ -531,52 +620,17 @@ export function SavedWorkoutsScreen({
           isMaterial
           label="Streak"
           theme={theme}
-          value={`${streakDays}`}
+          value={streakTileValue}
         />
       </View>
 
       <QuickAddRow onPress={onAddWorkout} theme={theme} />
 
-      {lastHitRoutine ? (
-        <WorkoutCard
-          accent="lastHit"
-          onOpen={() => onOpenWorkout(lastHitRoutine)}
-          onRemove={
-            lastHitRoutine.savedWorkoutId
-              ? () =>
-                  onRemoveWorkout(
-                    lastHitRoutine.savedWorkoutId || lastHitRoutine.id,
-                  )
-              : undefined
-          }
-          onSchedule={() => onScheduleWorkout(lastHitRoutine)}
-          onStart={() => onStartSession(lastHitRoutine)}
-          routine={lastHitRoutine}
-          theme={theme}
-        />
-      ) : null}
-
       <View style={styles.section} onLayout={handleScheduledSectionLayout}>
         <Text style={[styles.sectionEyebrow, { color: accent }]}>CALENDAR</Text>
-        <View style={styles.sectionTitleRow}>
-          <Text style={styles.sectionTitle}>Scheduled Workouts</Text>
-          <View
-            style={[
-              styles.scheduledChip,
-              {
-                borderColor:
-                  theme.mode === "dark"
-                    ? "rgba(255, 90, 20, 0.32)"
-                    : "rgba(255, 90, 20, 0.22)",
-              },
-            ]}
-          >
-            <Ionicons color={accent} name="calendar-outline" size={14} />
-            <Ionicons color={accent} name="chevron-down" size={12} />
-          </View>
-        </View>
+        <Text style={styles.sectionTitle}>Scheduled Workouts</Text>
         <Text style={styles.sectionBody}>
-          See what you have planned and stay on track.
+          Plans and finished workouts by day.
         </Text>
 
         <View style={styles.calendarPagerRow}>
@@ -603,7 +657,9 @@ export function SavedWorkoutsScreen({
           {visibleCalendarDays.map((day) => {
             const iso = toIsoDate(day);
             const isSelected = selectedDate === iso;
-            const hasWorkout = (scheduledByDate.get(iso) || []).length > 0;
+            const hasWorkout =
+              (scheduledByDate.get(iso) || []).length > 0 ||
+              (completedByDate.get(iso) || []).length > 0;
             return (
               <Pressable
                 key={iso}
@@ -672,15 +728,20 @@ export function SavedWorkoutsScreen({
           <Pressable
             onPress={onAddWorkout}
             style={({ pressed }) => [
-              styles.scheduleWorkoutButton,
-              { borderColor: accent },
+              styles.scheduledChip,
+              {
+                borderColor:
+                  theme.mode === "dark"
+                    ? "rgba(255, 90, 20, 0.32)"
+                    : "rgba(255, 90, 20, 0.22)",
+              },
               pressed ? styles.bentoPressed : null,
             ]}
             accessibilityRole="button"
             accessibilityLabel="Schedule a workout"
           >
             <Ionicons color={accent} name="add" size={14} />
-            <Text style={[styles.scheduleWorkoutButtonText, { color: accent }]}>
+            <Text style={[styles.scheduledChipText, { color: accent }]}>
               Schedule Workout
             </Text>
           </Pressable>
@@ -702,70 +763,125 @@ export function SavedWorkoutsScreen({
             theme={theme}
             title="Couldn't load your schedule"
           />
-        ) : scheduledForSelected.length > 0 ? (
-          scheduledForSelected.map((routine) => (
-            <WorkoutCard
-              key={routine.id}
-              accent="scheduled"
-              onOpen={() => onOpenWorkout(routine)}
-              onRemove={
-                routine.scheduledWorkoutId
-                  ? () => onUnschedule(routine.scheduledWorkoutId || routine.id)
-                  : undefined
-              }
-              onStart={() => onStartSession(routine)}
-              removeLabel="Unschedule"
-              routine={routine}
-              theme={theme}
-            />
-          ))
         ) : (
-          <View style={styles.scheduledEmptyCard}>
-            <View style={styles.scheduledEmptyTopRow}>
-              <View
-                style={[
-                  styles.scheduledEmptyIcon,
-                  {
-                    backgroundColor:
-                      theme.mode === "dark"
-                        ? "rgba(255, 90, 20, 0.14)"
-                        : "rgba(255, 90, 20, 0.10)",
-                  },
-                ]}
-              >
-                <Ionicons color={accent} name="calendar-outline" size={22} />
-              </View>
-              <View style={styles.scheduledEmptyTextBlock}>
-                <Text style={styles.scheduledEmptyTitle}>Nothing scheduled</Text>
-                <Text style={styles.scheduledEmptyBody}>
-                  You don&apos;t have any workouts planned for this day.
+          <>
+            {selectionHasLogs ? (
+              <View style={styles.loggedSessionsBlock}>
+                <Text style={[styles.sectionEyebrow, { color: accent }]}>
+                  Logged
                 </Text>
+                <View style={styles.completedDayCardList}>
+                  {completedForSelected.map((session) => {
+                    const title = getRoutineDisplayTitle({
+                      sourceUrl: session.source_url,
+                      title: session.title,
+                      workoutPlan: session.workout_plan,
+                    });
+                    return (
+                      <Pressable
+                        key={session.id}
+                        accessibilityRole="button"
+                        accessibilityLabel={`View completed workout: ${title}`}
+                        onPress={() => onOpenCompletedSession(session)}
+                        style={styles.loggedSessionCard}
+                      >
+                        <View
+                          style={[
+                            styles.loggedSessionIconWrap,
+                            {
+                              backgroundColor:
+                                theme.mode === "dark"
+                                  ? "rgba(49, 196, 141, 0.18)"
+                                  : "rgba(44, 182, 125, 0.14)",
+                            },
+                          ]}
+                        >
+                          <Ionicons
+                            color={theme.colors.success}
+                            name="checkmark"
+                            size={16}
+                          />
+                        </View>
+                        <View style={styles.loggedSessionCopy}>
+                          <Text style={styles.loggedSessionTitle} numberOfLines={2}>
+                            {title}
+                          </Text>
+                          <Text style={styles.loggedSessionMeta}>
+                            {formatCompletedWorkoutDate(session.completed_at)}
+                          </Text>
+                        </View>
+                        <Ionicons
+                          color={theme.colors.textMuted}
+                          name="chevron-forward"
+                          size={18}
+                        />
+                      </Pressable>
+                    );
+                  })}
+                </View>
               </View>
-              <View style={styles.scheduledEmptyDecor}>
-                <Ionicons
-                  color={theme.colors.textMuted}
-                  name="calendar"
-                  size={56}
-                  style={{ opacity: 0.2 }}
-                />
+            ) : null}
+
+            {selectionHasPlans ? (
+              <>
+                {selectionHasLogs ? (
+                  <Text style={[styles.calendarScheduledEyebrow, { color: accent }]}>
+                    Scheduled
+                  </Text>
+                ) : null}
+                {scheduledForSelected.map((routine) => (
+                  <WorkoutCard
+                    key={routine.id}
+                    accent="scheduled"
+                    onOpen={() => onOpenWorkout(routine)}
+                    onRemove={
+                      routine.scheduledWorkoutId
+                        ? () => onUnschedule(routine.scheduledWorkoutId || routine.id)
+                        : undefined
+                    }
+                    onStart={() => onStartSession(routine)}
+                    removeLabel="Unschedule"
+                    routine={routine}
+                    theme={theme}
+                  />
+                ))}
+              </>
+            ) : null}
+
+            {!selectionHasPlans && !selectionHasLogs ? (
+              <View style={styles.scheduledEmptyCard}>
+                <View style={styles.scheduledEmptyTopRow}>
+                  <View
+                    style={[
+                      styles.scheduledEmptyIcon,
+                      {
+                        backgroundColor:
+                          theme.mode === "dark"
+                            ? "rgba(255, 90, 20, 0.14)"
+                            : "rgba(255, 90, 20, 0.10)",
+                      },
+                    ]}
+                  >
+                    <Ionicons color={accent} name="calendar-outline" size={22} />
+                  </View>
+                  <View style={styles.scheduledEmptyTextBlock}>
+                    <Text style={styles.scheduledEmptyTitle}>Nothing on this day</Text>
+                    <Text style={styles.scheduledEmptyBody}>
+                      Nothing scheduled yet and no finished workouts logged for this date.
+                    </Text>
+                  </View>
+                  <View style={styles.scheduledEmptyDecor}>
+                    <Ionicons
+                      color={theme.colors.textMuted}
+                      name="calendar"
+                      size={56}
+                      style={{ opacity: 0.2 }}
+                    />
+                  </View>
+                </View>
               </View>
-            </View>
-            <Pressable
-              onPress={onAddWorkout}
-              style={({ pressed }) => [
-                styles.scheduledEmptyCta,
-                { backgroundColor: accent },
-                pressed ? styles.bentoPressed : null,
-              ]}
-              accessibilityRole="button"
-              accessibilityLabel="Schedule a workout"
-            >
-              <Ionicons color="#FFFFFF" name="add" size={16} />
-              <Text style={styles.scheduledEmptyCtaText}>
-                Schedule a Workout
-              </Text>
-            </Pressable>
-          </View>
+            ) : null}
+          </>
         )}
 
         {upcomingWorkouts.length > 0 ? (
@@ -1050,12 +1166,6 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       fontWeight: "800",
       letterSpacing: -0.8,
     },
-    sectionTitleRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      gap: 12,
-    },
     scheduledChip: {
       flexDirection: "row",
       alignItems: "center",
@@ -1159,6 +1269,59 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       fontWeight: "800",
       letterSpacing: -0.6,
     },
+    loggedSessionsBlock: {
+      gap: 10,
+    },
+    calendarScheduledEyebrow: {
+      marginTop: 16,
+      marginBottom: 10,
+      fontSize: 10,
+      fontFamily: "Satoshi-Bold",
+      fontWeight: "800",
+      letterSpacing: 1.1,
+      textTransform: "uppercase",
+    },
+    completedDayCardList: {
+      gap: 10,
+    },
+    loggedSessionCard: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      paddingVertical: 14,
+      paddingHorizontal: 14,
+      borderRadius: theme.radii.large,
+      backgroundColor: theme.colors.surface,
+      borderWidth: theme.mode === "dark" ? 1 : 0,
+      borderColor: theme.colors.borderSoft,
+      ...theme.shadows.softCard,
+    },
+    loggedSessionIconWrap: {
+      width: 40,
+      height: 40,
+      borderRadius: 12,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    loggedSessionCopy: {
+      flex: 1,
+      minWidth: 0,
+      gap: 4,
+    },
+    loggedSessionTitle: {
+      color: theme.colors.textPrimary,
+      fontSize: 16,
+      fontFamily: "Satoshi-Bold",
+      fontWeight: "800",
+      letterSpacing: -0.35,
+      lineHeight: 21,
+    },
+    loggedSessionMeta: {
+      color: theme.colors.textMuted,
+      fontSize: 12,
+      fontFamily: "Satoshi-Medium",
+      fontWeight: "500",
+    },
 
     scheduledSubHeader: {
       flexDirection: "row",
@@ -1174,21 +1337,6 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       letterSpacing: -0.4,
-    },
-    scheduleWorkoutButton: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 6,
-      borderRadius: 999,
-      borderWidth: 1.5,
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-      backgroundColor: "transparent",
-    },
-    scheduleWorkoutButtonText: {
-      fontSize: 12,
-      fontFamily: "Satoshi-Bold",
-      fontWeight: "800",
     },
     viewAllButton: {
       flexDirection: "row",
@@ -1248,22 +1396,6 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       height: 60,
       alignItems: "center",
       justifyContent: "center",
-    },
-    scheduledEmptyCta: {
-      alignSelf: "center",
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 5,
-      borderRadius: 999,
-      paddingVertical: 10,
-      paddingHorizontal: 16,
-    },
-    scheduledEmptyCtaText: {
-      color: "#FFFFFF",
-      fontSize: 14,
-      fontFamily: "Satoshi-Bold",
-      fontWeight: "800",
     },
 
     upcomingRow: {

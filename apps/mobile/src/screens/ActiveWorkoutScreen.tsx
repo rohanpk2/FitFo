@@ -1,10 +1,14 @@
 import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
+import DraggableFlatList, {
+  ScaleDecorator,
+  type RenderItemParams,
+} from "react-native-draggable-flatlist";
 import {
   ActivityIndicator,
   Image,
   Linking,
+  Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -504,6 +508,9 @@ interface ExerciseCardProps {
   ) => void;
   onToggle: (exerciseId: string) => void;
   onWeightChange: (exerciseId: string, setId: string, value: string) => void;
+  /** Long‑press drag handle for list reorder (card chrome; inner controls capture taps first). */
+  onReorderDrag: () => void;
+  reorderDragDisabled?: boolean;
   styles: ActiveWorkoutStyles;
   theme: ActiveWorkoutTheme;
 }
@@ -527,10 +534,14 @@ function ExerciseCard({
   onTargetDurationChange,
   onToggle,
   onWeightChange,
+  onReorderDrag,
+  reorderDragDisabled,
   styles,
   theme,
 }: ExerciseCardProps) {
   const completedSetCount = exercise.sets.filter((set) => set.completed).length;
+  const isExerciseFullyComplete =
+    exercise.sets.length > 0 && completedSetCount === exercise.sets.length;
   const defaultOpenSetId =
     exercise.sets.find((set) => !set.completed)?.id ?? exercise.sets[0]?.id ?? null;
   const activeSetId =
@@ -602,13 +613,44 @@ function ExerciseCard({
   };
 
   return (
-    <View style={styles.exerciseCard}>
+    <Pressable
+      accessibilityHint="Hold, then drag to move this exercise in the workout."
+      accessibilityLabel={`${titleCase(exercise.name) || exercise.name || "Exercise"} workout block`}
+      delayLongPress={280}
+      disabled={Boolean(reorderDragDisabled)}
+      onLongPress={onReorderDrag}
+      style={[
+        styles.exerciseCard,
+        isExerciseFullyComplete ? styles.exerciseCardComplete : null,
+      ]}
+    >
       <View style={styles.exerciseTopRow}>
-        <Pressable onPress={() => onToggle(exercise.id)} style={styles.exerciseToggleArea}>
+        <View style={styles.exerciseToggleChunk}>
           <View style={styles.exerciseIdentity}>
-            <View style={styles.exerciseIconShell}>
-              <Ionicons color={theme.colors.primary} name="barbell-outline" size={18} />
-            </View>
+            <Pressable
+              accessibilityHint={
+                expanded
+                  ? "Tap to collapse this exercise card"
+                  : "Tap to expand sets and details for this exercise"
+              }
+              accessibilityLabel={expanded ? "Collapse exercise" : "Expand exercise"}
+              accessibilityRole="button"
+              hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+              onPress={() => onToggle(exercise.id)}
+            >
+              <View
+                style={[
+                  styles.exerciseIconShell,
+                  isExerciseFullyComplete ? styles.exerciseIconShellComplete : null,
+                ]}
+              >
+                <Ionicons
+                  color={isExerciseFullyComplete ? "#06140F" : theme.colors.primary}
+                  name={isExerciseFullyComplete ? "checkmark" : "barbell-outline"}
+                  size={isExerciseFullyComplete ? 24 : 18}
+                />
+              </View>
+            </Pressable>
             <View style={styles.exerciseCopy}>
               {exercise.blockName ? (
                 <Text style={styles.exerciseEyebrow}>{exercise.blockName}</Text>
@@ -619,6 +661,11 @@ function ExerciseCard({
                 autoCorrect={false}
                 onBlur={commitName}
                 onChangeText={setNameDraft}
+                onFocus={() => {
+                  if (!expanded) {
+                    onToggle(exercise.id);
+                  }
+                }}
                 onSubmitEditing={commitName}
                 placeholder="Tap to name this exercise"
                 placeholderTextColor={theme.colors.textMuted}
@@ -629,11 +676,22 @@ function ExerciseCard({
               <Text style={styles.exerciseSubtitle}>{exercise.subtitle}</Text>
             </View>
           </View>
-        </Pressable>
+        </View>
+
+        <View style={styles.exerciseReorderGutter} />
 
         <View style={styles.exerciseActions}>
-          <View style={styles.setCountPill}>
-            <Text style={styles.setCountText}>
+          <View
+            style={[
+              styles.setCountPill,
+              isExerciseFullyComplete ? styles.setCountPillComplete : null,
+            ]}
+          >
+            <Text
+              style={
+                isExerciseFullyComplete ? styles.setCountTextComplete : styles.setCountText
+              }
+            >
               {completedSetCount}/{exercise.sets.length}
             </Text>
           </View>
@@ -757,25 +815,6 @@ function ExerciseCard({
           </Pressable>
         </View>
       ) : null}
-    </View>
-  );
-}
-
-interface InlineAddExerciseRowProps {
-  onPress: () => void;
-  styles: ActiveWorkoutStyles;
-  theme: ActiveWorkoutTheme;
-}
-
-function InlineAddExerciseRow({ onPress, styles, theme }: InlineAddExerciseRowProps) {
-  return (
-    <Pressable onPress={onPress} style={styles.inlineAddRow} hitSlop={6}>
-      <View style={styles.inlineAddLine} />
-      <View style={styles.inlineAddBadge}>
-        <Ionicons color={theme.colors.primary} name="add" size={14} />
-        <Text style={styles.inlineAddBadgeText}>Add exercise here</Text>
-      </View>
-      <View style={styles.inlineAddLine} />
     </Pressable>
   );
 }
@@ -1342,175 +1381,194 @@ export function ActiveWorkoutScreen({
     setExpandedExerciseId((current) => (current === exerciseId ? null : exerciseId));
   };
 
-  return (
-    <>
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
-    >
-      <View style={styles.header}>
-        <Pressable onPress={onBack} style={styles.backButton} hitSlop={10}>
-          <Ionicons color={theme.colors.primary} name="chevron-back" size={18} />
-        </Pressable>
-        <Image
-          resizeMode="contain"
-          source={require("../../assets/logo_no_bg.png")}
-          style={styles.brandLogo}
+  const renderExerciseItem = ({
+    item: exercise,
+    drag,
+    isActive,
+  }: RenderItemParams<ActiveExercisePreview>) => (
+    <ScaleDecorator activeScale={1.04}>
+      <View style={styles.draggableExerciseBody}>
+        <ExerciseCard
+          autoFocusName={autoFocusExerciseId === exercise.id}
+          editingSetId={
+            selectedSet?.exerciseId === exercise.id ? selectedSet.setId : null
+          }
+          exercise={exercise}
+          expanded={expandedExerciseId === exercise.id}
+          onReorderDrag={drag}
+          reorderDragDisabled={isActive}
+          onAddSet={handleAddSet}
+          onChangeNotes={handleChangeNotes}
+          onChangeRestSeconds={handleChangeRestSeconds}
+          onCompleteSet={handleCompleteSet}
+          onOpenSet={handleOpenSet}
+          onRenameExercise={handleRenameExercise}
+          onRepsChange={handleRepsChange}
+          onRemoveExercise={handleRemoveExercise}
+          onRemoveSet={handleRemoveSet}
+          onSelectTargetMetric={handleSelectTargetMetric}
+          onTargetRepsChange={handleChangeTargetReps}
+          onTargetDurationChange={handleChangeTargetDuration}
+          onToggle={toggleExercise}
+          onWeightChange={handleWeightChange}
+          styles={styles}
+          theme={theme}
         />
-        <Pressable
-          onPress={() => setCoachOpen(true)}
-          style={({ pressed }) => [
-            styles.coachButton,
-            pressed && styles.coachButtonPressed,
-          ]}
-          hitSlop={10}
-          accessibilityLabel="Open coach chat"
-          accessibilityRole="button"
-        >
-          <Image
-            resizeMode="contain"
-            source={require("../../assets/coach.png")}
-            style={styles.coachButtonIcon}
-          />
-        </Pressable>
       </View>
+    </ScaleDecorator>
+  );
 
-      <View style={styles.heroSection}>
-        <Text style={styles.eyebrow}>Current Session</Text>
-        <Text style={styles.heroTitle}>{session.title}</Text>
-        <Text style={styles.heroDescription}>{session.description}</Text>
-        {session.sourceUrl ? (
-          <Pressable onPress={handleOpenSourceUrl} style={styles.sourceUrlPill} hitSlop={6}>
-            <Ionicons color={theme.colors.primary} name="play-circle-outline" size={14} />
-            <Text style={styles.sourceUrlText}>View original reel</Text>
-            <Ionicons
-              color={theme.colors.primary}
-              name="open-outline"
-              size={12}
-            />
-          </Pressable>
-        ) : null}
-      </View>
+  const listEmpty = (
+    <View style={styles.emptyCard}>
+      <Ionicons color={theme.colors.primary} name="barbell-outline" size={20} />
+      <Text style={styles.emptyTitle}>No exercises in this session yet</Text>
+      <Text style={styles.emptyBody}>
+        Start from an imported TikTok workout to populate this screen with real exercises.
+      </Text>
+    </View>
+  );
 
-      <View style={styles.timerCard}>
-        <Text style={styles.timerEyebrow}>Time Elapsed</Text>
-        <Text style={styles.timerValue}>{formatClock(elapsedSeconds)}</Text>
-        <Text style={styles.timerHelper}>
-          {isTimerPaused
-            ? "Workout paused"
-            : `${completedSetCount} of ${totalSetCount} sets logged`}
-        </Text>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={isTimerPaused ? "Resume workout timer" : "Pause workout timer"}
-          onPress={handleToggleTimerPaused}
-          style={styles.timerPauseButton}
-        >
-          <Ionicons
-            color={theme.colors.primary}
-            name={isTimerPaused ? "play" : "pause"}
-            size={16}
-          />
-          <Text style={styles.timerPauseButtonText}>
-            {isTimerPaused ? "Resume Workout" : "Pause Workout"}
-          </Text>
-        </Pressable>
-        {restCountdownSeconds != null ? (
-          <Text style={styles.restCountdownText}>
-            Rest: {formatClock(restCountdownSeconds)}
-            {isTimerPaused ? " paused" : ""}
-          </Text>
-        ) : null}
-      </View>
-
-      <View style={styles.exerciseStack}>
-        {exercises.length > 0 ? (
-          exercises.map((exercise, index) => (
-            <View key={exercise.id}>
-              <ExerciseCard
-                autoFocusName={autoFocusExerciseId === exercise.id}
-                editingSetId={
-                  selectedSet?.exerciseId === exercise.id ? selectedSet.setId : null
-                }
-                exercise={exercise}
-                expanded={expandedExerciseId === exercise.id}
-                onAddSet={handleAddSet}
-                onChangeNotes={handleChangeNotes}
-                onChangeRestSeconds={handleChangeRestSeconds}
-                onCompleteSet={handleCompleteSet}
-                onOpenSet={handleOpenSet}
-                onRenameExercise={handleRenameExercise}
-                onRepsChange={handleRepsChange}
-                onRemoveExercise={handleRemoveExercise}
-                onRemoveSet={handleRemoveSet}
-                onSelectTargetMetric={handleSelectTargetMetric}
-                onTargetRepsChange={handleChangeTargetReps}
-                onTargetDurationChange={handleChangeTargetDuration}
-                onToggle={toggleExercise}
-                onWeightChange={handleWeightChange}
-                styles={styles}
-                theme={theme}
+  const listHeader = (
+    <View style={styles.workoutHeaderStack}>
+      <View style={styles.header}>
+              <Pressable onPress={onBack} style={styles.backButton} hitSlop={10}>
+                <Ionicons color={theme.colors.primary} name="chevron-back" size={18} />
+              </Pressable>
+              <Image
+                resizeMode="contain"
+                source={require("../../assets/logo_no_bg.png")}
+                style={styles.brandLogo}
               />
-              {index < exercises.length - 1 ? (
-                <InlineAddExerciseRow
-                  onPress={() => insertExerciseAt(index + 1)}
-                  styles={styles}
-                  theme={theme}
+              <Pressable
+                onPress={() => setCoachOpen(true)}
+                style={({ pressed }) => [
+                  styles.coachButton,
+                  pressed && styles.coachButtonPressed,
+                ]}
+                hitSlop={10}
+                accessibilityLabel="Open coach chat"
+                accessibilityRole="button"
+              >
+                <Image
+                  resizeMode="contain"
+                  source={require("../../assets/coach.png")}
+                  style={styles.coachButtonIcon}
                 />
+              </Pressable>
+            </View>
+      
+            <View style={styles.heroSection}>
+              <Text style={styles.eyebrow}>Current Session</Text>
+              <Text style={styles.heroTitle}>{session.title}</Text>
+              <Text style={styles.heroDescription}>{session.description}</Text>
+              {session.sourceUrl ? (
+                <Pressable onPress={handleOpenSourceUrl} style={styles.sourceUrlPill} hitSlop={6}>
+                  <Ionicons color={theme.colors.primary} name="play-circle-outline" size={14} />
+                  <Text style={styles.sourceUrlText}>View original reel</Text>
+                  <Ionicons
+                    color={theme.colors.primary}
+                    name="open-outline"
+                    size={12}
+                  />
+                </Pressable>
               ) : null}
             </View>
-          ))
-        ) : (
-          <View style={styles.emptyCard}>
-            <Ionicons color={theme.colors.primary} name="barbell-outline" size={20} />
-            <Text style={styles.emptyTitle}>No exercises in this session yet</Text>
-            <Text style={styles.emptyBody}>
-              Start from an imported TikTok workout to populate this screen with real exercises.
-            </Text>
-          </View>
-        )}
-      </View>
-
-      <Pressable onPress={handleAppendExercise} style={styles.addExerciseButton}>
-        <Ionicons color={theme.colors.surface} name="add" size={18} />
-        <Text style={styles.addExerciseButtonText}>Add Exercise</Text>
-      </Pressable>
-
-      {onScheduleAgain ? (
-        <Pressable
-          disabled={isSchedulingAgain}
-          onPress={onScheduleAgain}
-          style={[
-            styles.scheduleAgainButton,
-            isSchedulingAgain ? styles.scheduleAgainButtonDisabled : null,
-          ]}
-        >
-          {isSchedulingAgain ? (
-            <>
-              <ActivityIndicator color={theme.colors.primary} size="small" />
-              <Text style={styles.scheduleAgainButtonText}>Scheduling...</Text>
-            </>
-          ) : (
-            <>
-              <Ionicons
-                color={theme.colors.primary}
-                name="calendar-outline"
-                size={16}
-              />
-              <Text style={styles.scheduleAgainButtonText}>
-                Schedule This Workout Again
+      
+            <View style={styles.timerCard}>
+              <Text style={styles.timerEyebrow}>Time Elapsed</Text>
+              <Text style={styles.timerValue}>{formatClock(elapsedSeconds)}</Text>
+              <Text style={styles.timerHelper}>
+                {isTimerPaused
+                  ? "Workout paused"
+                  : `${completedSetCount} of ${totalSetCount} sets logged`}
               </Text>
-            </>
-          )}
-        </Pressable>
-      ) : null}
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={isTimerPaused ? "Resume workout timer" : "Pause workout timer"}
+                onPress={handleToggleTimerPaused}
+                style={styles.timerPauseButton}
+              >
+                <Ionicons
+                  color={theme.colors.primary}
+                  name={isTimerPaused ? "play" : "pause"}
+                  size={16}
+                />
+                <Text style={styles.timerPauseButtonText}>
+                  {isTimerPaused ? "Resume Workout" : "Pause Workout"}
+                </Text>
+              </Pressable>
+              {restCountdownSeconds != null ? (
+                <Text style={styles.restCountdownText}>
+                  Rest: {formatClock(restCountdownSeconds)}
+                  {isTimerPaused ? " paused" : ""}
+                </Text>
+              ) : null}
+            </View>
+    </View>
+  );
 
-      <Pressable onPress={onFinish} style={styles.finishButton}>
-        <Text style={styles.finishButtonText}>Finish Workout</Text>
-        <Ionicons color={theme.colors.surface} name="flag" size={16} />
-      </Pressable>
-    </ScrollView>
+  const listFooter = (
+    <View style={styles.workoutFooterSection}>
+      <Pressable onPress={handleAppendExercise} style={styles.addExerciseButton}>
+              <Ionicons color={theme.colors.surface} name="add" size={18} />
+              <Text style={styles.addExerciseButtonText}>Add Exercise</Text>
+            </Pressable>
+      
+            {onScheduleAgain ? (
+              <Pressable
+                disabled={isSchedulingAgain}
+                onPress={onScheduleAgain}
+                style={[
+                  styles.scheduleAgainButton,
+                  isSchedulingAgain ? styles.scheduleAgainButtonDisabled : null,
+                ]}
+              >
+                {isSchedulingAgain ? (
+                  <>
+                    <ActivityIndicator color={theme.colors.primary} size="small" />
+                    <Text style={styles.scheduleAgainButtonText}>Scheduling...</Text>
+                  </>
+                ) : (
+                  <>
+                    <Ionicons
+                      color={theme.colors.primary}
+                      name="calendar-outline"
+                      size={16}
+                    />
+                    <Text style={styles.scheduleAgainButtonText}>
+                      Schedule This Workout Again
+                    </Text>
+                  </>
+                )}
+              </Pressable>
+            ) : null}
+      
+            <Pressable onPress={onFinish} style={styles.finishButton}>
+              <Text style={styles.finishButtonText}>Finish Workout</Text>
+              <Ionicons color={theme.colors.surface} name="flag" size={16} />
+            </Pressable>
+    </View>
+  );
+
+  return (
+    <>
+    <DraggableFlatList
+      data={exercises}
+      keyExtractor={(item) => item.id}
+      activationDistance={12}
+      onDragEnd={({ data }) => setExercises(data)}
+      extraData={[expandedExerciseId, selectedSet, autoFocusExerciseId]}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+      style={styles.container}
+      containerStyle={{ flex: 1 }}
+      contentContainerStyle={styles.content}
+      ItemSeparatorComponent={() => <View style={styles.exerciseSeparator} />}
+      renderItem={renderExerciseItem}
+      ListHeaderComponent={listHeader}
+      ListEmptyComponent={listEmpty}
+      ListFooterComponent={listFooter}
+    />
     <CoachSheet
       messages={coachMessages}
       setMessages={setCoachMessages}
@@ -1582,6 +1640,8 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
       color: theme.colors.textSecondary,
       fontSize: 15,
       lineHeight: 22,
+      fontFamily: F.regular,
+      fontWeight: "400",
     },
     modalFormBlock: {
       gap: 8,
@@ -1646,7 +1706,7 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
       alignItems: "center",
       justifyContent: "space-between",
       paddingTop: 4,
-      paddingBottom: 8,
+      paddingBottom: 4,
     },
     backButton: {
       width: 36,
@@ -1698,7 +1758,7 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
     },
     heroSection: {
       gap: 8,
-      paddingTop: 4,
+      paddingTop: 0,
     },
     eyebrow: {
       color: theme.colors.primary,
@@ -1720,6 +1780,8 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
       color: theme.colors.textSecondary,
       fontSize: 14,
       lineHeight: 21,
+      fontFamily: F.medium,
+      fontWeight: "500",
     },
     timerCard: {
       borderRadius: 24,
@@ -1828,8 +1890,21 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
       letterSpacing: 1,
       textTransform: "uppercase",
     },
-    exerciseStack: {
+    workoutHeaderStack: {
       gap: 12,
+    },
+    workoutFooterSection: {
+      gap: 18,
+      paddingTop: 18,
+      flexShrink: 0,
+    },
+    draggableExerciseBody: {
+      flexGrow: 1,
+      flexShrink: 1,
+      minWidth: 0,
+    },
+    exerciseSeparator: {
+      height: 12,
     },
     exerciseCard: {
       borderRadius: radii.large,
@@ -1840,20 +1915,40 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
       borderColor: theme.mode === "dark" ? theme.colors.borderSoft : "transparent",
       ...theme.shadows.softCard,
     },
+    exerciseCardComplete: {
+      borderColor:
+        theme.mode === "dark"
+          ? "rgba(49, 196, 141, 0.65)"
+          : "rgba(44, 182, 125, 0.52)",
+      backgroundColor:
+        theme.mode === "dark"
+          ? "rgba(49, 196, 141, 0.1)"
+          : "rgba(44, 182, 125, 0.12)",
+      ...theme.shadows.card,
+    },
     exerciseTopRow: {
       flexDirection: "row",
       alignItems: "center",
-      justifyContent: "space-between",
-      gap: 12,
+      gap: 8,
     },
-    exerciseToggleArea: {
-      flex: 1,
+    exerciseToggleChunk: {
+      flexShrink: 1,
+      minWidth: 0,
+      maxWidth: "100%",
     },
     exerciseIdentity: {
       flexDirection: "row",
       alignItems: "center",
       gap: 12,
-      flex: 1,
+      minWidth: 0,
+      maxWidth: "100%",
+    },
+    exerciseReorderGutter: {
+      flexGrow: 1,
+      flexShrink: 1,
+      minWidth: 8,
+      minHeight: 44,
+      alignSelf: "stretch",
     },
     exerciseIconShell: {
       height: 48,
@@ -1863,9 +1958,29 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
       justifyContent: "center",
       backgroundColor: theme.colors.surfaceMuted,
     },
+    exerciseIconShellComplete: {
+      backgroundColor: theme.colors.success,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor:
+        theme.mode === "dark"
+          ? "rgba(200, 255, 226, 0.45)"
+          : "rgba(255, 255, 255, 0.4)",
+      ...Platform.select({
+        ios: {
+          shadowColor: theme.colors.success,
+          shadowOpacity: theme.mode === "dark" ? 0.5 : 0.38,
+          shadowRadius: 8,
+          shadowOffset: { width: 0, height: 0 },
+        },
+        android: { elevation: 3 },
+      }),
+    },
     exerciseCopy: {
-      flex: 1,
+      flexShrink: 1,
       gap: 2,
+      minWidth: 0,
+      maxWidth: "100%",
+      alignItems: "flex-start",
     },
     exerciseEyebrow: {
       color: theme.colors.primary,
@@ -1883,6 +1998,8 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
       letterSpacing: -0.5,
     },
     exerciseTitleInput: {
+      flexGrow: 0,
+      alignSelf: "flex-start",
       color: theme.colors.textPrimary,
       fontSize: 20,
       fontFamily: "Satoshi-Bold",
@@ -1891,16 +2008,20 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
       paddingVertical: 2,
       paddingHorizontal: 0,
       margin: 0,
+      maxWidth: "100%",
     },
     exerciseSubtitle: {
       color: theme.colors.textSecondary,
       fontSize: 12,
       lineHeight: 17,
+      fontFamily: F.medium,
+      fontWeight: "500",
     },
     exerciseActions: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 8,
+      gap: 6,
+      flexShrink: 0,
     },
     setCountPill: {
       borderRadius: 999,
@@ -1908,11 +2029,26 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
       paddingHorizontal: 10,
       paddingVertical: 6,
     },
+    setCountPillComplete: {
+      backgroundColor: theme.colors.success,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor:
+        theme.mode === "dark"
+          ? "rgba(200, 245, 220, 0.5)"
+          : "rgba(255, 255, 255, 0.42)",
+    },
     setCountText: {
       color: theme.colors.primary,
       fontSize: 11,
       fontFamily: "Satoshi-Bold",
       fontWeight: "800",
+    },
+    setCountTextComplete: {
+      color: "#06140F",
+      fontSize: 11,
+      fontFamily: "Satoshi-Black",
+      fontWeight: "900",
+      letterSpacing: 0.2,
     },
     exerciseIconButton: {
       height: 34,
@@ -1949,6 +2085,8 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
       color: theme.colors.textSecondary,
       fontSize: 12,
       lineHeight: 18,
+      fontFamily: F.medium,
+      fontWeight: "500",
     },
     notesCard: {
       borderRadius: 16,
@@ -1968,11 +2106,15 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
       color: theme.colors.textSecondary,
       fontSize: 13,
       lineHeight: 19,
+      fontFamily: F.regular,
+      fontWeight: "400",
     },
     notesInput: {
       color: theme.colors.textSecondary,
       fontSize: 13,
       lineHeight: 19,
+      fontFamily: F.regular,
+      fontWeight: "400",
       paddingVertical: 2,
       paddingHorizontal: 0,
       margin: 0,
@@ -2019,6 +2161,8 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
     },
     metricToggleTextActive: {
       color: theme.colors.surface,
+      fontFamily: "Satoshi-Bold",
+      fontWeight: "800",
     },
     restRow: {
       flexDirection: "row",
@@ -2096,6 +2240,8 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
       marginTop: 2,
       color: theme.colors.textSecondary,
       fontSize: 12,
+      fontFamily: F.medium,
+      fontWeight: "500",
     },
     setExerciseName: {
       color: theme.colors.textMuted,
@@ -2127,6 +2273,8 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
       color: theme.colors.textMuted,
       fontSize: 12,
       lineHeight: 17,
+      fontFamily: F.regular,
+      fontWeight: "400",
     },
     setRowTitleColumn: {
       flex: 1,
@@ -2168,35 +2316,6 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
       alignItems: "center",
       justifyContent: "center",
       backgroundColor: theme.colors.errorSoft,
-    },
-    inlineAddRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 8,
-      paddingVertical: 6,
-    },
-    inlineAddLine: {
-      flex: 1,
-      height: 1,
-      backgroundColor: theme.colors.borderSoft,
-    },
-    inlineAddBadge: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 4,
-      borderRadius: 999,
-      borderWidth: 1,
-      borderColor: theme.colors.borderSoft,
-      borderStyle: "dashed",
-      backgroundColor: theme.colors.surface,
-      paddingHorizontal: 10,
-      paddingVertical: 4,
-    },
-    inlineAddBadgeText: {
-      color: theme.colors.primary,
-      fontSize: 11,
-      fontFamily: "Satoshi-Bold",
-      fontWeight: "800",
     },
     sourceUrlPill: {
       alignSelf: "flex-start",
@@ -2268,6 +2387,8 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
       color: theme.colors.textMuted,
       fontSize: 12,
       lineHeight: 17,
+      fontFamily: F.regular,
+      fontWeight: "400",
     },
     confirmSetButton: {
       flexDirection: "row",
@@ -2294,11 +2415,15 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
     },
     confirmSetButtonTextDisabled: {
       color: theme.colors.textMuted,
+      fontFamily: "Satoshi-Bold",
+      fontWeight: "800",
     },
     editModeHint: {
       color: theme.colors.primary,
       fontSize: 12,
       lineHeight: 17,
+      fontFamily: F.medium,
+      fontWeight: "500",
     },
     emptySetCard: {
       borderRadius: 18,
@@ -2318,6 +2443,8 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
       fontSize: 13,
       lineHeight: 19,
       textAlign: "center",
+      fontFamily: F.regular,
+      fontWeight: "400",
     },
     addSetButton: {
       minHeight: 48,
@@ -2358,6 +2485,8 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
       fontSize: 14,
       lineHeight: 21,
       textAlign: "center",
+      fontFamily: F.regular,
+      fontWeight: "400",
     },
     addExerciseButton: {
       marginTop: 2,

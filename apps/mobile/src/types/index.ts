@@ -277,6 +277,11 @@ export interface ActiveSessionPreview {
   title: string;
   description: string;
   startedAt: number;
+  /**
+   * Set when the in-session workout UI is dismissed — hub/logs cards use this
+   * instead of Date.now so elapsed stops until the athlete resumes.
+   */
+  hubTimerFrozenWallMs?: number;
   averageRestSeconds: number | null;
   exercises: ActiveExercisePreview[];
   sourceWorkoutId?: string | null;

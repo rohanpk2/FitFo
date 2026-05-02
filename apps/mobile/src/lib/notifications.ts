@@ -125,9 +125,11 @@ export async function requestNotificationPermission(): Promise<boolean> {
 
 /**
  * First-time onboarding: explain workout reminders before the system dialog.
- * Call after profile/onboarding is saved so users aren't stuck waiting on a
- * slow import before they can opt in. Skips the generic pre-prompt for the
- * rest of the session so scheduling/import doesn't double-ask in one sitting.
+ * Prefer calling when the user completes the **calendar** step (scheduled-workout
+ * context) so prompts land before they hit slow imports. Sessions that skip that
+ * UI (e.g. auth-landing deferred onboarding) should call this after save instead.
+ * Once the system dialog has been dismissed the first time, we can't ask again — so
+ * the pre-prompt matters.
  */
 export async function requestNotificationPermissionForOnboarding(): Promise<boolean> {
   try {

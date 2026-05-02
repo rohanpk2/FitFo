@@ -202,12 +202,7 @@ export default function CoachSheet({
             <ScrollView
               ref={scrollRef}
               style={styles.messages}
-              contentContainerStyle={[
-                styles.messagesContent,
-                messages.length > 0 || pending
-                  ? styles.messagesContentChat
-                  : null,
-              ]}
+              contentContainerStyle={styles.messagesContent}
               keyboardShouldPersistTaps="handled"
             >
               {messages.length === 0 && !pending && (
@@ -322,7 +317,7 @@ function createStyles(theme: ReturnType<typeof getTheme>) {
       borderTopLeftRadius: 28,
       borderTopRightRadius: 28,
       paddingBottom: Platform.OS === "ios" ? 34 : 16,
-      minHeight: "82%",
+      minHeight: "65%",
       maxHeight: "96%",
       borderTopWidth: StyleSheet.hairlineWidth,
       borderTopColor: colors.borderSoft,
@@ -375,17 +370,16 @@ function createStyles(theme: ReturnType<typeof getTheme>) {
     },
     messagesContent: {
       flexGrow: 1,
-      paddingHorizontal: 16,
-      paddingTop: 12,
-      paddingBottom: 12,
-      gap: 10,
-    },
-    messagesContentChat: {
       justifyContent: "flex-end",
+      paddingHorizontal: 16,
+      paddingTop: 8,
+      paddingBottom: 4,
+      gap: 10,
     },
     emptyState: {
-      paddingVertical: 18,
-      gap: 10,
+      paddingVertical: 6,
+      gap: 8,
+      width: "100%",
     },
     emptyTitle: {
       color: colors.textPrimary,
@@ -505,8 +499,8 @@ function createStyles(theme: ReturnType<typeof getTheme>) {
       alignItems: "flex-end",
       gap: 8,
       paddingHorizontal: 14,
-      paddingTop: 10,
-      paddingBottom: 0,
+      paddingTop: 6,
+      flexShrink: 0,
       borderTopColor: colors.borderSoft,
       borderTopWidth: StyleSheet.hairlineWidth,
     },

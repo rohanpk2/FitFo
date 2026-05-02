@@ -23,19 +23,15 @@ import {
   getMuscleGroupsForPlan,
 } from "../lib/muscleGroups";
 import {
-  getLastTrainedSummary,
-  getNextScheduledSummary,
   getScheduleLabelForSaved,
 } from "../lib/stats";
 import { getTheme, type ThemeMode } from "../theme";
 import type {
-  CompletedWorkoutRecord,
   MuscleGroup,
   SavedRoutinePreview,
 } from "../types";
 
 interface SavedLibraryScreenProps {
-  completedWorkouts: CompletedWorkoutRecord[];
   error: string | null;
   importedWorkouts: SavedRoutinePreview[];
   isLoading: boolean;
@@ -51,7 +47,6 @@ interface SavedLibraryScreenProps {
 }
 
 type MuscleGroupFilter = "all" | MuscleGroup;
-type ScheduleFilter = "all" | "scheduled" | "unscheduled";
 
 function formatMuscleGroupLabel(group: MuscleGroupFilter): string {
   if (group === "all") {
@@ -402,7 +397,6 @@ function LibraryWorkoutCard({
 }
 
 export function SavedLibraryScreen({
-  completedWorkouts,
   error,
   importedWorkouts,
   isLoading,
@@ -422,8 +416,6 @@ export function SavedLibraryScreen({
 
   const [selectedMuscleFilter, setSelectedMuscleFilter] =
     useState<MuscleGroupFilter>("all");
-  const [scheduleFilter, setScheduleFilter] =
-    useState<ScheduleFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [showFilters, setShowFilters] = useState(false);
 
@@ -454,33 +446,12 @@ export function SavedLibraryScreen({
     }
   }, [availableMuscleGroups, selectedMuscleFilter]);
 
-  const scheduledByOriginId = useMemo(() => {
-    const map = new Map<string, SavedRoutinePreview>();
-    for (const sched of scheduledWorkouts) {
-      const key = sched.savedWorkoutId || sched.workoutId || sched.id;
-      if (key) {
-        map.set(key, sched);
-      }
-    }
-    return map;
-  }, [scheduledWorkouts]);
-
   const filteredWorkouts = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     return importedWorkouts.filter((routine) => {
       if (selectedMuscleFilter !== "all") {
         const groups = muscleGroupsByRoutineId.get(routine.id) || [];
         if (!groups.includes(selectedMuscleFilter)) {
-          return false;
-        }
-      }
-      if (scheduleFilter !== "all") {
-        const key = routine.savedWorkoutId || routine.workoutId || routine.id;
-        const scheduled = key ? scheduledByOriginId.has(key) : false;
-        if (scheduleFilter === "scheduled" && !scheduled) {
-          return false;
-        }
-        if (scheduleFilter === "unscheduled" && scheduled) {
           return false;
         }
       }
@@ -501,40 +472,14 @@ export function SavedLibraryScreen({
   }, [
     importedWorkouts,
     muscleGroupsByRoutineId,
-    scheduleFilter,
-    scheduledByOriginId,
     searchQuery,
     selectedMuscleFilter,
   ]);
-
-  const lastTrained = useMemo(
-    () => getLastTrainedSummary(completedWorkouts),
-    [completedWorkouts],
-  );
-  const scheduleSummary = useMemo(
-    () => getNextScheduledSummary(scheduledWorkouts),
-    [scheduledWorkouts],
-  );
 
   const filterChips = useMemo(
     () => ["all", ...availableMuscleGroups] as MuscleGroupFilter[],
     [availableMuscleGroups],
   );
-
-  const scheduleFilterPillLabel =
-    scheduleFilter === "scheduled"
-      ? "Scheduled"
-      : scheduleFilter === "unscheduled"
-        ? "Unscheduled"
-        : "All";
-
-  const handleToggleScheduleFilter = () => {
-    setScheduleFilter((current) => {
-      if (current === "all") return "scheduled";
-      if (current === "scheduled") return "unscheduled";
-      return "all";
-    });
-  };
 
   return (
     <ScrollView
@@ -576,62 +521,13 @@ export function SavedLibraryScreen({
 
       <View style={styles.titleBlock}>
         <Text style={[styles.eyebrow, { color: accent }]}>LIBRARY</Text>
-        <View style={styles.titleRow}>
-          <Text style={styles.title}>Saved Workouts</Text>
-          <Pressable
-            onPress={handleToggleScheduleFilter}
-            style={({ pressed }) => [
-              styles.scheduledChip,
-              pressed ? styles.actionPressed : null,
-            ]}
-          >
-            <Ionicons
-              color={accent}
-              name="calendar-outline"
-              size={13}
-            />
-            <Text style={[styles.scheduledChipText, { color: accent }]}>
-              {scheduleFilterPillLabel}
-            </Text>
-            <Ionicons
-              color={accent}
-              name="chevron-down"
-              size={12}
-            />
-          </Pressable>
-        </View>
+        <Text style={styles.title}>Saved Workouts</Text>
         <Text style={styles.subtitle}>
           Your saved programs, imports, and drafts.
         </Text>
       </View>
 
-      <View style={styles.statsRow}>
-        <StatTile
-          caption="Total"
-          iconColor="#FFFFFF"
-          iconName="bookmark"
-          label="Saved Workouts"
-          theme={theme}
-          value={`${importedWorkouts.length}`}
-          variant="dark"
-        />
-        <StatTile
-          caption={scheduleSummary.nextLabel || "Nothing yet"}
-          iconColor={accent}
-          iconName="calendar-outline"
-          label="Scheduled"
-          theme={theme}
-          value={`${scheduleSummary.count}`}
-        />
-        <StatTile
-          caption={lastTrained?.daysAgoLabel || "—"}
-          iconColor={accent}
-          iconName="barbell-outline"
-          label="Last trained"
-          theme={theme}
-          value={lastTrained?.label || "—"}
-        />
-      </View>
+      
 
       <View style={styles.searchBar}>
         <Ionicons
@@ -833,39 +729,13 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       letterSpacing: 1.4,
       textTransform: "uppercase",
     },
-    titleRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      gap: 12,
-    },
     title: {
-      flex: 1,
       color: theme.colors.textPrimary,
       fontSize: 32,
-      lineHeight: 36,
+      lineHeight: 34,
       fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       letterSpacing: -1.2,
-    },
-    scheduledChip: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 6,
-      borderRadius: 999,
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-      backgroundColor: theme.colors.surface,
-      borderWidth: 1,
-      borderColor:
-        theme.mode === "dark"
-          ? "rgba(255, 90, 20, 0.26)"
-          : "rgba(255, 90, 20, 0.18)",
-    },
-    scheduledChipText: {
-      fontSize: 12,
-      fontFamily: "Satoshi-Bold",
-      fontWeight: "800",
     },
     subtitle: {
       color: theme.colors.textSecondary,
@@ -873,7 +743,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       lineHeight: 20,
       fontFamily: "Satoshi-Medium",
       fontWeight: "500",
-      marginTop: 2,
+      marginTop: 0,
     },
 
     statsRow: {

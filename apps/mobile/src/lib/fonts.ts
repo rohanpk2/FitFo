@@ -75,60 +75,72 @@ function resolveFontFamily(style: unknown): string | undefined {
 }
 
 function patchComponent(component: unknown): void {
-  // react-native's Text / TextInput are forwardRef objects with a `.render`
-  // function we can wrap. Work in a non-typed way because the internals
-  // aren't part of the public type surface.
   const target = component as { render?: (...args: unknown[]) => unknown };
   const originalRender = target.render;
   if (typeof originalRender !== "function") {
     return;
   }
-  target.render = function patchedRender(...args: unknown[]) {
-    const origin = originalRender.apply(this, args) as ReactElement<{ style?: unknown }> | null;
-    if (!origin || typeof origin !== "object" || !("props" in origin)) {
-      return origin;
-    }
-    const originalStyle = origin.props.style;
-    const family = resolveFontFamily(originalStyle);
-    if (!family) {
-      // Style already declares its own fontFamily — leave it alone.
-      return origin;
-    }
-    return React.cloneElement(origin, {
-      style: [{ fontFamily: family }, originalStyle],
-    });
-  };
+  try {
+    // RN New Architecture / React 19: `render` may be a non-configurable accessor.
+    // Throwing here during App load prevents `main` registration and crashes the bundle.
+    target.render = function patchedRender(...args: unknown[]) {
+      const origin = originalRender.apply(this, args) as ReactElement<{ style?: unknown }> | null;
+      if (!origin || typeof origin !== "object" || !("props" in origin)) {
+        return origin;
+      }
+      const originalStyle = origin.props.style;
+      const family = resolveFontFamily(originalStyle);
+      if (!family) {
+        return origin;
+      }
+      return React.cloneElement(origin, {
+        style: [{ fontFamily: family }, originalStyle],
+      });
+    };
+  } catch {
+    // Fall back to defaultProps only below (often all that survives on Fabric).
+  }
 }
 
 function applyDefaultPropsFallback(component: unknown): void {
-  // Belt-and-suspenders: if the render patch doesn't take effect (e.g. in
-  // Expo Go + New Architecture where Text internals differ), every component
-  // at minimum inherits Satoshi Regular via defaultProps. Explicit styles
-  // still override this, so screens that set fontFamily continue to win.
-  const target = component as {
-    defaultProps?: { style?: unknown };
-  };
-  target.defaultProps = target.defaultProps || {};
-  const prev = target.defaultProps.style;
-  target.defaultProps.style = prev
-    ? [{ fontFamily: "Satoshi-Regular" }, prev]
-    : { fontFamily: "Satoshi-Regular" };
+  try {
+    const target = component as {
+      defaultProps?: { style?: unknown };
+    };
+    target.defaultProps = target.defaultProps || {};
+    const prev = target.defaultProps.style;
+    target.defaultProps.style = prev
+      ? [{ fontFamily: "Satoshi-Regular" }, prev]
+      : { fontFamily: "Satoshi-Regular" };
+  } catch {
+    // React 19 + Fabric: legacy defaultProps mutate may be blocked; explicit `fontFamily` in styles still applies.
+  }
 }
 
 let applied = false;
 
+function shouldSkipGlobalTextPatch(): boolean {
+  const g = globalThis as { nativeFabricUIManager?: unknown };
+  // RN New Architecture: host `Text` / `TextInput` are sealed; assigning
+  // `.render` or mutating `.defaultProps` can throw Hermes-side and abort the
+  // whole bundle (`"main" has not been registered`), even though strict-mode JS
+  // assignment usually surfaces as a caught TypeError — skip patching entirely on Fabric.
+  return typeof g.nativeFabricUIManager !== "undefined";
+}
+
 /**
- * One-time patch that makes every <Text> and <TextInput> default to Satoshi
- * (picking the family matching its fontWeight) unless the style explicitly
- * declares its own fontFamily.
- *
- * Call this once at module-load time from App.tsx BEFORE any Text renders.
+ * Best-effort global Satoshi mapping: patches `Text` / `TextInput` on legacy
+ * (Paper) when the runtime allows it. Skipped entirely on Fabric (New
+ * Architecture) — rely on explicit `fontFamily` (typically `F.*` from this module).
  */
 export function applyDefaultFont(): void {
   if (applied) {
     return;
   }
   applied = true;
+  if (shouldSkipGlobalTextPatch()) {
+    return;
+  }
   patchComponent(Text);
   patchComponent(TextInput);
   applyDefaultPropsFallback(Text);

@@ -3,23 +3,21 @@ import { StatusBar } from "expo-status-bar";
 import {
   ActivityIndicator,
   Alert,
+  InteractionManager,
   SafeAreaView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFonts } from "expo-font";
 
 import { applyDefaultFont } from "./src/lib/fonts";
 import { AddWorkoutModal } from "./src/components/AddWorkoutModal";
 import type { CoachChatMessage } from "./src/components/CoachSheet";
+import { FirstHubTipModal } from "./src/components/FirstHubTipModal";
 import { FitfoLoadingAnimation } from "./src/components/FitfoLoadingAnimation";
-
-// Patch <Text> and <TextInput> globally so every screen in the app inherits
-// Satoshi by default, with the right weight picked from the existing
-// fontWeight style prop. Must run before any Text component renders — hence
-// the module-level call, not inside the component tree.
-applyDefaultFont();
 import { BottomNav } from "./src/components/BottomNav";
 import { ScheduleAgainModal } from "./src/components/ScheduleAgainModal";
 import { useShareIntent } from "expo-share-intent";
@@ -72,6 +70,10 @@ import {
   getCreatorDisplayLabel,
   getRoutineDisplayTitle,
 } from "./src/lib/fitfo";
+import {
+  ensureStarterWorkoutsSeeded,
+  getFirstHubTipStorageKey,
+} from "./src/lib/starterHubWelcome";
 import * as Notifications from "expo-notifications";
 import {
   INGESTION_READY_NOTIFICATION_KIND,
@@ -114,6 +116,9 @@ import type {
   UserProfile,
   WorkoutPlan,
 } from "./src/types";
+
+// Fabric: skipped inside `fonts.ts`; Paper legacy may patch Text/TextInput.
+applyDefaultFont();
 
 interface ScheduleAgainTarget {
   id: string;
@@ -199,12 +204,14 @@ export default function App() {
   const [isOnboardingSubmitting, setIsOnboardingSubmitting] = useState(false);
   const [onboardingError, setOnboardingError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<AppTab>("saved");
+  const hubPreviousTabRef = useRef<AppTab>("saved");
   const [isProfileVisible, setIsProfileVisible] = useState(false);
   const [isSavedLibraryVisible, setIsSavedLibraryVisible] = useState(false);
   const [activeSession, setActiveSession] = useState<ActiveSessionPreview | null>(
     null,
   );
   const [isActiveWorkoutVisible, setIsActiveWorkoutVisible] = useState(false);
+  const prevActiveWorkoutVisibleRef = useRef(isActiveWorkoutVisible);
   /** AI coach turns per in-progress session (`startedAt`), survives hub ↔ workout navigation. */
   const [coachMessagesByStartedAt, setCoachMessagesByStartedAt] = useState<
     Record<string, CoachChatMessage[]>
@@ -266,6 +273,7 @@ export default function App() {
     ScheduledConfirmationState | null
   >(null);
   const [isDevPaywallBypassed, setIsDevPaywallBypassed] = useState(false);
+  const [isFirstHubTipVisible, setIsFirstHubTipVisible] = useState(false);
 
   const handledImportedWorkoutId = useRef<string | null>(null);
   const handledNativeShareUrls = useRef(new Set<string>());
@@ -297,6 +305,33 @@ export default function App() {
     setSelectedCompletedWorkout(null);
     setSelectedSavedRoutine(null);
   }, []);
+
+  useEffect(() => {
+    const wasVisible = prevActiveWorkoutVisibleRef.current;
+    prevActiveWorkoutVisibleRef.current = isActiveWorkoutVisible;
+
+    if (!activeSession) {
+      return;
+    }
+
+    if (wasVisible && !isActiveWorkoutVisible) {
+      setActiveSession((current) =>
+        current ? { ...current, hubTimerFrozenWallMs: Date.now() } : current,
+      );
+      return;
+    }
+
+    if (!wasVisible && isActiveWorkoutVisible) {
+      setActiveSession((current) =>
+        current && current.hubTimerFrozenWallMs != null
+          ? {
+              ...current,
+              hubTimerFrozenWallMs: undefined,
+            }
+          : current,
+      );
+    }
+  }, [activeSession, isActiveWorkoutVisible]);
 
   useEffect(() => {
     if (!workout || handledImportedWorkoutId.current === workout.id) {
@@ -573,6 +608,7 @@ export default function App() {
       setCompletedWorkoutsError(null);
       setBodyWeightEntries([]);
       setBodyWeightEntriesError(null);
+      hubPreviousTabRef.current = "saved";
       return;
     }
 
@@ -588,6 +624,107 @@ export default function App() {
     loadCompletedWorkouts,
     loadSavedWorkouts,
     loadScheduledWorkouts,
+  ]);
+
+  useEffect(() => {
+    const cameBackToHub =
+      activeTab === "saved" && hubPreviousTabRef.current !== "saved";
+    hubPreviousTabRef.current = activeTab;
+
+    if (!accessToken || !currentUser || !cameBackToHub) {
+      return;
+    }
+    void loadCompletedWorkouts(accessToken);
+  }, [accessToken, activeTab, currentUser, loadCompletedWorkouts]);
+
+  const refreshHubWorkoutData = useCallback(async () => {
+    if (!accessToken) {
+      return;
+    }
+    await Promise.all([
+      loadSavedWorkouts(accessToken),
+      loadScheduledWorkouts(accessToken),
+      loadCompletedWorkouts(accessToken),
+    ]);
+  }, [
+    accessToken,
+    loadCompletedWorkouts,
+    loadSavedWorkouts,
+    loadScheduledWorkouts,
+  ]);
+
+  const handleDismissFirstHubTip = useCallback(async () => {
+    const userId = currentUser?.id;
+    if (!userId) {
+      setIsFirstHubTipVisible(false);
+      return;
+    }
+    try {
+      await AsyncStorage.setItem(getFirstHubTipStorageKey(userId), "1");
+    } catch {
+      // Still close the sheet so onboarding never traps the hub.
+    } finally {
+      setIsFirstHubTipVisible(false);
+    }
+  }, [currentUser?.id]);
+
+  useEffect(() => {
+    if (!currentUser) {
+      setIsFirstHubTipVisible(false);
+    }
+  }, [currentUser]);
+
+  useEffect(() => {
+    if (!accessToken || !currentUser?.onboarding) {
+      return undefined;
+    }
+    if (activeOnboardingUserId === currentUser.id) {
+      return undefined;
+    }
+    if (!hasBillingAccess || isBillingCheckPending) {
+      return undefined;
+    }
+
+    let alive = true;
+    void (async () => {
+      try {
+        await ensureStarterWorkoutsSeeded(accessToken, async () => {
+          if (!alive) {
+            return;
+          }
+          await loadSavedWorkouts(accessToken);
+        });
+        if (!alive) {
+          return;
+        }
+        const tipKey = getFirstHubTipStorageKey(currentUser.id);
+        const tipDone = await AsyncStorage.getItem(tipKey);
+        if (tipDone === "1") {
+          return;
+        }
+
+        InteractionManager.runAfterInteractions(() => {
+          if (!alive) {
+            return;
+          }
+          setIsFirstHubTipVisible(true);
+        });
+      } catch {
+        // Starter rows + deferred hub tip remain best-effort.
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [
+    accessToken,
+    activeOnboardingUserId,
+    currentUser?.id,
+    currentUser?.onboarding,
+    hasBillingAccess,
+    isBillingCheckPending,
+    loadSavedWorkouts,
   ]);
 
   const handleExtractWorkout = useCallback(async (url: string) => {
@@ -1715,8 +1852,6 @@ export default function App() {
       setIsOnboardingSubmitting(true);
       setOnboardingError(null);
 
-      const isFirstOnboardingCompletion = Boolean(currentUser && !currentUser.onboarding);
-
       try {
         const response = await saveOnboarding(accessToken, payload);
         setCurrentUser(response.profile);
@@ -1724,12 +1859,6 @@ export default function App() {
         setAuthPrefillFullName(response.profile.full_name);
         await storeAuthSession(accessToken, response.profile);
         await loadBodyWeightEntries(accessToken);
-
-        if (isFirstOnboardingCompletion) {
-          setTimeout(() => {
-            void requestNotificationPermissionForOnboarding();
-          }, 400);
-        }
       } catch (error) {
         const message =
           error instanceof Error ? error.message : "Unable to save onboarding.";
@@ -1739,7 +1868,7 @@ export default function App() {
         setIsOnboardingSubmitting(false);
       }
     },
-    [accessToken, currentUser, loadBodyWeightEntries],
+    [accessToken, loadBodyWeightEntries],
   );
 
   const handleAddBodyWeightEntry = useCallback(
@@ -1963,7 +2092,6 @@ export default function App() {
       if (isSavedLibraryVisible) {
         return (
           <SavedLibraryScreen
-            completedWorkouts={completedWorkouts}
             error={savedWorkoutsError}
             importedWorkouts={savedWorkouts}
             isLoading={savedWorkoutsLoading}
@@ -1974,6 +2102,7 @@ export default function App() {
             onRetry={() => {
               if (accessToken) {
                 void loadSavedWorkouts(accessToken);
+                void loadCompletedWorkouts(accessToken);
               }
             }}
             onScheduleWorkout={handleRequestScheduleSavedWorkout}
@@ -1988,17 +2117,22 @@ export default function App() {
       return (
         <SavedWorkoutsScreen
           completedWorkouts={completedWorkouts}
+          completedWorkoutsError={completedWorkoutsError}
+          completedWorkoutsLoading={completedWorkoutsLoading}
           importedWorkouts={savedWorkouts}
           isScheduleLoading={scheduledWorkoutsLoading}
           onAddWorkout={handleOpenAddWorkout}
           onOpenProfile={() => setIsProfileVisible(true)}
           onOpenSavedList={() => setIsSavedLibraryVisible(true)}
           onOpenWorkout={(routine) => setSelectedSavedRoutine(routine)}
+          onPullToRefresh={refreshHubWorkoutData}
           onRemoveWorkout={handleRemoveSavedWorkout}
+          onOpenCompletedSession={handleOpenCompletedWorkout}
           onRetry={() => {
             if (accessToken) {
               void loadSavedWorkouts(accessToken);
               void loadScheduledWorkouts(accessToken);
+              void loadCompletedWorkouts(accessToken);
             }
           }}
           onScheduleWorkout={handleRequestScheduleSavedWorkout}
@@ -2062,7 +2196,8 @@ export default function App() {
   const importError = submitError || pollError;
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <GestureHandlerRootView style={styles.flexRoot}>
+      <SafeAreaView style={styles.safeArea}>
       <StatusBar style={themeMode === "dark" ? "light" : "dark"} />
       <View style={styles.appShell}>
         {!isAuthReady || !fontsLoaded || !isMinSplashDone ? (
@@ -2214,6 +2349,12 @@ export default function App() {
         themeMode={themeMode}
       />
 
+      <FirstHubTipModal
+        themeMode={themeMode}
+        visible={isFirstHubTipVisible && hasBillingAccess}
+        onDismiss={handleDismissFirstHubTip}
+      />
+
       {scheduledConfirmation ? (
         <View style={styles.confirmationOverlay}>
           <ScheduledConfirmationScreen
@@ -2226,11 +2367,15 @@ export default function App() {
         </View>
       ) : null}
     </SafeAreaView>
+    </GestureHandlerRootView>
   );
 }
 
 const createStyles = (theme: ReturnType<typeof getTheme>) =>
   StyleSheet.create({
+    flexRoot: {
+      flex: 1,
+    },
     safeArea: {
       flex: 1,
       backgroundColor: theme.colors.background,

@@ -165,13 +165,17 @@ export function AddWorkoutModal({
   // same reason via a delayed cleanup in App.tsx.
   useEffect(() => {
     if (visible && !wasVisibleRef.current) {
-      setUrl("");
+      // Opening with `initialUrl` (share/deep link) must keep the staged URL —
+      // otherwise the reset below races the prefilled-effect and ingest goes blank.
+      if (!initialUrl) {
+        setUrl("");
+      }
       setIsPickingDate(false);
       setSelectedDate(null);
       autoSubmittedRef.current = null;
     }
     wasVisibleRef.current = visible;
-  }, [visible]);
+  }, [initialUrl, visible]);
 
   useEffect(() => {
     if (!visible || !initialUrl) {
@@ -443,9 +447,7 @@ export function AddWorkoutModal({
                 </View>
                 <Text style={styles.title}>Import Workout</Text>
                 <Text style={styles.subtitle}>
-                  Share a TikTok or Instagram Reel to Fitfo from your phone&apos;s share
-                  menu—the link will usually show up here automatically. You can also
-                  paste a link yourself if you prefer.
+                  Share from TikTok or Instagram, or paste a link.
                 </Text>
 
                 <View style={styles.formBlock}>
@@ -462,17 +464,12 @@ export function AddWorkoutModal({
                       editable
                       keyboardType="url"
                       onChangeText={setUrl}
-                      placeholder="Appears after sharing, or paste a URL"
+                      placeholder="Paste link…"
                       placeholderTextColor={theme.colors.textMuted}
                       style={styles.input}
                       value={url}
                     />
                   </View>
-
-                  <Text style={styles.helperText}>
-                    We&apos;ll extract the workout from the clip so you can start it
-                    or save it for later.
-                  </Text>
 
                   <Pressable
                     disabled={!trimmedUrl}
@@ -713,7 +710,7 @@ export function AddWorkoutModal({
                 </View>
 
                 <Pressable onPress={onCreateManual}>
-                  <Text style={styles.linkButton}>Create a workout manually</Text>
+                  <Text style={styles.linkButton}>Create manually instead</Text>
                 </Pressable>
               </>
             ) : null}
@@ -810,12 +807,6 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       flex: 1,
       color: theme.colors.textPrimary,
       fontSize: 17,
-    },
-    helperText: {
-      color: theme.colors.textSecondary,
-      fontSize: 14,
-      lineHeight: 21,
-      fontFamily: "satoshi"
     },
     primaryButton: {
       minHeight: 54,

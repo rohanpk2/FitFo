@@ -47,10 +47,16 @@ Run these SQL files in the Supabase SQL editor, in order:
 3. `sql/005_workout_persistence.sql`
 4. `sql/006_profile_onboarding.sql`
 5. `sql/007_body_weight_entries.sql`
-6. `sql/010_profile_onboarding_custom_split.sql`
-7. `sql/014_profile_onboarding_sex.sql`
-8. `sql/011_creator_corpus.sql` *(creates pgvector + creator-corpus tables)*
-9. `sql/012_corpus_retrieval.sql` *(creates `match_content_chunks` RPC for chat)*
+6. `sql/008_scheduled_workouts.sql` *(calendar `scheduled_workouts` table + RLS)*
+7. `sql/009_apple_auth.sql` *(Apple Sign-In column on `profiles`, if needed)*
+8. `sql/010_profile_onboarding_custom_split.sql`
+9. `sql/013_saved_scheduled_thumbnail.sql` *(adds optional `thumbnail_url` on `saved_workouts` and `scheduled_workouts` — required for API + calendar cards)*
+10. `sql/014_profile_onboarding_sex.sql`
+11. `sql/015_scheduled_workouts_thumbnail_url_fix.sql` *(idempotent redo of thumbnail columns — run if listings fail with Postgres `42703` / `thumbnail_url does not exist`)*
+12. `sql/011_creator_corpus.sql` *(creates pgvector + creator-corpus tables)*
+13. `sql/012_corpus_retrieval.sql` *(creates `match_content_chunks` RPC for chat)*
+
+If you see **`scheduled_workouts.thumbnail_url does not exist`** (error `42703`) on scheduled workouts: open the Supabase SQL editor once and execute **`sql/015_scheduled_workouts_thumbnail_url_fix.sql`** *(or equivalently **`sql/013_saved_scheduled_thumbnail.sql`** — both use `IF NOT EXISTS`)*.
 
 `sql/003_profiles_auth_link.sql` is legacy and only applies to an older `auth.users`-linked profile setup. The current backend OTP flow uses `sql/004_profiles_backend_auth.sql`, which preserves `profiles` data and detaches any stale `auth.users` linkage instead of dropping the table.
 
