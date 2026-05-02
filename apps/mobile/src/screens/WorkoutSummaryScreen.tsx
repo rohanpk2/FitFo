@@ -15,6 +15,7 @@ import {
   getCompletedWorkoutMeta,
   getCreatorDisplayLabel,
   getRoutineDisplayTitle,
+  canReplayCompletedSession,
   titleCase,
 } from "../lib/fitfo";
 import { getTheme, type ThemeMode } from "../theme";
@@ -22,6 +23,7 @@ import type { ActiveSetPreview, CompletedWorkoutRecord } from "../types";
 
 interface WorkoutSummaryScreenProps {
   onBack: () => void;
+  onRepeatWorkout?: () => void;
   onScheduleAgain?: () => void;
   isSchedulingAgain?: boolean;
   workout: CompletedWorkoutRecord;
@@ -80,6 +82,7 @@ function formatSourceUrl(sourceUrl: string) {
 
 export function WorkoutSummaryScreen({
   onBack,
+  onRepeatWorkout,
   onScheduleAgain,
   isSchedulingAgain = false,
   workout,
@@ -93,6 +96,7 @@ export function WorkoutSummaryScreen({
     title: workout.title,
     workoutPlan: workout.workout_plan,
   });
+  const canReplaySession = canReplayCompletedSession(workout);
   const detailChips = [
     workout.difficulty ? `Difficulty: ${workout.difficulty}` : null,
     workout.calories != null ? `${workout.calories} cal` : null,
@@ -139,30 +143,56 @@ export function WorkoutSummaryScreen({
         </View>
       </View>
 
-      {onScheduleAgain ? (
-        <Pressable
-          disabled={isSchedulingAgain}
-          onPress={onScheduleAgain}
-          style={({ pressed }) => [
-            styles.scheduleAgainButton,
-            isSchedulingAgain ? styles.scheduleAgainButtonDisabled : null,
-            pressed && !isSchedulingAgain ? styles.scheduleAgainButtonPressed : null,
-          ]}
-        >
-          {isSchedulingAgain ? (
-            <>
-              <ActivityIndicator color={theme.colors.surface} size="small" />
-              <Text style={styles.scheduleAgainButtonText}>Scheduling...</Text>
-            </>
-          ) : (
-            <>
-              <Ionicons color={theme.colors.surface} name="calendar" size={16} />
-              <Text style={styles.scheduleAgainButtonText}>
-                Schedule This Workout Again
-              </Text>
-            </>
-          )}
-        </Pressable>
+      {(onRepeatWorkout || onScheduleAgain) ? (
+        <View style={styles.actionStack}>
+          {onRepeatWorkout ? (
+            <Pressable
+              accessibilityHint="Begins a new practice session using this workout"
+              accessibilityLabel="Start this workout again"
+              disabled={!canReplaySession}
+              onPress={onRepeatWorkout}
+              style={({ pressed }) => [
+                styles.startWorkoutButton,
+                !canReplaySession ? styles.startWorkoutButtonDisabled : null,
+                pressed && canReplaySession ? styles.startWorkoutButtonPressed : null,
+              ]}
+            >
+              <Ionicons color={theme.colors.surface} name="play-circle" size={18} />
+              <Text style={styles.startWorkoutButtonText}>Start this workout again</Text>
+            </Pressable>
+          ) : null}
+          {onScheduleAgain ? (
+            <Pressable
+              disabled={isSchedulingAgain}
+              onPress={onScheduleAgain}
+              style={({ pressed }) => [
+                styles.scheduleOutlineButton,
+                isSchedulingAgain ? styles.scheduleOutlineButtonDisabled : null,
+                pressed && !isSchedulingAgain ? styles.scheduleOutlineButtonPressed : null,
+              ]}
+            >
+              {isSchedulingAgain ? (
+                <>
+                  <ActivityIndicator color={theme.colors.primary} size="small" />
+                  <Text style={styles.scheduleOutlineButtonText}>Scheduling...</Text>
+                </>
+              ) : (
+                <>
+                  <Ionicons color={theme.colors.primary} name="calendar" size={16} />
+                  <Text style={styles.scheduleOutlineButtonText}>
+                    Schedule This Workout Again
+                  </Text>
+                </>
+              )}
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
+
+      {!canReplaySession && onRepeatWorkout ? (
+        <Text style={styles.helperMuted}>
+          This log has no lifts to repeat yet—finish logging in the tracker first.
+        </Text>
       ) : null}
 
       <View style={styles.section}>
@@ -342,8 +372,8 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     title: {
       color: theme.colors.surface,
       fontSize: 34,
-      fontFamily: "ClashDisplay-Semibold",
-      fontWeight: "800",
+      fontFamily: "Satoshi-Black",
+      fontWeight: "900",
       letterSpacing: -1.2,
     },
     completedAt: {
@@ -356,6 +386,8 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       color: theme.colors.surface,
       fontSize: 15,
       lineHeight: 22,
+      fontFamily: "Satoshi-Regular",
+      fontWeight: "400",
     },
     heroStats: {
       flexDirection: "row",
@@ -383,7 +415,10 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       fontFamily: "Satoshi-Bold",
       fontWeight: "800",
     },
-    scheduleAgainButton: {
+    actionStack: {
+      gap: 12,
+    },
+    startWorkoutButton: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "center",
@@ -394,18 +429,51 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       paddingHorizontal: 20,
       ...theme.shadows.primary,
     },
-    scheduleAgainButtonDisabled: {
-      opacity: 0.6,
+    startWorkoutButtonDisabled: {
+      opacity: 0.5,
     },
-    scheduleAgainButtonPressed: {
+    startWorkoutButtonPressed: {
       opacity: 0.88,
     },
-    scheduleAgainButtonText: {
+    startWorkoutButtonText: {
       color: theme.colors.surface,
       fontSize: 16,
       fontFamily: "Satoshi-Bold",
       fontWeight: "800",
       letterSpacing: 0.2,
+    },
+    scheduleOutlineButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 10,
+      minHeight: 56,
+      borderRadius: 20,
+      paddingHorizontal: 20,
+      backgroundColor: theme.colors.surface,
+      borderWidth: 2,
+      borderColor: theme.colors.primary,
+    },
+    scheduleOutlineButtonDisabled: {
+      opacity: 0.65,
+    },
+    scheduleOutlineButtonPressed: {
+      opacity: 0.88,
+    },
+    scheduleOutlineButtonText: {
+      color: theme.colors.primary,
+      fontSize: 16,
+      fontFamily: "Satoshi-Bold",
+      fontWeight: "800",
+      letterSpacing: 0.2,
+    },
+    helperMuted: {
+      color: theme.colors.textMuted,
+      fontSize: 13,
+      lineHeight: 18,
+      fontFamily: "Satoshi-Medium",
+      fontWeight: "600",
+      textAlign: "center",
     },
     section: {
       gap: 14,
@@ -425,8 +493,8 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     sectionTitle: {
       color: theme.colors.textPrimary,
       fontSize: 26,
-      fontFamily: "ClashDisplay-Semibold",
-      fontWeight: "800",
+      fontFamily: "Satoshi-Black",
+      fontWeight: "900",
       letterSpacing: -0.6,
     },
     detailCard: {
@@ -456,6 +524,8 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       color: theme.colors.textSecondary,
       fontSize: 15,
       lineHeight: 22,
+      fontFamily: "Satoshi-Regular",
+      fontWeight: "400",
     },
     chipRow: {
       flexDirection: "row",
@@ -574,6 +644,8 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       color: theme.colors.textSecondary,
       fontSize: 14,
       lineHeight: 20,
+      fontFamily: "Satoshi-Regular",
+      fontWeight: "400",
     },
     setList: {
       gap: 10,
@@ -636,5 +708,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       fontSize: 14,
       lineHeight: 21,
       textAlign: "center",
+      fontFamily: "Satoshi-Regular",
+      fontWeight: "400",
     },
   });

@@ -11,6 +11,7 @@ import type {
   IngestResponse,
   JobResponse,
   MeResponse,
+  PatchProfileRequest,
   SaveOnboardingRequest,
   SaveOnboardingResponse,
   SavedWorkoutRecord,
@@ -161,6 +162,17 @@ export async function getCurrentUser(
   return request<MeResponse>("/auth/me", {
     method: "GET",
     accessToken,
+  });
+}
+
+export async function patchProfile(
+  accessToken: string,
+  body: PatchProfileRequest,
+): Promise<MeResponse> {
+  return request<MeResponse>("/auth/me", {
+    method: "PATCH",
+    accessToken,
+    body: JSON.stringify(body),
   });
 }
 

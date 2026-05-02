@@ -625,6 +625,87 @@ function computeAverageRestSeconds(plan: WorkoutPlan): number | null {
   return Math.round(totalRest / totalSets);
 }
 
+/** Fresh session rows from last completed log targets (plan missing fallback). */
+function exercisesFromCompletedLog(
+  exercises: ActiveExercisePreview[],
+): ActiveExercisePreview[] {
+  return exercises.map((exercise, exerciseIndex) => ({
+    ...exercise,
+    id: `replay-${exerciseIndex + 1}-${exercise.name}-${Date.now().toString(36)}`,
+    sets: exercise.sets.map((set, setIndex) => ({
+      id: `replay-${exerciseIndex + 1}-${setIndex + 1}`,
+      label: `Set ${setIndex + 1}`,
+      targetReps: set.targetReps,
+      targetDurationSec: set.targetDurationSec,
+      loggedWeight: "",
+      loggedReps: "",
+      completed: false,
+    })),
+  }));
+}
+
+/** Start today from any completed session (recent history or summary). Uses `workout_plan` when present. */
+export function createActiveSessionFromCompletedWorkout(
+  record: CompletedWorkoutRecord,
+): ActiveSessionPreview {
+  const displayTitle = getRoutineDisplayTitle({
+    sourceUrl: record.source_url,
+    title: record.title,
+    workoutPlan: record.workout_plan,
+  });
+  const rawTitle = displayTitle.trim() || record.workout_plan?.title || "Workout Session";
+  const title = titleCase(rawTitle) || rawTitle;
+  const summaryBit = sanitizeCompletedWorkoutSummary(record.summary)?.trim();
+  const descPiece = sanitizeRoutineDescription(record.description)?.trim();
+  const description =
+    descPiece ||
+    summaryBit ||
+    record.workout_plan?.notes?.trim() ||
+    "Practice session restarted from your log.";
+
+  if (record.workout_plan && record.workout_plan.blocks.length > 0) {
+    return createActiveSessionFromPlan(record.workout_plan, {
+      description: sentenceCase(description) || description,
+      sourceJobId: record.job_id,
+      sourceUrl: record.source_url,
+      sourceWorkoutId: record.workout_id,
+      title,
+    });
+  }
+
+  if (record.exercises.length > 0) {
+    const descFinal = sentenceCase(description) || description;
+    return {
+      title,
+      description: descFinal,
+      startedAt: Date.now(),
+      averageRestSeconds: record.average_rest_seconds ?? null,
+      exercises: exercisesFromCompletedLog(record.exercises),
+      sourceWorkoutId: record.workout_id ?? null,
+      sourceJobId: record.job_id ?? null,
+      sourceUrl: record.source_url ?? null,
+      workoutPlan: record.workout_plan ?? undefined,
+    };
+  }
+
+  return createDefaultActiveSession({
+    title,
+    description: sentenceCase(description) || description,
+    sourceJobId: record.job_id,
+    sourceUrl: record.source_url,
+    sourceWorkoutId: record.workout_id,
+    workoutPlan: record.workout_plan ?? undefined,
+  });
+}
+
+/** True when we can seed a new active session from this log (plan or exercise rows). */
+export function canReplayCompletedSession(record: CompletedWorkoutRecord): boolean {
+  return (
+    (record.workout_plan?.blocks?.length ?? 0) > 0 ||
+    record.exercises.length > 0
+  );
+}
+
 export function createImportedRoutinePreview(
   workout: WorkoutRow,
   options?: {

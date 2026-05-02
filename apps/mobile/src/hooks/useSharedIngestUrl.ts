@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { InteractionManager, Linking } from "react-native";
-import { parse as parseExpoUrl } from "expo-linking";
+import { getLinkingURL, parse as parseExpoUrl } from "expo-linking";
 
 /**
  * Subscribe to incoming `fitfo://ingest?url=…` deep links (see also
@@ -30,9 +30,12 @@ export function useSharedIngestUrl(onUrl: (sharedUrl: string) => void) {
       handler.current(extracted);
     };
 
+    maybeHandle(getLinkingURL());
+
     void Linking.getInitialURL().then(maybeHandle).catch(() => undefined);
 
     InteractionManager.runAfterInteractions(() => {
+      maybeHandle(getLinkingURL());
       void Linking.getInitialURL().then(maybeHandle).catch(() => undefined);
     });
 
@@ -76,10 +79,56 @@ function unwrapOneOrTwoLayerEncodedParam(trimmed: string): string {
   return out.trim();
 }
 
-/** Deep links routed into Fitfo (`fitfo:` or dev clients like `exp+fitfo:`). */
-function isTrustedFitfoIngestDeepLink(parsed: ReturnType<typeof parseExpoUrl>): boolean {
-  const scheme = (parsed.scheme ?? "").toLowerCase();
-  return scheme === "fitfo" || scheme.endsWith("+fitfo");
+/**
+ * Leading URI scheme before `:`, lowercased.
+ * Matches `fitfo`, `exp+fitfo-mobile`, etc. (POSIX-friendly character class.)
+ */
+function extractUriScheme(trimmed: string): string | null {
+  const match = trimmed.match(/^([a-z][a-z0-9+.-]*):/iu);
+  return match?.[1] ? match[1].toLowerCase() : null;
+}
+
+/**
+ * True for production `fitfo:`, standalone slug schemes like `fitfo-mobile:`,
+ * and Expo dev-client schemes `exp+fitfo-mobile` (anything `exp+…fitfo…`).
+ */
+function isTrustedFitfoDeepLinkScheme(scheme: string | null): boolean {
+  if (!scheme) {
+    return false;
+  }
+  const lower = scheme.toLowerCase();
+  if (lower === "fitfo") {
+    return true;
+  }
+  if (lower.startsWith("fitfo-")) {
+    return true;
+  }
+  if (lower.startsWith("exp+") && lower.includes("fitfo")) {
+    return true;
+  }
+  if (lower.endsWith("+fitfo")) {
+    return true;
+  }
+  return false;
+}
+
+/** Read `url` query key without constructing `URL`, which RN/Hermes may reject for `fitfo:`. */
+function ingestUrlQueryParamFromString(trimmed: string): string | null {
+  const qMark = trimmed.indexOf("?");
+  if (qMark < 0) {
+    return null;
+  }
+  let qs = trimmed.slice(qMark + 1);
+  const hashIdx = qs.indexOf("#");
+  if (hashIdx >= 0) {
+    qs = qs.slice(0, hashIdx);
+  }
+  try {
+    const params = new URLSearchParams(qs);
+    return coerceQueryUrlParam(params.get("url"));
+  } catch {
+    return null;
+  }
 }
 
 function extractIngestUrl(rawLink: string): string | null {
@@ -88,10 +137,25 @@ function extractIngestUrl(rawLink: string): string | null {
     return null;
   }
 
+  const scheme = extractUriScheme(trimmed.split("?", 2)[0] ?? trimmed);
+  const preferQuery = (): string | null => {
+    const encoded = ingestUrlQueryParamFromString(trimmed);
+    if (!encoded || !isTrustedFitfoDeepLinkScheme(scheme)) {
+      return null;
+    }
+    return unwrapOneOrTwoLayerEncodedParam(encoded) || null;
+  };
+
+  const queryFirst = preferQuery();
+  if (queryFirst) {
+    return queryFirst;
+  }
+
   try {
     const expoParsed = parseExpoUrl(trimmed);
+    const expoScheme = (expoParsed.scheme ?? "").toLowerCase();
     const param = coerceQueryUrlParam(expoParsed.queryParams?.url);
-    if (param && isTrustedFitfoIngestDeepLink(expoParsed)) {
+    if (param && isTrustedFitfoDeepLinkScheme(expoScheme)) {
       return unwrapOneOrTwoLayerEncodedParam(param) || null;
     }
   } catch {
@@ -101,7 +165,7 @@ function extractIngestUrl(rawLink: string): string | null {
   try {
     const url = new URL(trimmed);
     const schemeNorm = url.protocol.replace(/:$/u, "").toLowerCase();
-    if (!(schemeNorm === "fitfo" || schemeNorm.endsWith("+fitfo"))) {
+    if (!isTrustedFitfoDeepLinkScheme(schemeNorm)) {
       return null;
     }
     const encoded = coerceQueryUrlParam(url.searchParams.get("url"));
@@ -114,7 +178,7 @@ function extractIngestUrl(rawLink: string): string | null {
     if (!match?.[1]) {
       return null;
     }
-    if (!/^fitfo:/iu.test(trimmed)) {
+    if (!isTrustedFitfoDeepLinkScheme(scheme)) {
       return null;
     }
     try {

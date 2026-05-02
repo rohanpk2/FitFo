@@ -96,6 +96,12 @@ class MeResponse(BaseModel):
     profile: UserProfileResponse
 
 
+class PatchProfileRequest(BaseModel):
+    """Update mutable profile fields (display name today; extend as needed)."""
+
+    full_name: str = Field(..., min_length=1, max_length=120)
+
+
 class AppleSignInRequest(BaseModel):
     identity_token: str = Field(..., min_length=1)
     raw_nonce: Optional[str] = None

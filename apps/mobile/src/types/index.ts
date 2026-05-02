@@ -191,6 +191,10 @@ export interface MeResponse {
   profile: UserProfile;
 }
 
+export interface PatchProfileRequest {
+  full_name: string;
+}
+
 export interface SaveOnboardingRequest {
   goals: OnboardingGoal[];
   sex: OnboardingSex;

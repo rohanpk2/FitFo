@@ -108,13 +108,19 @@ class BuildWorkoutBlockTests(unittest.TestCase):
         self.assertIn("(1/3 sets done)", block)
 
 
-class SanitizeCoachAnswerTests(unittest.TestCase):
-    def test_strips_citation_tokens(self) -> None:
-        raw = "Drive elbows under [1] and stay stacked [2]."
-        out = corpus_chat._sanitize_coach_answer(raw)
+class ClampCitationsInAnswerTests(unittest.TestCase):
+    def test_keeps_tokens_in_range_and_strips_oob(self) -> None:
+        raw = "Drive elbows under [1] and stay stacked [2] bogus [99]."
+        out = corpus_chat._clamp_citations_in_answer(raw, num_chunks=2)
+        self.assertIn("[1]", out)
+        self.assertIn("[2]", out)
+        self.assertNotIn("[99]", out)
+        self.assertIn("Drive elbows under [1]", out)
+
+    def test_strips_all_when_no_chunks(self) -> None:
+        raw = "Hint [1] here."
+        out = corpus_chat._clamp_citations_in_answer(raw, num_chunks=0)
         self.assertNotIn("[1]", out)
-        self.assertNotIn("[2]", out)
-        self.assertIn("Drive elbows under", out)
 
 
 class AnswerTests(unittest.IsolatedAsyncioTestCase):
@@ -177,9 +183,10 @@ class AnswerTests(unittest.IsolatedAsyncioTestCase):
         ):
             result = await corpus_chat.answer("how do I grow my triceps?")
 
-        self.assertNotIn("[1]", result.answer)
-        self.assertNotIn("[2]", result.answer)
-        self.assertEqual(result.citations, [])
+        self.assertIn("[1]", result.answer)
+        self.assertIn("[2]", result.answer)
+        self.assertEqual(len(result.citations), 2)
+        self.assertEqual({c.index for c in result.citations}, {1, 2})
         system_content = capture["json"]["messages"][0]["content"]
         self.assertIn("pressing movements", system_content)
         self.assertIn("[1]", system_content)

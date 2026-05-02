@@ -88,7 +88,7 @@ export interface ChatRequestBody {
 
 export interface ChatResponse {
   answer: string;
-  /** Always empty — coach UX does not expose source/evidence chips. */
+  /** Maps to `[N]` in `answer`; use `snippet`/`source_url` for reference UI. */
   citations: ChatCitation[];
   retrieval: RetrievedChunk[];
   model: string;

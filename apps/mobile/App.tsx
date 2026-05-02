@@ -50,6 +50,7 @@ import {
   listCompletedWorkouts,
   listSavedWorkouts,
   listScheduledWorkouts,
+  patchProfile,
   saveOnboarding,
   saveWorkoutForLater,
   sendOtp,
@@ -61,6 +62,7 @@ import { humanizeIngestError } from "./src/lib/ingestErrors";
 import { signInWithApple } from "./src/lib/appleAuth";
 import {
   buildCompletedWorkoutRequest,
+  createActiveSessionFromCompletedWorkout,
   createActiveSessionFromPlan,
   createDefaultActiveSession,
   createImportedRoutinePreview,
@@ -818,6 +820,21 @@ export default function App() {
     }
     setIsAddWorkoutVisible(true);
   }, [accessToken, isAddWorkoutVisible, sharedIngestUrl]);
+
+  const handleReplayCompletedWorkout = useCallback(
+    (record: CompletedWorkoutRecord) => {
+      setActiveSession(createActiveSessionFromCompletedWorkout(record));
+      setActiveTab("logs");
+      setIsActiveWorkoutVisible(true);
+      setSelectedCompletedWorkout(null);
+      setSelectedSavedRoutine(null);
+      setIsAddWorkoutVisible(false);
+      setSharedIngestUrl(null);
+      setIsShareDrivenIngest(false);
+      resetImportFlow();
+    },
+    [resetImportFlow],
+  );
 
   const handleStartSession = useCallback(
     (routine?: SavedRoutinePreview) => {
@@ -1889,6 +1906,23 @@ export default function App() {
     [accessToken, loadBodyWeightEntries],
   );
 
+  const handleUpdateFullName = useCallback(
+    async (fullName: string) => {
+      const trimmed = fullName.trim();
+      if (!accessToken) {
+        throw new Error("You need to be logged in to update your name.");
+      }
+      if (!trimmed) {
+        throw new Error("Enter a name to save.");
+      }
+      const response = await patchProfile(accessToken, { full_name: trimmed });
+      setCurrentUser(response.profile);
+      setAuthPrefillFullName(response.profile.full_name);
+      await storeAuthSession(accessToken, response.profile);
+    },
+    [accessToken],
+  );
+
   const handleAddBodyWeightEntry = useCallback(
     async (weightLbs: number) => {
       if (!accessToken) {
@@ -2035,6 +2069,9 @@ export default function App() {
         <WorkoutSummaryScreen
           workout={selectedCompletedWorkout}
           onBack={() => setSelectedCompletedWorkout(null)}
+          onRepeatWorkout={() =>
+            handleReplayCompletedWorkout(selectedCompletedWorkout)
+          }
           onScheduleAgain={() =>
             handleRequestScheduleAgainForCompleted(selectedCompletedWorkout)
           }
@@ -2100,6 +2137,7 @@ export default function App() {
           onDeleteAccount={handleDeleteAccount}
           onManageSubscription={revenueCat.openCustomerCenter}
           onThemeModeChange={handleThemeModeChange}
+          onUpdateFullName={handleUpdateFullName}
           isDeletingAccount={isDeletingAccount}
           profile={currentUser}
           themeMode={themeMode}
@@ -2178,6 +2216,7 @@ export default function App() {
             }
           }}
           onScheduleAgain={handleRequestScheduleAgainForCompleted}
+          onStartFromCompleted={handleReplayCompletedWorkout}
           schedulingWorkoutId={
             isSchedulingAgain ? scheduleAgainTarget?.id ?? null : null
           }

@@ -9,6 +9,7 @@ import {
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
+  Linking,
   Modal,
   Platform,
   Pressable,
@@ -22,6 +23,7 @@ import { Ionicons } from "@expo/vector-icons";
 
 import {
   ChatApiError,
+  ChatCitation,
   ChatTurn,
   WorkoutContext,
   sendChatMessage,
@@ -33,6 +35,8 @@ import { getTheme, radii, type ThemeMode } from "../theme";
 export interface CoachChatMessage {
   role: "user" | "assistant";
   content: string;
+  /** Populated when the API returns grounding references for this reply. */
+  citations?: ChatCitation[];
 }
 
 interface CoachSheetProps {
@@ -106,6 +110,8 @@ export default function CoachSheet({
         {
           role: "assistant",
           content: result.answer,
+          citations:
+            result.citations.length > 0 ? [...result.citations] : undefined,
         },
       ]);
     } catch (exc) {
@@ -115,7 +121,16 @@ export default function CoachSheet({
     }
   };
 
-  const renderInline = (inlines: MarkdownInline[], keyPrefix: string) =>
+  const citationLookup = (
+    citations: ChatCitation[] | undefined,
+    index: number,
+  ): ChatCitation | undefined => citations?.find((c) => c.index === index);
+
+  const renderInline = (
+    inlines: MarkdownInline[],
+    keyPrefix: string,
+    citations: ChatCitation[] | undefined,
+  ) =>
     inlines.map((inline, idx) => {
       const key = `${keyPrefix}-${idx}`;
       if (inline.kind === "bold") {
@@ -126,12 +141,39 @@ export default function CoachSheet({
         );
       }
       if (inline.kind === "citation") {
-        return <Text key={key} />;
+        const cite = citationLookup(citations, inline.index);
+        const label = `[${inline.index}]`;
+        const url = cite?.source_url?.trim();
+        const canOpen = Boolean(url?.startsWith("http"));
+        if (canOpen && url) {
+          return (
+            <Text
+              accessibilityLabel={`Reference ${inline.index}, opens source`}
+              accessibilityRole="link"
+              key={key}
+              onPress={() => {
+                void Linking.openURL(url);
+              }}
+              style={styles.citationBadge}
+            >
+              {label}
+            </Text>
+          );
+        }
+        return (
+          <Text key={key} style={styles.citationMuted}>
+            {label}
+          </Text>
+        );
       }
       return <Text key={key}>{inline.value}</Text>;
     });
 
-  const renderMarkdown = (markdown: string, prefix: string) => {
+  const renderMarkdown = (
+    markdown: string,
+    prefix: string,
+    citations?: ChatCitation[],
+  ) => {
     const blocks: MarkdownBlock[] = parseMarkdown(markdown);
     if (blocks.length === 0) {
       return <Text style={styles.assistantText}>{markdown}</Text>;
@@ -146,7 +188,7 @@ export default function CoachSheet({
                   <View key={`${prefix}-${idx}-${itemIdx}`} style={styles.bulletRow}>
                     <Text style={styles.bulletDot}>•</Text>
                     <Text style={[styles.assistantText, styles.bulletText]}>
-                      {renderInline(item, `${prefix}-${idx}-${itemIdx}`)}
+                      {renderInline(item, `${prefix}-${idx}-${itemIdx}`, citations)}
                     </Text>
                   </View>
                 ))}
@@ -158,7 +200,7 @@ export default function CoachSheet({
               key={`${prefix}-${idx}`}
               style={[styles.assistantText, idx > 0 ? styles.paragraphGap : null]}
             >
-              {renderInline(block.inlines, `${prefix}-${idx}`)}
+              {renderInline(block.inlines, `${prefix}-${idx}`, citations)}
             </Text>
           );
         })}
@@ -240,7 +282,47 @@ export default function CoachSheet({
                 return (
                   <View key={idx} style={styles.assistantRow}>
                     <View style={styles.assistantBubble}>
-                      {renderMarkdown(message.content, `m${idx}`)}
+                      {renderMarkdown(message.content, `m${idx}`, message.citations)}
+                      {message.citations && message.citations.length > 0 ? (
+                        <View style={styles.referenceSection}>
+                          <Text style={styles.referenceEyebrow}>References</Text>
+                          {[...message.citations]
+                            .sort((a, b) => a.index - b.index)
+                            .map((c) => {
+                              const href = (c.source_url || "").trim();
+                              const canOpen = /^https?:\/\//iu.test(href);
+                              return (
+                                <Pressable
+                                  disabled={!canOpen}
+                                  key={`${idx}-ref-${c.index}`}
+                                  onPress={() =>
+                                    void Linking.openURL(href)
+                                  }
+                                  style={({ pressed }) => [
+                                    styles.referenceRow,
+                                    pressed && canOpen ? styles.referenceRowPressed : null,
+                                  ]}
+                                >
+                                  <Text style={styles.referenceIndex}>[{c.index}]</Text>
+                                  <Text
+                                    style={styles.referenceSnippet}
+                                    numberOfLines={3}
+                                  >
+                                    {c.snippet || "Coach tip"}
+                                  </Text>
+                                  {canOpen ? (
+                                    <Ionicons
+                                      color={theme.colors.primaryBright}
+                                      name="open-outline"
+                                      size={15}
+                                      style={styles.referenceOpenIcon}
+                                    />
+                                  ) : null}
+                                </Pressable>
+                              );
+                            })}
+                        </View>
+                      ) : null}
                     </View>
                   </View>
                 );
@@ -471,6 +553,59 @@ function createStyles(theme: ReturnType<typeof getTheme>) {
     bold: {
       color: colors.textPrimary,
       fontFamily: F.bold,
+    },
+    citationBadge: {
+      color: colors.primaryBright,
+      fontFamily: F.bold,
+      fontSize: 11,
+      lineHeight: 21,
+      textDecorationLine: "underline",
+    },
+    citationMuted: {
+      color: colors.textMuted,
+      fontFamily: F.medium,
+      fontSize: 11,
+      lineHeight: 21,
+    },
+    referenceSection: {
+      borderTopColor: colors.borderSoft,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      gap: 10,
+      marginTop: 10,
+      paddingTop: 10,
+      width: "100%",
+    },
+    referenceEyebrow: {
+      color: colors.textMuted,
+      fontFamily: F.black,
+      fontSize: 10,
+      letterSpacing: 1.2,
+      textTransform: "uppercase",
+    },
+    referenceRow: {
+      alignItems: "flex-start",
+      flexDirection: "row",
+      gap: 8,
+    },
+    referenceRowPressed: {
+      opacity: 0.75,
+    },
+    referenceIndex: {
+      color: colors.primaryBright,
+      fontFamily: F.bold,
+      fontSize: 11,
+      marginTop: 1,
+      minWidth: 30,
+    },
+    referenceSnippet: {
+      flex: 1,
+      color: colors.textSecondary,
+      fontFamily: F.regular,
+      fontSize: 12,
+      lineHeight: 17,
+    },
+    referenceOpenIcon: {
+      marginTop: 1,
     },
     thinking: {
       flexDirection: "row",

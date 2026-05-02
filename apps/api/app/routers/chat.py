@@ -6,8 +6,9 @@ Chat endpoint over the creator corpus.
 Retrieval-augmented generation:
   user msg → embed → pgvector search → top-K approved chunks → LLM → answer
 
-Answers are grounded on chunks but omit citation markers or source URLs in text.
-The citations field stays in the HTTP schema but is always returned empty.
+Answers are grounded on chunks. The assistant may cite context with inline **[N]**
+markers; the HTTP `citations` array mirrors retrieved chunks (`index` ↔ `[N]`).
+Clients link `source_url` / `snippet` from that array.
 
 Same env-var gate as /admin/corpus/* (CORPUS_ADMIN_ENABLED=1) so chat is
 opt-in for now. Flip to a profile-allowlist `Depends` when you want to ship

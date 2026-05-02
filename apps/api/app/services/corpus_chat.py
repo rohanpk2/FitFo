@@ -9,8 +9,9 @@ the question grounded in the chunks. Heavily anti-hallucination:
   - Empty / low-similarity retrieval → return a graceful "I don't have
     coverage on that" answer instead of inventing.
 
-User-facing replies omit citations, indices, URLs, or "which video" sourcing —
-grounded coaching text only so the athlete stays in-session.
+Replies cite retrieved coaching snippets with **[N]** when using COACHING CONTEXT.
+Citation metadata (URLs/snippet) rides in ChatResult.citations; the model never
+names hosts or URLs in prose.
 """
 
 import json
@@ -105,10 +106,11 @@ mindset, and the user's CURRENT WORKOUT (if provided). For anything else, reply 
 "I'm your in-workout coach — ask me about your training."
 
 GROUNDING:
-- For coaching advice, use the COACHING CONTEXT below silently. Speak in your own voice; \
-do NOT add footnotes, [1] markers, numbered references, TikTok/video mentions, URLs, or \
-"source/chunk" talk.
-- Do not tell the athlete where a cue came from; give coaching only.
+- For coaching advice, use ONLY the numbered COACHING CONTEXT below. Speak in your own voice.
+- When a sentence pulls from chunk [N], add that inline marker once right after \
+the grounded clause (example: "... drive elbows under **[1]**"). Use only markers \
+[N] where N matches a numbered line in COACHING CONTEXT (never invent indices).
+- Do not name TikTok/video hosts, URLs, "chunks", or "sources" in prose—the app shows links.
 - For CURRENT WORKOUT, use the block at the end of this prompt (below retrieved tips). \
 It includes ATHLETE POSITION = the app's live snapshot (exercise #, working set #, timer). \
 That block overrides assumptions from generic programming advice elsewhere in the prompt.
@@ -150,12 +152,38 @@ def _model() -> str:
     return (os.environ.get("OPENAI_CHAT_MODEL") or DEFAULT_MODEL).strip()
 
 
-def _sanitize_coach_answer(text: str) -> str:
-    """Strip [N] markers if the model still emits them."""
+def _clamp_citations_in_answer(text: str, num_chunks: int) -> str:
+    """Drop [N] tokens that don't map to retrieval; normalize whitespace."""
+
+    def repl(match: re.Match[str]) -> str:
+        n = int(match.group(1))
+        if num_chunks <= 0 or not (1 <= n <= num_chunks):
+            return " "
+        return match.group(0)
+
     if not text:
         return ""
-    cleaned = re.sub(r"\s*\[\d+\]\s*", " ", text)
+    cleaned = re.sub(r"\[(\d+)\]", repl, text)
     return re.sub(r"\s{2,}", " ", cleaned).strip()
+
+
+def _citations_from_chunks(chunks: list[corpus_retrieval.RetrievedChunk]) -> list[ChatCitation]:
+    """One ChatCitation per retrieval chunk; index matches numbered COACHING CONTEXT lines."""
+
+    out: list[ChatCitation] = []
+    for i, chunk in enumerate(chunks, start=1):
+        snip = (chunk.chunk_text or "").strip().replace("\n", " ")
+        if len(snip) > 220:
+            snip = f"{snip[:217]}..."
+        out.append(
+            ChatCitation(
+                index=i,
+                chunk_id=chunk.chunk_id,
+                source_url=chunk.source_url or "",
+                snippet=snip,
+            )
+        )
+    return out
 
 
 def _build_context_block(chunks: list[corpus_retrieval.RetrievedChunk]) -> str:
@@ -294,8 +322,7 @@ def _build_messages(
 
     sections: list[str] = [SYSTEM_PROMPT]
     sections.append(
-        "═══ COACHING CONTEXT (internal — do not cite [N], name sources, URLs, "
-        "or videos in replies) ═══\n"
+        "═══ COACHING CONTEXT (cite with **[N]** only — no URLs/hostnames in prose) ═══\n"
         f"{context_block}"
     )
     if workout_block:
@@ -333,7 +360,8 @@ async def answer(
 
     When `workout` is provided, questions about that workout (which exercise,
     rest times, swaps, etc.) can be answered from the workout itself even if
-    retrieval returns nothing. Coaching advice stays grounded without exposing sources.
+    Coaching advice that uses retrieval cites markers [N]; the HTTP payload
+    includes matching citation rows for URLs/snippets.
     """
     cleaned = (user_message or "").strip()
     if not cleaned:
@@ -400,11 +428,12 @@ async def answer(
     if not answer_text:
         answer_text = _FALLBACK_ANSWER
 
-    answer_text = _sanitize_coach_answer(answer_text)
+    answer_text = _clamp_citations_in_answer(answer_text, len(chunks))
+    cites = _citations_from_chunks(chunks)
 
     return ChatResult(
         answer=answer_text,
-        citations=[],
+        citations=cites,
         retrieval=chunks,
         model=model,
     )

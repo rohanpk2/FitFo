@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 
 import {
   formatCompletedWorkoutDate,
+  canReplayCompletedSession,
   getCompletedWorkoutDisplaySummary,
   getRoutineDisplayTitle,
   getCompletedWorkoutMeta,
@@ -20,6 +21,8 @@ interface LogsScreenProps {
   onResumeWorkout: () => void;
   onRetry: () => void;
   onScheduleAgain?: (workout: CompletedWorkoutRecord) => void;
+  /** Quick-start practice from hub log row (does not navigate to summary first). */
+  onStartFromCompleted?: (workout: CompletedWorkoutRecord) => void;
   schedulingWorkoutId?: string | null;
   workouts: CompletedWorkoutRecord[];
   themeMode?: ThemeMode;
@@ -50,6 +53,7 @@ export function LogsScreen({
   onResumeWorkout,
   onRetry,
   onScheduleAgain,
+  onStartFromCompleted,
   schedulingWorkoutId = null,
   workouts,
   themeMode = "light",
@@ -303,29 +307,52 @@ export function LogsScreen({
                       <Text style={styles.sessionStatValue}>{meta.metaRight}</Text>
                     </View>
                   </View>
-                  {onScheduleAgain ? (
-                    <Pressable
-                      disabled={isSchedulingThis}
-                      onPress={() => onScheduleAgain(item)}
-                      style={[
-                        styles.scheduleAgainButton,
-                        isSchedulingThis ? styles.scheduleAgainButtonBusy : null,
-                      ]}
-                      hitSlop={6}
-                    >
-                      {isSchedulingThis ? (
-                        <ActivityIndicator color={theme.colors.primary} size="small" />
-                      ) : (
-                        <Ionicons
-                          color={theme.colors.primary}
-                          name="calendar-outline"
-                          size={14}
-                        />
-                      )}
-                      <Text style={styles.scheduleAgainButtonText}>
-                        {isSchedulingThis ? "Scheduling..." : "Schedule Again"}
-                      </Text>
-                    </Pressable>
+                  {(onStartFromCompleted || onScheduleAgain) ? (
+                    <View style={styles.sessionActions}>
+                      {onStartFromCompleted ? (
+                        <Pressable
+                          disabled={!canReplayCompletedSession(item)}
+                          onPress={() => onStartFromCompleted(item)}
+                          style={({ pressed }) => [
+                            styles.startNowButton,
+                            !canReplayCompletedSession(item)
+                              ? styles.sessionActionMuted
+                              : null,
+                            pressed && canReplayCompletedSession(item)
+                              ? styles.sessionActionPressed
+                              : null,
+                          ]}
+                        >
+                          <Ionicons color={theme.colors.surface} name="play" size={14} />
+                          <Text style={styles.startNowButtonText}>Start</Text>
+                        </Pressable>
+                      ) : null}
+                      {onScheduleAgain ? (
+                        <Pressable
+                          disabled={isSchedulingThis}
+                          onPress={() => onScheduleAgain(item)}
+                          style={({ pressed }) => [
+                            styles.scheduleAgainButton,
+                            isSchedulingThis ? styles.scheduleAgainButtonBusy : null,
+                            onStartFromCompleted ? styles.scheduleAgainButtonFlexible : null,
+                            pressed && !isSchedulingThis ? styles.sessionActionPressed : null,
+                          ]}
+                        >
+                          {isSchedulingThis ? (
+                            <ActivityIndicator color={theme.colors.primary} size="small" />
+                          ) : (
+                            <Ionicons
+                              color={theme.colors.primary}
+                              name="calendar-outline"
+                              size={14}
+                            />
+                          )}
+                          <Text style={styles.scheduleAgainButtonText}>
+                            {isSchedulingThis ? "Scheduling..." : "Schedule"}
+                          </Text>
+                        </Pressable>
+                      ) : null}
+                    </View>
                   ) : null}
                 </Pressable>
               );
@@ -700,11 +727,40 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       fontFamily: "Satoshi-Bold",
       fontWeight: "800",
     },
-    scheduleAgainButton: {
-      marginTop: 12,
-      alignSelf: "flex-end",
+    sessionActions: {
       flexDirection: "row",
       alignItems: "center",
+      gap: 10,
+      marginTop: 12,
+    },
+    sessionActionPressed: {
+      opacity: 0.86,
+    },
+    sessionActionMuted: {
+      opacity: 0.45,
+    },
+    startNowButton: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 6,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      borderRadius: 999,
+      backgroundColor: theme.colors.primary,
+    },
+    startNowButtonText: {
+      color: theme.colors.surface,
+      fontSize: 13,
+      fontFamily: "Satoshi-Bold",
+      fontWeight: "800",
+      letterSpacing: 0.2,
+    },
+    scheduleAgainButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
       gap: 8,
       paddingHorizontal: 14,
       paddingVertical: 10,
@@ -712,6 +768,9 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       borderWidth: 1,
       borderColor: theme.colors.primary,
       backgroundColor: theme.colors.surfaceMuted,
+    },
+    scheduleAgainButtonFlexible: {
+      flex: 1,
     },
     scheduleAgainButtonBusy: {
       opacity: 0.75,

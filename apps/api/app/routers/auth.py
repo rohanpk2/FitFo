@@ -12,6 +12,7 @@ from app.schemas.auth import (
     AppleSignInResponse,
     DeleteAccountResponse,
     MeResponse,
+    PatchProfileRequest,
     SaveOnboardingRequest,
     SaveOnboardingResponse,
     SendOtpRequest,
@@ -365,6 +366,33 @@ def apple_sign_in(body: AppleSignInRequest) -> AppleSignInResponse:
     except Exception as exc:
         raise HTTPException(
             status_code=500, detail=f"Failed to sign in with Apple: {exc}"
+        ) from exc
+
+
+@router.patch("/me", response_model=MeResponse)
+def patch_me(
+    body: PatchProfileRequest,
+    profile_id: str = Depends(require_profile_id),
+) -> MeResponse:
+    """
+    Update profile fields for the authenticated user.
+    """
+    try:
+        profile = supabase_db.update_profile_full_name(
+            profile_id, full_name=body.full_name
+        )
+        return MeResponse(ok=True, profile=profile)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except supabase_db.ProfileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except HTTPException:
+        raise
+    except supabase_db.SupabaseNotConfiguredError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to update profile: {exc}"
         ) from exc
 
 

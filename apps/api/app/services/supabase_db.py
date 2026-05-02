@@ -656,6 +656,25 @@ def create_profile_with_apple(
     return _attach_profile_onboarding(result.data[0])
 
 
+def update_profile_full_name(profile_id: str, *, full_name: str) -> Dict[str, Any]:
+    """Set the user's display name. Raises ValueError if the name is empty after trim."""
+    clean = (full_name or "").strip()
+    if not clean:
+        raise ValueError("Full name cannot be empty")
+    if len(clean) > 120:
+        raise ValueError("Full name must be at most 120 characters")
+    supa = get_supabase()
+    result = (
+        supa.table("profiles")
+        .update({"full_name": clean})
+        .eq("id", profile_id)
+        .execute()
+    )
+    if not result.data:
+        raise ProfileNotFoundError(f"Profile {profile_id} not found")
+    return _attach_profile_onboarding(result.data[0])
+
+
 # Tables that own per-user rows and must be purged when a profile is deleted.
 # Order is child-first so foreign keys don't block the cascade even if
 # individual FK constraints aren't `on delete cascade` in the DB.

@@ -1,16 +1,22 @@
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
   Linking,
+  Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Switch,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
+import { ApiError } from "../lib/api";
 import { getTheme, type ThemeMode } from "../theme";
 import type { UserProfile } from "../types";
 
@@ -22,6 +28,7 @@ interface ProfileScreenProps {
   onManageSubscription?: () => Promise<boolean>;
   /** When set, the Settings dark-mode toggle persists via App and updates the shell. */
   onThemeModeChange?: (mode: ThemeMode) => void;
+  onUpdateFullName: (fullName: string) => Promise<void>;
   isDeletingAccount?: boolean;
   profile: UserProfile;
   themeMode?: ThemeMode;
@@ -34,6 +41,7 @@ export function ProfileScreen({
   onDeleteAccount,
   onManageSubscription,
   onThemeModeChange,
+  onUpdateFullName,
   isDeletingAccount = false,
   profile,
   themeMode = "dark",
@@ -95,8 +103,48 @@ export function ProfileScreen({
       ],
     );
   };
+
+  function errorMessage(error: unknown): string {
+    if (error instanceof ApiError) {
+      return error.message;
+    }
+    if (error instanceof Error) {
+      return error.message;
+    }
+    return "Something went wrong. Try again.";
+  }
+
   const theme = getTheme(themeMode);
   const styles = createStyles(theme);
+  const [isNameModalOpen, setIsNameModalOpen] = useState(false);
+  const [draftFullName, setDraftFullName] = useState(profile.full_name);
+  const [isSavingName, setIsSavingName] = useState(false);
+
+  useEffect(() => {
+    if (isNameModalOpen) {
+      setDraftFullName(profile.full_name);
+    }
+  }, [isNameModalOpen, profile.full_name]);
+
+  const trimmedDraft = draftFullName.trim();
+  const canSaveName =
+    trimmedDraft.length > 0 && trimmedDraft !== profile.full_name.trim();
+
+  const handleSaveName = async () => {
+    if (!trimmedDraft || isSavingName) {
+      return;
+    }
+    setIsSavingName(true);
+    try {
+      await onUpdateFullName(trimmedDraft);
+      setIsNameModalOpen(false);
+    } catch (error) {
+      Alert.alert("Could not update name", errorMessage(error));
+    } finally {
+      setIsSavingName(false);
+    }
+  };
+
   const initials = profile.full_name
     .split(" ")
     .map((part) => part[0] || "")
@@ -105,11 +153,12 @@ export function ProfileScreen({
     .toUpperCase();
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
-    >
+    <>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
       <View style={styles.header}>
         {onClose ? (
           <Pressable onPress={onClose} style={styles.backButton} hitSlop={10}>
@@ -124,24 +173,31 @@ export function ProfileScreen({
       </View>
 
       <View style={styles.profileHero}>
-        <View style={styles.profileIdentity}>
-          <View style={styles.avatarRing}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{initials || "F"}</Text>
+          <Pressable
+            accessibilityHint="Opens a screen to edit your display name."
+            accessibilityLabel={`Name, ${profile.full_name}`}
+            accessibilityRole="button"
+            disabled={isSavingName}
+            onPress={() => setIsNameModalOpen(true)}
+            style={styles.profileIdentity}
+          >
+            <View style={styles.avatarRing}>
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>{initials || "F"}</Text>
+              </View>
             </View>
-          </View>
 
-          <View style={styles.profileCopy}>
-            <Text style={styles.profileName} numberOfLines={2}>
-              {profile.full_name}
-            </Text>
-            <Text style={styles.profilePhone}>{profile.phone}</Text>
-          </View>
-        </View>
-
-        
+            <View style={styles.profileCopy}>
+              <View style={styles.nameRow}>
+                <Text style={styles.profileName} numberOfLines={2}>
+                  {profile.full_name}
+                </Text>
+                <Ionicons color={theme.colors.primary} name="pencil" size={18} />
+              </View>
+              <Text style={styles.profilePhone}>{profile.phone ?? ""}</Text>
+            </View>
+          </Pressable>
       </View>
-
 
       <View style={styles.infoList}>
         {onThemeModeChange ? (
@@ -257,6 +313,83 @@ export function ProfileScreen({
         </Text>
       </View>
     </ScrollView>
+
+      <Modal
+        animationType="fade"
+        onRequestClose={() => {
+          if (!isSavingName) {
+            setIsNameModalOpen(false);
+          }
+        }}
+        transparent
+        visible={isNameModalOpen}
+      >
+        <View style={styles.modalOuter}>
+          <Pressable
+            disabled={isSavingName}
+            onPress={() => setIsNameModalOpen(false)}
+            style={styles.modalBackdrop}
+          />
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : undefined}
+            style={styles.modalRoot}
+          >
+            <View style={styles.modalCard}>
+              <Text style={styles.modalTitle}>Your name</Text>
+              <Text style={styles.modalCaption}>
+                This is how you appear in Fitfo. You can change it anytime.
+              </Text>
+              <TextInput
+                autoCapitalize="words"
+                autoCorrect={false}
+                autoFocus
+                editable={!isSavingName}
+                maxLength={120}
+                onChangeText={setDraftFullName}
+                placeholder="Full name"
+                placeholderTextColor={theme.colors.textMuted}
+                selectionColor={theme.colors.primary}
+                style={styles.modalInput}
+                value={draftFullName}
+              />
+              <View style={styles.modalActions}>
+                <Pressable
+                  disabled={isSavingName}
+                  hitSlop={8}
+                  onPress={() => setIsNameModalOpen(false)}
+                  style={({ pressed }) => [
+                    styles.modalButtonGhost,
+                    pressed && !isSavingName ? styles.modalButtonGhostPressed : null,
+                  ]}
+                >
+                  <Text style={styles.modalButtonGhostText}>Cancel</Text>
+                </Pressable>
+                <Pressable
+                  disabled={isSavingName || !canSaveName}
+                  hitSlop={8}
+                  onPress={() => {
+                    void handleSaveName();
+                  }}
+                  style={({ pressed }) => [
+                    styles.modalButtonPrimary,
+                    (!canSaveName || isSavingName) ? styles.modalButtonPrimaryDisabled : null,
+                    pressed && canSaveName && !isSavingName
+                      ? styles.modalButtonPrimaryPressed
+                      : null,
+                  ]}
+                >
+                  {isSavingName ? (
+                    <ActivityIndicator color={theme.colors.surface} size="small" />
+                  ) : (
+                    <Text style={styles.modalButtonPrimaryText}>Save</Text>
+                  )}
+                </Pressable>
+              </View>
+            </View>
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
+    </>
   );
 }
 
@@ -366,7 +499,19 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       flex: 1,
       gap: 4,
     },
+    nameRow: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: 8,
+    },
+    profileHint: {
+      color: theme.colors.textMuted,
+      fontSize: 12,
+      fontFamily: "Satoshi-Medium",
+      fontWeight: "500",
+    },
     profileName: {
+      flex: 1,
       color: theme.colors.textPrimary,
       fontSize: 22,
       lineHeight: 26,
@@ -484,5 +629,99 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       fontSize: 12,
       lineHeight: 17,
       paddingHorizontal: 4,
+    },
+    modalOuter: {
+      flex: 1,
+    },
+    modalRoot: {
+      flex: 1,
+      justifyContent: "center",
+      paddingHorizontal: 24,
+    },
+    modalBackdrop: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: "rgba(0, 0, 0, 0.55)",
+    },
+    modalCard: {
+      borderRadius: 22,
+      backgroundColor: theme.colors.surface,
+      padding: 22,
+      gap: 14,
+      borderWidth: 1,
+      borderColor: theme.mode === "dark" ? theme.colors.borderSoft : "transparent",
+      ...theme.shadows.card,
+    },
+    modalTitle: {
+      color: theme.colors.textPrimary,
+      fontSize: 22,
+      fontFamily: "Satoshi-Bold",
+      fontWeight: "800",
+      letterSpacing: -0.5,
+    },
+    modalCaption: {
+      color: theme.colors.textSecondary,
+      fontSize: 14,
+      fontFamily: "Satoshi-Regular",
+      fontWeight: "400",
+      lineHeight: 20,
+      marginTop: -6,
+    },
+    modalInput: {
+      marginTop: 4,
+      minHeight: 52,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: theme.colors.borderSoft,
+      backgroundColor: theme.colors.surfaceMuted,
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+      color: theme.colors.textPrimary,
+      fontSize: 17,
+      fontFamily: "Satoshi-Medium",
+      fontWeight: "500",
+    },
+    modalActions: {
+      flexDirection: "row",
+      justifyContent: "flex-end",
+      gap: 10,
+      marginTop: 6,
+    },
+    modalButtonGhost: {
+      minHeight: 48,
+      paddingHorizontal: 18,
+      borderRadius: 16,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    modalButtonGhostPressed: {
+      opacity: 0.72,
+    },
+    modalButtonGhostText: {
+      color: theme.colors.textSecondary,
+      fontSize: 16,
+      fontFamily: "Satoshi-Bold",
+      fontWeight: "700",
+    },
+    modalButtonPrimary: {
+      minHeight: 48,
+      minWidth: 100,
+      paddingHorizontal: 20,
+      borderRadius: 16,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.colors.primary,
+      ...theme.shadows.primary,
+    },
+    modalButtonPrimaryDisabled: {
+      opacity: 0.45,
+    },
+    modalButtonPrimaryPressed: {
+      opacity: 0.92,
+    },
+    modalButtonPrimaryText: {
+      color: theme.colors.surface,
+      fontSize: 16,
+      fontFamily: "Satoshi-Bold",
+      fontWeight: "800",
     },
   });
