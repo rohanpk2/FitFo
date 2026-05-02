@@ -44,8 +44,8 @@
             "NSExtensionActivationSupportsText": 1,
             "NSExtensionActivationDictionaryVersion": 2
           },
-          "iosShareExtensionName": "FitFo Mobile Share",
-          "iosShareExtensionBundleIdentifier": "com.fitfo.mobile.share",
+          "iosShareExtensionName": "fit fo Share",
+          "iosShareExtensionBundleIdentifier": "com.fitfo.mobile.fitfoShare",
           "androidIntentFilters": ["text/*"],
           "scheme": "fitfo"
         }
