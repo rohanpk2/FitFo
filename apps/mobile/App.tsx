@@ -12,7 +12,9 @@ import {
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFonts } from "expo-font";
+import { PostHogProvider } from "posthog-react-native";
 
+import { posthog } from "./src/lib/posthog";
 import { applyDefaultFont } from "./src/lib/fonts";
 import { AddWorkoutModal } from "./src/components/AddWorkoutModal";
 import type { CoachChatMessage } from "./src/components/CoachSheet";
@@ -64,6 +66,7 @@ import {
   verifyOtp,
 } from "./src/lib/api";
 import { humanizeIngestError } from "./src/lib/ingestErrors";
+import { hasBillingBypassForUser } from "./src/lib/billingBypass";
 import { signInWithApple } from "./src/lib/appleAuth";
 import {
   buildCompletedWorkoutRequest,
@@ -378,13 +381,22 @@ export default function App() {
   const theme = getTheme(themeMode);
   const styles = createStyles(theme);
   const revenueCat = useRevenueCat(currentUser);
+  const isAccountBillingBypass = hasBillingBypassForUser(currentUser);
   const isInitialTrialActive = isWithinInitialTrial(currentUser?.created_at);
-  // TEMP DEV BYPASS: forced true so the RevenueCat test API key never triggers
-  // the "Wrong API Key" force-close on a real device. Revert this to the real
-  // expression below once a production `appl_…` RevenueCat key is wired in.
-  //   isInitialTrialActive || revenueCat.hasPro || (__DEV__ && isDevPaywallBypassed)
-  const hasBillingAccess = true;
-  const isBillingCheckPending = false;
+  const hasBillingAccess =
+    isAccountBillingBypass ||
+    isInitialTrialActive ||
+    revenueCat.hasPro ||
+    (__DEV__ && isDevPaywallBypassed);
+
+  const userPastOnboarding =
+    Boolean(currentUser?.onboarding) &&
+    activeOnboardingUserId !== currentUser?.id;
+
+  const isBillingCheckPending =
+    Boolean(currentUser && userPastOnboarding) &&
+    !isAccountBillingBypass &&
+    (revenueCat.isLoading || !revenueCat.isConfigured);
 
   const resetPostLoginState = useCallback(() => {
     setActiveTab("saved");
@@ -433,6 +445,11 @@ export default function App() {
         job,
       }),
     );
+    posthog.capture("workout_import_completed", {
+      workout_id: workout.id,
+      job_id: job?.id ?? null,
+      source_url: job?.source_url ?? null,
+    });
   }, [job, workout]);
 
   // Background-import completion → local notification. Fires only when the
@@ -680,6 +697,7 @@ export default function App() {
 
       const response = await saveOnboarding(token, authLandingOnboardingPayload);
       setAuthLandingOnboardingPayload(null);
+      posthog.capture("onboarding_completed", { user_id: response.profile.id });
       await loadBodyWeightEntries(token);
       setTimeout(() => {
         void requestNotificationPermissionForOnboarding();
@@ -841,6 +859,7 @@ export default function App() {
       }
 
       setJobId(response.job_id);
+      posthog.capture("workout_import_initiated", { source_url: url, job_id: response.job_id });
     } catch (error) {
       setSubmitError(
         humanizeIngestError(
@@ -934,6 +953,10 @@ export default function App() {
         );
       }
 
+      posthog.capture("workout_started", {
+        title: sourceRoutine?.title ?? null,
+        source_url: sourceRoutine?.sourceUrl ?? null,
+      });
       setActiveTab("logs");
       setIsActiveWorkoutVisible(true);
       setSelectedCompletedWorkout(null);
@@ -1013,6 +1036,12 @@ export default function App() {
         // Clear the share replay trigger before closing the modal. Otherwise
         // the shared-URL effect can see "URL present + modal closed" and reopen
         // the import form on top of the scheduled confirmation screen.
+        posthog.capture("workout_scheduled", {
+          scheduled_workout_id: scheduled.id,
+          title: latestImportedRoutine.title ?? null,
+          scheduled_for: scheduled.scheduled_for,
+          origin: isShareDrivenIngest ? "share" : "manual",
+        });
         setSharedIngestUrl(null);
         setIsShareDrivenIngest(false);
         setIsAddWorkoutVisible(false);
@@ -1074,6 +1103,11 @@ export default function App() {
         return [savedPreview, ...withoutDuplicate];
       });
 
+      posthog.capture("workout_saved", {
+        saved_workout_id: savedPreview.id,
+        title: savedPreview.title ?? null,
+        source_url: savedPreview.sourceUrl ?? null,
+      });
       setSavedWorkoutsError(null);
       setSubmitError(null);
       setActiveTab("saved");
@@ -1518,6 +1552,14 @@ export default function App() {
       );
       setCompletedWorkouts((current) => [completed, ...current]);
       setCompletedWorkoutsError(null);
+      posthog.capture("workout_completed", {
+        workout_id: completed.id,
+        title: completed.title ?? null,
+        duration_seconds: session
+          ? Math.round((Date.now() - session.startedAt) / 1000)
+          : null,
+        exercise_count: completed.exercises?.length ?? null,
+      });
     } catch (error) {
       setCompletedWorkoutsError(
         error instanceof Error ? error.message : "Unable to save your workout log.",
@@ -1576,6 +1618,9 @@ export default function App() {
 
         if (isMounted) {
           applyAuthenticatedSession(response.profile, storedSession.accessToken);
+          posthog.identify(response.profile.id, {
+            $set: { name: response.profile.full_name, phone: response.profile.phone },
+          });
         }
       } catch (error) {
         if (error instanceof ApiError && error.status === 401) {
@@ -1683,6 +1728,11 @@ export default function App() {
       );
       await storeAuthSession(response.access_token, profile);
       applyAuthenticatedSession(profile, response.access_token);
+      posthog.identify(profile.id, {
+        $set: { name: profile.full_name, phone: profile.phone },
+        $set_once: { first_sign_in_date: new Date().toISOString() },
+      });
+      posthog.capture("apple_sign_in_completed", { user_id: profile.id });
     } catch (error) {
       setAuthError(
         error instanceof Error
@@ -1717,6 +1767,7 @@ export default function App() {
           phone: response.normalized_phone,
           fullName: null,
         });
+        posthog.capture("login_initiated");
       } catch (error) {
         setAuthError(
           error instanceof Error ? error.message : "Unable to send the login code.",
@@ -1752,6 +1803,7 @@ export default function App() {
           phone: response.normalized_phone,
           fullName,
         });
+        posthog.capture("sign_up_initiated");
       } catch (error) {
         setAuthError(
           error instanceof Error ? error.message : "Unable to send the signup code.",
@@ -1788,6 +1840,14 @@ export default function App() {
         );
         await storeAuthSession(response.access_token, profile);
         applyAuthenticatedSession(profile, response.access_token);
+        posthog.identify(profile.id, {
+          $set: { name: profile.full_name, phone: profile.phone },
+          $set_once: { first_sign_in_date: new Date().toISOString() },
+        });
+        posthog.capture(
+          pendingOtpChallenge.intent === "signup" ? "sign_up_completed" : "login_completed",
+          { user_id: profile.id },
+        );
       } catch (error) {
         setAuthError(
           error instanceof Error ? error.message : "Unable to verify that code.",
@@ -1873,6 +1933,7 @@ export default function App() {
     setAuthSubmittingMode("bootstrap");
 
     try {
+      posthog.reset();
       await revenueCat.logOut();
       await clearAuthSession();
     } catch (error) {
@@ -1908,6 +1969,7 @@ export default function App() {
         // Keep deletion successful even if local storage clear fails; the
         // session token is already invalidated server-side.
       }
+      posthog.capture("account_deleted");
       setIsProfileVisible(false);
       resetAuthenticatedState();
       handleCloseAddWorkout();
@@ -1987,6 +2049,7 @@ export default function App() {
         throw new Error("Enter a name to save.");
       }
       const response = await patchProfile(accessToken, { full_name: trimmed });
+      posthog.capture("profile_name_updated");
       setCurrentUser(response.profile);
       setAuthPrefillFullName(response.profile.full_name);
       await storeAuthSession(accessToken, response.profile);
@@ -2007,6 +2070,7 @@ export default function App() {
         const created = await createBodyWeightEntry(accessToken, {
           weight_lbs: weightLbs,
         });
+        posthog.capture("weight_entry_logged", { weight_lbs: weightLbs });
         setBodyWeightEntries((current) => [...current, created].sort((left, right) => {
           return (
             new Date(left.recorded_at).getTime() - new Date(right.recorded_at).getTime()
@@ -2325,6 +2389,7 @@ export default function App() {
   const importError = submitError || pollError;
 
   return (
+    <PostHogProvider client={posthog} debug={__DEV__} autocapture={{ captureTouches: true, captureScreens: false }}>
     <GestureHandlerRootView style={styles.flexRoot}>
       <SafeAreaView style={styles.safeArea}>
       <StatusBar style={themeMode === "dark" ? "light" : "dark"} />
@@ -2497,6 +2562,7 @@ export default function App() {
       ) : null}
     </SafeAreaView>
     </GestureHandlerRootView>
+    </PostHogProvider>
   );
 }
 

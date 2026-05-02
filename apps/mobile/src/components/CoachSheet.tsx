@@ -20,6 +20,7 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { usePostHog } from "posthog-react-native";
 
 import {
   ChatApiError,
@@ -62,6 +63,7 @@ export default function CoachSheet({
   setMessages,
   themeMode = "dark",
 }: CoachSheetProps) {
+  const posthog = usePostHog();
   const theme = getTheme(themeMode);
   const styles = useMemo(() => createStyles(theme), [theme]);
 
@@ -92,6 +94,7 @@ export default function CoachSheet({
     setMessages(updated);
     setInput("");
     setPending(true);
+    posthog.capture("coach_message_sent", { message_index: updated.length - 1, has_workout_context: Boolean(workoutRef.current) });
 
     const history: ChatTurn[] = messages.map((m) => ({
       role: m.role,

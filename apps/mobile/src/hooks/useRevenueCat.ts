@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Purchases, { type CustomerInfo } from "react-native-purchases";
 
+import { hasBillingBypassForUser } from "../lib/billingBypass";
 import {
   configureRevenueCat,
   getCustomerInfo,
@@ -13,13 +14,11 @@ import {
 } from "../lib/revenueCat";
 import type { UserProfile } from "../types";
 
-// TEMP DEV BYPASS: paired with the hasBillingAccess override in App.tsx. The
-// hardcoded RevenueCat key in lib/revenueCat.ts is a `test_…` key, and the
-// RevenueCat iOS SDK force-closes the app with a "Wrong API Key" alert if it
-// detects a test key on a non-debug build. Until a production `appl_…` key is
-// wired in, skip every RevenueCat SDK call from this hook so the alert is
-// never triggered. Flip this to `false` once the real key is in place.
-const REVENUECAT_BYPASS = true;
+/**
+ * Set to true to disable all Purchases SDK calls (local dev without keys).
+ * Release builds should keep this false when Apple IAP is wired.
+ */
+const REVENUECAT_SDK_DISABLED = process.env.EXPO_PUBLIC_REVENUECAT_DISABLED === "1";
 
 export function useRevenueCat(profile: UserProfile | null) {
   const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null);
@@ -27,10 +26,11 @@ export function useRevenueCat(profile: UserProfile | null) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const hasPro = hasFitfoPro(customerInfo);
+  const accountBypass = profile ? hasBillingBypassForUser(profile) : false;
+  const hasPro = accountBypass || hasFitfoPro(customerInfo);
 
   const refreshCustomerInfo = useCallback(async () => {
-    if (REVENUECAT_BYPASS) {
+    if (REVENUECAT_SDK_DISABLED || accountBypass) {
       return null;
     }
     setIsLoading(true);
@@ -51,7 +51,7 @@ export function useRevenueCat(profile: UserProfile | null) {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [accountBypass]);
 
   useEffect(() => {
     if (!profile?.id) {
@@ -61,9 +61,17 @@ export function useRevenueCat(profile: UserProfile | null) {
       return;
     }
 
-    if (REVENUECAT_BYPASS) {
+    if (accountBypass) {
       setCustomerInfo(null);
-      setIsConfigured(false);
+      setIsConfigured(true);
+      setIsLoading(false);
+      setError(null);
+      return;
+    }
+
+    if (REVENUECAT_SDK_DISABLED) {
+      setCustomerInfo(null);
+      setIsConfigured(true);
       setIsLoading(false);
       setError(null);
       return;
@@ -111,10 +119,10 @@ export function useRevenueCat(profile: UserProfile | null) {
       isMounted = false;
       Purchases.removeCustomerInfoUpdateListener(listener);
     };
-  }, [profile?.id]);
+  }, [profile?.id, profile?.email, profile?.phone, accountBypass]);
 
   const presentPaywall = useCallback(async () => {
-    if (REVENUECAT_BYPASS) {
+    if (REVENUECAT_SDK_DISABLED || accountBypass) {
       return true;
     }
     setIsLoading(true);
@@ -132,10 +140,10 @@ export function useRevenueCat(profile: UserProfile | null) {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [accountBypass]);
 
   const restorePurchases = useCallback(async () => {
-    if (REVENUECAT_BYPASS) {
+    if (REVENUECAT_SDK_DISABLED || accountBypass) {
       return true;
     }
     setIsLoading(true);
@@ -156,10 +164,10 @@ export function useRevenueCat(profile: UserProfile | null) {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [accountBypass]);
 
   const openCustomerCenter = useCallback(async () => {
-    if (REVENUECAT_BYPASS) {
+    if (REVENUECAT_SDK_DISABLED || accountBypass) {
       return true;
     }
     setError(null);
@@ -177,13 +185,13 @@ export function useRevenueCat(profile: UserProfile | null) {
       );
       return false;
     }
-  }, [refreshCustomerInfo]);
+  }, [refreshCustomerInfo, accountBypass]);
 
   const logOut = useCallback(async () => {
     setCustomerInfo(null);
     setIsConfigured(false);
     setError(null);
-    if (REVENUECAT_BYPASS) {
+    if (REVENUECAT_SDK_DISABLED) {
       return;
     }
     await logOutRevenueCat().catch(() => undefined);

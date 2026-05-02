@@ -9,6 +9,7 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { usePostHog } from "posthog-react-native";
 
 import { getTheme, type ThemeMode } from "../theme";
 
@@ -33,6 +34,7 @@ export function PaywallScreen({
   onUnlocked,
   themeMode = "light",
 }: PaywallScreenProps) {
+  const posthog = usePostHog();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const didAutoPresentRef = useRef(false);
   const theme = getTheme(themeMode);
@@ -48,6 +50,7 @@ export function PaywallScreen({
     try {
       const hasAccess = await onPresentPaywall();
       if (hasAccess) {
+        posthog.capture("subscription_started");
         onUnlocked();
       }
     } catch {
@@ -70,6 +73,7 @@ export function PaywallScreen({
     try {
       const restored = await onRestorePurchases();
       if (restored) {
+        posthog.capture("subscription_restored");
         onUnlocked();
         return;
       }
@@ -107,6 +111,10 @@ export function PaywallScreen({
       setIsSubmitting(false);
     }
   };
+
+  useEffect(() => {
+    posthog.capture("paywall_viewed");
+  }, []);
 
   useEffect(() => {
     if (didAutoPresentRef.current) {

@@ -9,6 +9,7 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { usePostHog } from "posthog-react-native";
 
 import {
   formatCompletedWorkoutDate,
@@ -88,6 +89,7 @@ export function WorkoutSummaryScreen({
   workout,
   themeMode = "light",
 }: WorkoutSummaryScreenProps) {
+  const posthog = usePostHog();
   const theme = getTheme(themeMode);
   const styles = createStyles(theme);
   const meta = getCompletedWorkoutMeta(workout);
@@ -150,7 +152,10 @@ export function WorkoutSummaryScreen({
               accessibilityHint="Begins a new practice session using this workout"
               accessibilityLabel="Start this workout again"
               disabled={!canReplaySession}
-              onPress={onRepeatWorkout}
+              onPress={() => {
+                posthog.capture("workout_repeated", { workout_id: workout.id });
+                onRepeatWorkout?.();
+              }}
               style={({ pressed }) => [
                 styles.startWorkoutButton,
                 !canReplaySession ? styles.startWorkoutButtonDisabled : null,
