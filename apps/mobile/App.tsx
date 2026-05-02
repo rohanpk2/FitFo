@@ -32,6 +32,11 @@ import {
   getStoredAuthSession,
   storeAuthSession,
 } from "./src/lib/authStorage";
+import {
+  clearPendingIngestJob,
+  readPendingIngestJob,
+  writePendingIngestJob,
+} from "./src/lib/ingestJobStorage";
 import { getStoredThemeMode, storeThemeMode } from "./src/lib/themeStorage";
 import {
   ApiError,
@@ -252,6 +257,8 @@ export default function App() {
   // resolves.
   const [isImportRunningInBackground, setIsImportRunningInBackground] =
     useState(false);
+  /** After we finish reading `readPendingIngestJob` for the signed-in user. */
+  const [pendingIngestHydrated, setPendingIngestHydrated] = useState(false);
   // Persisted user choice — once true, future slow imports auto-promote to
   // background mode at the threshold without showing the inline opt-in card.
   const [autoNotifyImports, setAutoNotifyImports] = useState(false);
@@ -306,6 +313,68 @@ export default function App() {
   const { isReady: isShareIntentReady, hasShareIntent, shareIntent, resetShareIntent } =
     useShareIntent();
   const { job, workout, error: pollError } = useIngestionJob(jobId, accessToken);
+
+  useEffect(() => {
+    if (!isAuthReady || !accessToken || !currentUser?.id) {
+      setPendingIngestHydrated(false);
+      return;
+    }
+    let cancelled = false;
+    setPendingIngestHydrated(false);
+    const uid = currentUser.id;
+    void (async () => {
+      const pending = await readPendingIngestJob();
+      if (cancelled) {
+        return;
+      }
+      let restored = false;
+      setJobId((currentJobId) => {
+        if (currentJobId != null) {
+          return currentJobId;
+        }
+        if (
+          pending?.userId === uid &&
+          pending.jobId &&
+          pending.jobId.trim().length > 0
+        ) {
+          restored = true;
+          return pending.jobId;
+        }
+        return currentJobId;
+      });
+      if (restored && pending) {
+        setIsImportRunningInBackground(pending.background);
+      }
+      if (!cancelled) {
+        setPendingIngestHydrated(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthReady, accessToken, currentUser?.id]);
+
+  useEffect(() => {
+    if (!pendingIngestHydrated || !currentUser?.id || !accessToken) {
+      return;
+    }
+    if (!jobId) {
+      void clearPendingIngestJob();
+      return;
+    }
+    void writePendingIngestJob({
+      jobId,
+      background: isImportRunningInBackground,
+      userId: currentUser.id,
+    });
+  }, [
+    pendingIngestHydrated,
+    jobId,
+    isImportRunningInBackground,
+    currentUser?.id,
+    accessToken,
+  ]);
+
   const theme = getTheme(themeMode);
   const styles = createStyles(theme);
   const revenueCat = useRevenueCat(currentUser);
@@ -398,6 +467,7 @@ export default function App() {
       setJobId(null);
       setLatestImportedRoutine(null);
       handledImportedWorkoutId.current = null;
+      void clearPendingIngestJob();
     }
   }, [
     isAddWorkoutVisible,
@@ -414,6 +484,7 @@ export default function App() {
     setLatestImportedRoutine(null);
     setIsImportRunningInBackground(false);
     handledImportedWorkoutId.current = null;
+    void clearPendingIngestJob();
   }, []);
 
   const applyIncomingIngestUrl = useCallback(

@@ -33,8 +33,8 @@ import type {
 
 const AUTH_SLIDE_INDEX = 10;
 const ONBOARDING_STEP_COUNT = AUTH_SLIDE_INDEX - 1;
-const AGE_ITEM_WIDTH = 64;
-const AGE_ITEM_GAP = 10;
+const AGE_ITEM_WIDTH = 56;
+const AGE_ITEM_GAP = 8;
 const AGE_SNAP_INTERVAL = AGE_ITEM_WIDTH + AGE_ITEM_GAP;
 const TRY_DEMO_SLIDE_INDEX = 7;
 const WORKOUT_VIDEO = require("../../assets/my-workout.mp4");
@@ -217,6 +217,8 @@ export function AuthLandingScreen({
   const demoCreatorName = sex === "female" ? "Samantha" : "Nuno";
   const demoCreatorHandle = sex === "female" ? "@samantha.fit" : "@nuno.fit";
   const demoWorkoutTitle = `${demoCreatorName}'s Push Day`;
+  // Viral-range mock counts (20k–40k), TikTok-style abbreviations.
+  const demoLikeCountLabel = sex === "female" ? "27.4K" : "34.8K";
 
   useEffect(() => { setFullName(initialFullName ?? ""); }, [initialFullName]);
   useEffect(() => { setPhoneNumber(initialPhoneNumber ?? ""); }, [initialPhoneNumber]);
@@ -1437,7 +1439,7 @@ function createAuthStyles(colors: AuthColors) {
     overflow: "hidden",
   },
   ageWheelWindow: {
-    height: 104,
+    height: 84,
     justifyContent: "center",
     width: "100%",
   },
@@ -1445,9 +1447,9 @@ function createAuthStyles(colors: AuthColors) {
     alignSelf: "center",
     backgroundColor: colors.accentSoft,
     borderColor: colors.accentBorderStrong,
-    borderRadius: 22,
+    borderRadius: 18,
     borderWidth: 1,
-    height: 82,
+    height: 62,
     position: "absolute",
     width: AGE_ITEM_WIDTH,
   },
@@ -1457,8 +1459,8 @@ function createAuthStyles(colors: AuthColors) {
   },
   ageWheelItem: {
     width: AGE_ITEM_WIDTH,
-    height: 74,
-    borderRadius: 22,
+    height: 58,
+    borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
     opacity: 0.42,
@@ -1469,19 +1471,19 @@ function createAuthStyles(colors: AuthColors) {
   ageWheelText: {
     color: colors.textMuted,
     fontFamily: F.black,
-    fontSize: 28,
-    lineHeight: 34,
+    fontSize: 18,
+    lineHeight: 22,
   },
   ageWheelTextActive: {
     color: colors.accent,
-    fontSize: 52,
-    lineHeight: 58,
+    fontSize: 26,
+    lineHeight: 30,
   },
   ageReadout: {
     color: colors.text,
     fontFamily: F.black,
-    fontSize: 24,
-    lineHeight: 30,
+    fontSize: 20,
+    lineHeight: 24,
   },
   mutedCaps: {
     color: colors.textMuted,

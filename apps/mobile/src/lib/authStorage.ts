@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+import { clearPendingIngestJob } from "./ingestJobStorage";
 import type { StoredAuthSession, UserProfile } from "../types";
 
 const ACCESS_TOKEN_KEY = "@fitfo/access-token";
@@ -48,4 +49,5 @@ export async function getStoredAuthSession(): Promise<StoredAuthSession | null> 
 
 export async function clearAuthSession() {
   await AsyncStorage.multiRemove([ACCESS_TOKEN_KEY, PROFILE_KEY]);
+  await clearPendingIngestJob();
 }
