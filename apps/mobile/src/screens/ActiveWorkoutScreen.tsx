@@ -2065,7 +2065,7 @@ const createStyles = (theme: ActiveWorkoutTheme) =>
       backgroundColor: theme.colors.primary,
     },
     exerciseDeleteButton: {
-      borderColor: theme.mode === "dark" ? "rgba(255, 101, 88, 0.36)" : "#F1C4C7",
+      borderColor: theme.mode === "dark" ? "rgba(255, 105, 60, 0.36)" : "#F1C4C7",
       backgroundColor: theme.colors.errorSoft,
     },
     exerciseBody: {

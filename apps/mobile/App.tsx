@@ -32,6 +32,7 @@ import {
   getStoredAuthSession,
   storeAuthSession,
 } from "./src/lib/authStorage";
+import { getStoredThemeMode, storeThemeMode } from "./src/lib/themeStorage";
 import {
   ApiError,
   appleSignIn,
@@ -163,7 +164,7 @@ function isWithinInitialTrial(createdAt: string | null | undefined) {
 }
 
 export default function App() {
-  const themeMode: ThemeMode = "dark";
+  const [themeMode, setThemeMode] = useState<ThemeMode>("dark");
   const [fontsLoaded] = useFonts({
     // Body family — Satoshi (Fontshare). Replaces Barlow.
     "Satoshi-Regular": require("./assets/fonts/Satoshi-Regular.ttf"),
@@ -196,6 +197,23 @@ export default function App() {
     // brand moment doesn't flash by even when auth restore is instant.
     const timeout = setTimeout(() => setIsMinSplashDone(true), 2000);
     return () => clearTimeout(timeout);
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+    void getStoredThemeMode().then((stored) => {
+      if (alive && stored) {
+        setThemeMode(stored);
+      }
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const handleThemeModeChange = useCallback((mode: ThemeMode) => {
+    setThemeMode(mode);
+    void storeThemeMode(mode);
   }, []);
   const [isResendingOtp, setIsResendingOtp] = useState(false);
   const [activeOnboardingUserId, setActiveOnboardingUserId] = useState<string | null>(
@@ -2081,6 +2099,7 @@ export default function App() {
           onLogout={handleLogout}
           onDeleteAccount={handleDeleteAccount}
           onManageSubscription={revenueCat.openCustomerCenter}
+          onThemeModeChange={handleThemeModeChange}
           isDeletingAccount={isDeletingAccount}
           profile={currentUser}
           themeMode={themeMode}

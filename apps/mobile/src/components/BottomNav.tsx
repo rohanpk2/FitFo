@@ -138,14 +138,14 @@ const createStyles = (theme: ReturnType<typeof getTheme>) => {
       overflow: "hidden",
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: isDark
-        ? "rgba(255, 154, 102, 0.22)"
-        : "rgba(255, 144, 88, 0.45)",
+        ? "rgba(255, 130, 80, 0.32)"
+        : "rgba(71, 88, 240, 0.28)",
     },
     glassTint: {
       ...StyleSheet.absoluteFillObject,
       backgroundColor: isDark
-        ? "rgba(255, 122, 69, 0.14)"
-        : "rgba(255, 154, 102, 0.16)",
+        ? "rgba(255, 115, 50, 0.18)"
+        : "rgba(71, 88, 240, 0.12)",
     },
     row: {
       flexDirection: "row",

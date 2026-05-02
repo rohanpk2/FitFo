@@ -476,7 +476,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     },
     tagChip: {
       borderRadius: 999,
-      backgroundColor: theme.mode === "dark" ? "rgba(255, 90, 20, 0.12)" : "rgba(79, 117, 231, 0.16)",
+      backgroundColor: theme.mode === "dark" ? "rgba(255, 111, 34, 0.12)" : "rgba(79, 117, 231, 0.16)",
       paddingHorizontal: 12,
       paddingVertical: 8,
     },

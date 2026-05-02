@@ -5,6 +5,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   View,
 } from "react-native";
@@ -19,6 +20,8 @@ interface ProfileScreenProps {
   onLogout: () => void;
   onDeleteAccount: () => Promise<void>;
   onManageSubscription?: () => Promise<boolean>;
+  /** When set, the Settings dark-mode toggle persists via App and updates the shell. */
+  onThemeModeChange?: (mode: ThemeMode) => void;
   isDeletingAccount?: boolean;
   profile: UserProfile;
   themeMode?: ThemeMode;
@@ -30,9 +33,10 @@ export function ProfileScreen({
   onLogout,
   onDeleteAccount,
   onManageSubscription,
+  onThemeModeChange,
   isDeletingAccount = false,
   profile,
-  themeMode = "light",
+  themeMode = "dark",
 }: ProfileScreenProps) {
   const handleSuggestFeatures = () => {
     const subject = encodeURIComponent("Fitfo feature suggestion");
@@ -140,6 +144,37 @@ export function ProfileScreen({
 
 
       <View style={styles.infoList}>
+        {onThemeModeChange ? (
+          <View style={styles.infoCard}>
+            <View style={styles.infoIcon}>
+              <Ionicons color={theme.colors.primary} name="moon-outline" size={18} />
+            </View>
+            <View style={styles.infoCopy}>
+              <Text style={styles.infoTitle}>Dark mode</Text>
+              <Text style={styles.infoBody}>
+                Easier on the eyes in low light. Turn off anytime for the bright canvas.
+              </Text>
+            </View>
+            <Switch
+              accessibilityHint="Uses dark colors across Fitfo."
+              accessibilityLabel="Dark mode"
+              accessibilityRole="switch"
+              ios_backgroundColor={theme.colors.track}
+              onValueChange={(enabled) => {
+                onThemeModeChange(enabled ? "dark" : "light");
+              }}
+              thumbColor={theme.mode === "dark" ? theme.colors.surfaceStrong : "#FFFFFF"}
+              trackColor={{
+                false: theme.colors.track,
+                true:
+                  theme.mode === "dark"
+                    ? theme.colors.primary
+                    : theme.colors.primaryBright,
+              }}
+              value={themeMode === "dark"}
+            />
+          </View>
+        ) : null}
         <Pressable onPress={onEditOnboarding} style={styles.infoCard}>
           <View style={styles.infoIcon}>
             <Ionicons color={theme.colors.primary} name="create-outline" size={18} />
@@ -396,7 +431,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       borderRadius: 20,
       borderWidth: 1,
       borderColor: theme.colors.error,
-      backgroundColor: theme.mode === "dark" ? "rgba(255, 101, 88, 0.08)" : theme.colors.errorSoft,
+      backgroundColor: theme.mode === "dark" ? "rgba(255, 105, 60, 0.08)" : theme.colors.errorSoft,
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "center",

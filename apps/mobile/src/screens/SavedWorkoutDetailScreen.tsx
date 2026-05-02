@@ -1138,13 +1138,13 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     scheduleIconButton: {
       borderColor:
         theme.mode === "dark"
-          ? "rgba(255, 90, 20, 0.32)"
-          : "rgba(41, 86, 215, 0.18)",
+          ? "rgba(255, 111, 34, 0.32)"
+          : "rgba(71, 88, 240, 0.18)",
     },
     removeIconButton: {
       borderColor:
         theme.mode === "dark"
-          ? "rgba(255, 101, 88, 0.32)"
+          ? "rgba(255, 105, 60, 0.32)"
           : theme.colors.errorSoft,
     },
     aiDisclosureCard: {
@@ -1152,13 +1152,13 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       borderRadius: theme.radii.large,
       backgroundColor:
         theme.mode === "dark"
-          ? "rgba(255, 90, 31, 0.08)"
-          : "rgba(255, 90, 31, 0.07)",
+          ? "rgba(255, 111, 34, 0.08)"
+          : "rgba(255, 111, 34, 0.07)",
       borderWidth: 1,
       borderColor:
         theme.mode === "dark"
-          ? "rgba(255, 90, 31, 0.24)"
-          : "rgba(255, 90, 31, 0.2)",
+          ? "rgba(255, 111, 34, 0.24)"
+          : "rgba(255, 111, 34, 0.2)",
       padding: 16,
       gap: 10,
     },
@@ -1177,8 +1177,8 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       borderRadius: 999,
       backgroundColor:
         theme.mode === "dark"
-          ? "rgba(255, 90, 31, 0.18)"
-          : "rgba(255, 90, 31, 0.14)",
+          ? "rgba(255, 111, 34, 0.18)"
+          : "rgba(255, 111, 34, 0.14)",
     },
     aiDisclosureBadgeText: {
       color: theme.colors.primary,
@@ -1276,7 +1276,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       borderRadius: 999,
       backgroundColor:
         theme.mode === "dark"
-          ? "rgba(255, 90, 20, 0.12)"
+          ? "rgba(255, 111, 34, 0.12)"
           : "rgba(79, 117, 231, 0.16)",
       paddingHorizontal: 12,
       paddingVertical: 8,
@@ -1354,13 +1354,13 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       justifyContent: "center",
       backgroundColor:
         theme.mode === "dark"
-          ? "rgba(255, 101, 88, 0.12)"
+          ? "rgba(255, 105, 60, 0.12)"
           : theme.colors.errorSoft,
       borderWidth: 1,
       borderColor:
         theme.mode === "dark"
-          ? "rgba(255, 101, 88, 0.24)"
-          : "rgba(255, 101, 88, 0.18)",
+          ? "rgba(255, 105, 60, 0.24)"
+          : "rgba(255, 105, 60, 0.18)",
     },
     exerciseCopy: {
       flex: 1,

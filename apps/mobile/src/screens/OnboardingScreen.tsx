@@ -394,7 +394,7 @@ export function OnboardingScreen({
         <View style={styles.logoRingOuter} />
         <View style={styles.logoRingInner} />
         <LinearGradient
-          colors={["#FF8A3D", "#FF5A14", "#C94E0D"]}
+          colors={["#FFB078", "#FF6F22", "#8B4A26"]}
           style={styles.logoMark}
         >
           <Ionicons color="#1A0A02" name="flash" size={54} />
@@ -533,7 +533,7 @@ export function OnboardingScreen({
       )}
       <View style={styles.demoPhone}>
         <LinearGradient
-          colors={["#FFB088", "#FF6A1A", "#24100A"]}
+          colors={["#FFD4B8", "#FF8340", "#1A120E"]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.demoVideo}
@@ -1210,7 +1210,7 @@ const selectionDotStyles = StyleSheet.create({
     borderRadius: 24,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(255, 106, 26, 0.12)",
+    backgroundColor: "rgba(255, 111, 34, 0.12)",
   },
   spinnerCore: {
     width: 48,
@@ -1314,7 +1314,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       height: 176,
       borderRadius: 999,
       borderWidth: 1,
-      borderColor: "rgba(255, 106, 26, 0.28)",
+      borderColor: "rgba(255, 111, 34, 0.28)",
     },
     logoRingInner: {
       position: "absolute",
@@ -1322,7 +1322,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       height: 132,
       borderRadius: 999,
       borderWidth: 1,
-      borderColor: "rgba(255, 106, 26, 0.5)",
+      borderColor: "rgba(255, 111, 34, 0.5)",
     },
     logoMark: {
       width: 104,
@@ -1437,7 +1437,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     choiceCardSelected: {
       borderColor: theme.colors.primaryLight,
       backgroundColor:
-        theme.mode === "dark" ? "rgba(255, 106, 26, 0.10)" : "rgba(41, 86, 215, 0.08)",
+        theme.mode === "dark" ? "rgba(255, 111, 34, 0.10)" : "rgba(71, 88, 240, 0.08)",
     },
     choiceIcon: {
       width: 44,
@@ -1445,7 +1445,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       borderRadius: 15,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: "rgba(255, 106, 26, 0.12)",
+      backgroundColor: "rgba(255, 111, 34, 0.12)",
     },
     choiceIconSelected: {
       backgroundColor: theme.colors.primaryLight,
@@ -1609,7 +1609,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       overflow: "hidden",
       textAlign: "center",
       textAlignVertical: "center",
-      backgroundColor: "rgba(255, 106, 26, 0.18)",
+      backgroundColor: "rgba(255, 111, 34, 0.18)",
       color: theme.colors.primaryLight,
       fontSize: 12,
       fontFamily: "Satoshi-Black",
@@ -1647,7 +1647,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     goalCardSelected: {
       borderColor: theme.colors.primaryLight,
       backgroundColor:
-        theme.mode === "dark" ? "rgba(255, 106, 26, 0.12)" : "rgba(41, 86, 215, 0.08)",
+        theme.mode === "dark" ? "rgba(255, 111, 34, 0.12)" : "rgba(71, 88, 240, 0.08)",
     },
     goalIconTile: {
       width: 42,
@@ -1655,7 +1655,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       borderRadius: 14,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: "rgba(255, 106, 26, 0.12)",
+      backgroundColor: "rgba(255, 111, 34, 0.12)",
     },
     goalIconTileSelected: {
       backgroundColor: theme.colors.primaryLight,
@@ -1939,9 +1939,9 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       gap: 12,
       borderRadius: 18,
       padding: 14,
-      backgroundColor: "rgba(255, 106, 26, 0.10)",
+      backgroundColor: "rgba(255, 111, 34, 0.10)",
       borderWidth: 1,
-      borderColor: "rgba(255, 106, 26, 0.22)",
+      borderColor: "rgba(255, 111, 34, 0.22)",
     },
     eventBadge: {
       color: theme.colors.primaryLight,
@@ -2036,7 +2036,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       borderRadius: 999,
       paddingHorizontal: 9,
       paddingVertical: 5,
-      backgroundColor: "rgba(255, 106, 26, 0.12)",
+      backgroundColor: "rgba(255, 111, 34, 0.12)",
     },
     chartBadgeText: {
       color: theme.colors.primaryLight,

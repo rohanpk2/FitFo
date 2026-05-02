@@ -321,8 +321,8 @@ function QuickAddRow({
           {
             backgroundColor:
               theme.mode === "dark"
-                ? "rgba(255, 90, 20, 0.16)"
-                : "rgba(255, 90, 20, 0.12)",
+                ? "rgba(255, 111, 34, 0.16)"
+                : "rgba(255, 111, 34, 0.12)",
           },
         ]}
       >
@@ -730,8 +730,8 @@ export function SavedWorkoutsScreen({
               {
                 borderColor:
                   theme.mode === "dark"
-                    ? "rgba(255, 90, 20, 0.32)"
-                    : "rgba(255, 90, 20, 0.22)",
+                    ? "rgba(255, 111, 34, 0.32)"
+                    : "rgba(255, 111, 34, 0.22)",
               },
               pressed ? styles.bentoPressed : null,
             ]}
@@ -855,8 +855,8 @@ export function SavedWorkoutsScreen({
                       {
                         backgroundColor:
                           theme.mode === "dark"
-                            ? "rgba(255, 90, 20, 0.14)"
-                            : "rgba(255, 90, 20, 0.10)",
+                            ? "rgba(255, 111, 34, 0.14)"
+                            : "rgba(255, 111, 34, 0.10)",
                       },
                     ]}
                   >

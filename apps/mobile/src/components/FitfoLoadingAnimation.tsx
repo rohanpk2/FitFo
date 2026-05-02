@@ -12,8 +12,8 @@ import Svg, {
 import { F } from "../lib/fonts";
 import { getTheme, type ThemeMode } from "../theme";
 
-const ORANGE = "#FF5A14";
-const ORANGE_HI = "#FF6A2C";
+const ORANGE = "#FF6F22";
+const ORANGE_HI = "#FF9648";
 const BG = "#000000";
 const DURATION = 2400;
 const HOLD = 900;

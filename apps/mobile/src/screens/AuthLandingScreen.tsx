@@ -1,6 +1,7 @@
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   NativeScrollEvent,
   NativeSyntheticEvent,
@@ -30,12 +31,13 @@ import type {
   TrainingSplit,
 } from "../types";
 
-const ORANGE = "#FF5A1F";
+const ORANGE = "#FF6F22";
 const AUTH_SLIDE_INDEX = 11;
 const AGE_ITEM_WIDTH = 64;
 const AGE_ITEM_GAP = 10;
 const AGE_SNAP_INTERVAL = AGE_ITEM_WIDTH + AGE_ITEM_GAP;
 const WORKOUT_VIDEO = require("../../assets/my-workout.mp4");
+const BRAND_LOGO_MARK = require("../../assets/logo_no_bg.png");
 
 interface AuthLandingScreenProps {
   activeIndex: number;
@@ -304,9 +306,13 @@ export function AuthLandingScreen({
           <LinearGradient colors={["#050505", "#130906", "#080808"]} style={S.welcome}>
             <View style={S.logoStack}>
               <View style={S.logoRing} />
-              <View style={S.logoTile}>
-                <Ionicons color="#150803" name="flash" size={54} />
-              </View>
+              <Image
+                accessibilityLabel="Fitfo"
+                accessibilityRole="image"
+                resizeMode="contain"
+                source={BRAND_LOGO_MARK}
+                style={S.welcomeLogo}
+              />
             </View>
             <View style={S.centerCopy}>
               <Text style={S.wordmark}>fit<Text style={S.wordmarkAccent}>fo</Text></Text>
@@ -947,20 +953,11 @@ const S = StyleSheet.create({
     height: 172,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "rgba(255,90,31,0.42)",
+    borderColor: "rgba(255, 111, 34,0.42)",
   },
-  logoTile: {
-    width: 106,
-    height: 106,
-    borderRadius: 30,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: ORANGE,
-    shadowColor: ORANGE,
-    shadowOffset: { width: 0, height: 20 },
-    shadowOpacity: 0.52,
-    shadowRadius: 34,
-    transform: [{ rotate: "-8deg" }],
+  welcomeLogo: {
+    width: 128,
+    height: 88,
   },
   centerCopy: {
     alignItems: "center",
@@ -1101,8 +1098,8 @@ const S = StyleSheet.create({
   },
   ageWheelCenter: {
     alignSelf: "center",
-    backgroundColor: "rgba(255, 90, 31, 0.12)",
-    borderColor: "rgba(255, 90, 31, 0.55)",
+    backgroundColor: "rgba(255, 111, 34, 0.12)",
+    borderColor: "rgba(255, 111, 34, 0.55)",
     borderRadius: 22,
     borderWidth: 1,
     height: 82,
@@ -1164,7 +1161,7 @@ const S = StyleSheet.create({
   },
   optionRowActive: {
     borderColor: ORANGE,
-    backgroundColor: "rgba(255,90,31,0.1)",
+    backgroundColor: "rgba(255, 111, 34,0.1)",
   },
   optionCopy: {
     flex: 1,
@@ -1249,7 +1246,7 @@ const S = StyleSheet.create({
   walkthroughBadge: {
     alignItems: "center",
     backgroundColor: "rgba(8, 8, 8, 0.76)",
-    borderColor: "rgba(255, 90, 31, 0.28)",
+    borderColor: "rgba(255, 111, 34, 0.28)",
     borderRadius: 999,
     borderWidth: 1,
     flexDirection: "row",
@@ -1480,9 +1477,9 @@ const S = StyleSheet.create({
     alignItems: "center",
     gap: 12,
     borderRadius: 16,
-    backgroundColor: "rgba(255,90,31,0.10)",
+    backgroundColor: "rgba(255, 111, 34,0.10)",
     borderWidth: 1,
-    borderColor: "rgba(255,90,31,0.24)",
+    borderColor: "rgba(255, 111, 34,0.24)",
     padding: 14,
   },
   eventBadge: {
@@ -1623,7 +1620,7 @@ const S = StyleSheet.create({
     fontSize: 16,
   },
   noticeCard: {
-    backgroundColor: "rgba(255, 90, 31, 0.12)",
+    backgroundColor: "rgba(255, 111, 34, 0.12)",
     borderRadius: 14,
     padding: 14,
   },
@@ -1634,12 +1631,12 @@ const S = StyleSheet.create({
     lineHeight: 20,
   },
   errorCard: {
-    backgroundColor: "rgba(255, 101, 88, 0.14)",
+    backgroundColor: "rgba(255, 105, 60, 0.14)",
     borderRadius: 14,
     padding: 14,
   },
   errorText: {
-    color: "#FF6558",
+    color: "#DCA8A3",
     fontFamily: F.bold,
     fontSize: 14,
     lineHeight: 20,

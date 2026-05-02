@@ -127,8 +127,8 @@ function StatTile({
           styles.statTileIcon,
           {
             backgroundColor: isDark
-              ? "rgba(255, 90, 20, 0.18)"
-              : "rgba(255, 90, 20, 0.12)",
+              ? "rgba(255, 111, 34, 0.18)"
+              : "rgba(255, 111, 34, 0.12)",
           },
         ]}
       >
@@ -916,8 +916,8 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       borderRadius: 999,
       backgroundColor:
         theme.mode === "dark"
-          ? "rgba(255, 90, 20, 0.14)"
-          : "rgba(255, 90, 20, 0.12)",
+          ? "rgba(255, 111, 34, 0.14)"
+          : "rgba(255, 111, 34, 0.12)",
       paddingHorizontal: 10,
       paddingVertical: 4,
     },

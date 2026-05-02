@@ -536,8 +536,8 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       marginBottom: 10,
       backgroundColor:
         theme.mode === "dark"
-          ? "rgba(255, 90, 20, 0.18)"
-          : "rgba(255, 90, 20, 0.12)",
+          ? "rgba(255, 111, 34, 0.18)"
+          : "rgba(255, 111, 34, 0.12)",
     },
     statTileValue: {
       color: theme.colors.textPrimary,

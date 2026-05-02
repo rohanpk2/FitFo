@@ -274,7 +274,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     },
     noticeCard: {
       borderRadius: 18,
-      backgroundColor: theme.mode === "dark" ? "rgba(255, 90, 20, 0.12)" : "rgba(47, 88, 217, 0.08)",
+      backgroundColor: theme.mode === "dark" ? "rgba(255, 111, 34, 0.12)" : "rgba(47, 88, 217, 0.08)",
       padding: 14,
     },
     noticeText: {

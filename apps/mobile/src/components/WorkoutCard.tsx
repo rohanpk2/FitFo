@@ -13,10 +13,8 @@ import { getCreatorDisplayLabel } from "../lib/fitfo";
 import { getTheme } from "../theme";
 import type { SavedRoutinePreview } from "../types";
 
-// Brand orange used as the accent in light mode so the redesigned hub keeps a
-// consistent identity regardless of theme. In dark mode the existing primary
-// is already orange so we defer to it.
-export const BRAND_ORANGE = "#FF5A14";
+// Brand wedge on light-mode hub tiles; mirrors dark theme primary.
+export const BRAND_ORANGE = "#FF6F22";
 
 export function getBrandAccent(theme: ReturnType<typeof getTheme>): string {
   return theme.mode === "dark" ? theme.colors.primary : BRAND_ORANGE;
@@ -411,13 +409,13 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     scheduledWorkoutCard: {
       borderColor:
         theme.mode === "dark"
-          ? "rgba(255, 90, 20, 0.24)"
-          : "rgba(255, 90, 20, 0.18)",
+          ? "rgba(255, 111, 34, 0.24)"
+          : "rgba(255, 111, 34, 0.18)",
     },
     lastHitWorkoutCard: {
       borderColor:
         theme.mode === "dark"
-          ? "rgba(255, 90, 20, 0.24)"
+          ? "rgba(255, 111, 34, 0.24)"
           : "rgba(15, 23, 42, 0.06)",
     },
     lastHitBody: {
@@ -463,8 +461,8 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     scheduledWorkoutBadge: {
       backgroundColor:
         theme.mode === "dark"
-          ? "rgba(255, 90, 20, 0.14)"
-          : "rgba(255, 90, 20, 0.12)",
+          ? "rgba(255, 111, 34, 0.14)"
+          : "rgba(255, 111, 34, 0.12)",
     },
     workoutBadgeText: {
       fontSize: 11,
