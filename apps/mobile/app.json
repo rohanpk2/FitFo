@@ -41,12 +41,16 @@
           "iosActivationRules": {
             "NSExtensionActivationSupportsWebURLWithMaxCount": 1,
             "NSExtensionActivationSupportsWebPageWithMaxCount": 1,
-            "NSExtensionActivationSupportsText": true
+            "NSExtensionActivationSupportsText": 1,
+            "NSExtensionActivationDictionaryVersion": 2
           },
+          "iosShareExtensionName": "FitFo Mobile Share",
+          "iosShareExtensionBundleIdentifier": "com.fitfo.mobile.share",
           "androidIntentFilters": ["text/*"],
           "scheme": "fitfo"
         }
-      ]
+      ],
+      "./plugins/withIosShareExtensionManualInfoPlist.js"
     ]
   }
 }
