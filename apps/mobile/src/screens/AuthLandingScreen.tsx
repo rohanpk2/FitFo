@@ -843,8 +843,13 @@ export function AuthLandingScreen({
         </StepSlide>
 
         <View style={[styles.slide, { width }]}>
-          <View style={styles.authSlide}>
-            <View>
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            style={styles.authSlideScroll}
+            contentContainerStyle={styles.authSlideScrollContent}
+          >
+            <View style={styles.authSlideMain}>
               <Text style={styles.authTitle}>
                 {authMode === "login" ? "Welcome\nBack" : "Save\nYour Setup"}
                 <Text style={styles.authDot}>.</Text>
@@ -934,7 +939,7 @@ export function AuthLandingScreen({
               </View>
             </View>
             <Text style={styles.legal}>Privacy Policy & Terms</Text>
-          </View>
+          </ScrollView>
         </View>
       </ScrollView>
       </KeyboardAvoidingView>
@@ -2446,13 +2451,19 @@ function createAuthStyles(colors: AuthColors) {
   chartBarHot: {
     backgroundColor: colors.accent,
   },
-  authSlide: {
+  authSlideScroll: {
     backgroundColor: colors.authBackground,
     flex: 1,
+  },
+  authSlideScrollContent: {
+    flexGrow: 1,
     justifyContent: "space-between",
     paddingBottom: 36,
     paddingHorizontal: 28,
     paddingTop: Platform.OS === "ios" ? 56 : 36,
+  },
+  authSlideMain: {
+    flexShrink: 0,
   },
   authTitle: {
     color: colors.text,

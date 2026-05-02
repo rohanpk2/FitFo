@@ -52,6 +52,49 @@ export class ApiError extends Error {
   }
 }
 
+function defaultMessageForStatus(status: number): string {
+  switch (status) {
+    case 502:
+    case 503:
+    case 504:
+      return "Service temporarily unavailable. Please try again in a moment.";
+    case 404:
+      return "Resource not found.";
+    case 401:
+    case 403:
+      return "Request not authorized.";
+    default:
+      return `Something went wrong (${status}). Please try again.`;
+  }
+}
+
+function looksLikeHtmlPayload(text: string): boolean {
+  const t = text.trim().toLowerCase();
+  return (
+    t.startsWith("<!doctype") ||
+    t.startsWith("<html") ||
+    t.includes("<html") ||
+    t.includes("<body") ||
+    t.includes("nginx/") ||
+    t.includes("bad gateway")
+  );
+}
+
+/** Turn proxy/HTML error pages into a short user-facing string. */
+function humanizeErrorPayload(status: number, rawBody: string): string {
+  const body = rawBody.trim();
+  if (!body) {
+    return defaultMessageForStatus(status);
+  }
+  if (looksLikeHtmlPayload(body)) {
+    return defaultMessageForStatus(status);
+  }
+  if (body.length > 280) {
+    return defaultMessageForStatus(status);
+  }
+  return body;
+}
+
 interface RequestOptions extends RequestInit {
   accessToken?: string;
 }
@@ -70,15 +113,18 @@ async function request<T>(path: string, init?: RequestOptions): Promise<T> {
 
   if (!response.ok) {
     const body = await response.text().catch(() => "");
-    let message = `HTTP ${response.status}`;
+    let message = defaultMessageForStatus(response.status);
 
     try {
-      const parsed = JSON.parse(body);
-      message = parsed.detail || message;
-    } catch {
-      if (body) {
-        message = body;
+      const parsed = JSON.parse(body) as { detail?: unknown };
+      const detail = parsed.detail;
+      if (typeof detail === "string" && detail.trim()) {
+        message = looksLikeHtmlPayload(detail)
+          ? defaultMessageForStatus(response.status)
+          : detail.trim();
       }
+    } catch {
+      message = humanizeErrorPayload(response.status, body);
     }
 
     throw new ApiError(response.status, message);

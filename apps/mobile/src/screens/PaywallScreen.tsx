@@ -11,6 +11,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { usePostHog } from "posthog-react-native";
 
+import { isRevenueCatNativePaywallSupported } from "../lib/revenueCat";
 import { getTheme, type ThemeMode } from "../theme";
 
 interface PaywallScreenProps {
@@ -36,7 +37,7 @@ export function PaywallScreen({
 }: PaywallScreenProps) {
   const posthog = usePostHog();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const didAutoPresentRef = useRef(false);
+  const didTrackPaywallViewRef = useRef(false);
   const theme = getTheme(themeMode);
   const styles = createStyles(theme);
 
@@ -113,19 +114,15 @@ export function PaywallScreen({
   };
 
   useEffect(() => {
-    posthog.capture("paywall_viewed");
-  }, []);
-
-  useEffect(() => {
-    if (didAutoPresentRef.current) {
+    if (didTrackPaywallViewRef.current) {
       return;
     }
-
-    didAutoPresentRef.current = true;
-    void handlePresentPaywall();
-  }, []);
+    didTrackPaywallViewRef.current = true;
+    posthog.capture("paywall_viewed");
+  }, [posthog]);
 
   const busy = isLoading || isSubmitting;
+  const nativePaywall = isRevenueCatNativePaywallSupported();
 
   return (
     <View style={styles.container}>
@@ -143,6 +140,13 @@ export function PaywallScreen({
         Subscribe with Apple to keep importing workout videos, saving routines,
         scheduling sessions, logging workouts, and tracking progress.
       </Text>
+
+      {!nativePaywall ? (
+        <Text style={styles.hintText}>
+          Expo Go cannot show Apple subscription sheets. Use a development
+          build to test purchases, or tap Restore if you already subscribed.
+        </Text>
+      ) : null}
 
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
@@ -249,6 +253,13 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       color: theme.colors.error,
       fontSize: 13,
       lineHeight: 19,
+      textAlign: "center",
+    },
+    hintText: {
+      maxWidth: 340,
+      color: theme.colors.textMuted,
+      fontSize: 12,
+      lineHeight: 18,
       textAlign: "center",
     },
     primaryButton: {
