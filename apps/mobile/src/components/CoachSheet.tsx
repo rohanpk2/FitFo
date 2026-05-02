@@ -288,6 +288,7 @@ export default function CoachSheet({
                           <Text style={styles.referenceEyebrow}>References</Text>
                           {[...message.citations]
                             .sort((a, b) => a.index - b.index)
+                            .slice(0, 3)
                             .map((c) => {
                               const href = (c.source_url || "").trim();
                               const canOpen = /^https?:\/\//iu.test(href);
@@ -299,25 +300,29 @@ export default function CoachSheet({
                                     void Linking.openURL(href)
                                   }
                                   style={({ pressed }) => [
-                                    styles.referenceRow,
-                                    pressed && canOpen ? styles.referenceRowPressed : null,
+                                    styles.referenceCard,
+                                    pressed && canOpen ? styles.referenceCardPressed : null,
                                   ]}
                                 >
-                                  <Text style={styles.referenceIndex}>[{c.index}]</Text>
-                                  <Text
-                                    style={styles.referenceSnippet}
-                                    numberOfLines={3}
-                                  >
-                                    {c.snippet || "Coach tip"}
-                                  </Text>
-                                  {canOpen ? (
-                                    <Ionicons
-                                      color={theme.colors.primaryBright}
-                                      name="open-outline"
-                                      size={15}
-                                      style={styles.referenceOpenIcon}
-                                    />
-                                  ) : null}
+                                  <View style={styles.referenceCardRow}>
+                                    <Text style={styles.referenceIndex}>[{c.index}]</Text>
+                                    <Text
+                                      style={styles.referenceSnippet}
+                                      numberOfLines={5}
+                                    >
+                                      {c.snippet || "Coach tip"}
+                                    </Text>
+                                    {canOpen ? (
+                                      <Ionicons
+                                        color={theme.colors.primaryBright}
+                                        name="open-outline"
+                                        size={15}
+                                        style={styles.referenceOpenIcon}
+                                      />
+                                    ) : (
+                                      <View style={styles.referenceOpenSpacer} />
+                                    )}
+                                  </View>
                                 </Pressable>
                               );
                             })}
@@ -514,6 +519,7 @@ function createStyles(theme: ReturnType<typeof getTheme>) {
     assistantRow: {
       alignItems: "flex-start",
       gap: 6,
+      width: "100%",
     },
     assistantBubble: {
       backgroundColor: colors.surfaceMuted,
@@ -521,7 +527,8 @@ function createStyles(theme: ReturnType<typeof getTheme>) {
       paddingVertical: 11,
       borderRadius: 18,
       borderTopLeftRadius: 6,
-      maxWidth: "92%",
+      alignSelf: "stretch",
+      maxWidth: "100%",
     },
     assistantText: {
       color: colors.textPrimary,
@@ -570,10 +577,11 @@ function createStyles(theme: ReturnType<typeof getTheme>) {
     referenceSection: {
       borderTopColor: colors.borderSoft,
       borderTopWidth: StyleSheet.hairlineWidth,
-      gap: 10,
+      gap: 8,
       marginTop: 10,
       paddingTop: 10,
       width: "100%",
+      alignSelf: "stretch",
     },
     referenceEyebrow: {
       color: colors.textMuted,
@@ -582,30 +590,49 @@ function createStyles(theme: ReturnType<typeof getTheme>) {
       letterSpacing: 1.2,
       textTransform: "uppercase",
     },
-    referenceRow: {
-      alignItems: "flex-start",
-      flexDirection: "row",
-      gap: 8,
+    referenceCard: {
+      width: "100%",
+      alignSelf: "stretch",
+      borderRadius: radii.medium,
+      borderWidth: 1,
+      borderColor: colors.borderSoft,
+      backgroundColor: colors.surface,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
     },
-    referenceRowPressed: {
-      opacity: 0.75,
+    referenceCardPressed: {
+      opacity: 0.82,
+    },
+    referenceCardRow: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: 10,
+      width: "100%",
     },
     referenceIndex: {
       color: colors.primaryBright,
       fontFamily: F.bold,
-      fontSize: 11,
+      fontSize: 12,
+      lineHeight: 18,
       marginTop: 1,
-      minWidth: 30,
+      flexShrink: 0,
     },
     referenceSnippet: {
       flex: 1,
+      flexShrink: 1,
+      minWidth: 0,
       color: colors.textSecondary,
       fontFamily: F.regular,
-      fontSize: 12,
-      lineHeight: 17,
+      fontSize: 13,
+      lineHeight: 19,
     },
     referenceOpenIcon: {
-      marginTop: 1,
+      marginTop: 2,
+      flexShrink: 0,
+    },
+    referenceOpenSpacer: {
+      width: 18,
+      flexShrink: 0,
     },
     thinking: {
       flexDirection: "row",
