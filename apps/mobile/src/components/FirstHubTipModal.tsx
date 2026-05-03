@@ -1,6 +1,9 @@
+import { useEffect, useRef } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import {
+  Animated,
+  Easing,
   Modal,
   Platform,
   Pressable,
@@ -17,6 +20,7 @@ import { getTheme, type ThemeMode } from "../theme";
 
 interface FirstHubTipModalProps {
   body?: string;
+  title?: string;
   visible: boolean;
   onDismiss: () => void;
   themeMode?: ThemeMode;
@@ -24,14 +28,40 @@ interface FirstHubTipModalProps {
 
 export function FirstHubTipModal({
   body = FIRST_HUB_TIP_MODAL_BODY,
+  title = FIRST_HUB_TIP_MODAL_TITLE,
   visible,
   onDismiss,
   themeMode = "dark",
 }: FirstHubTipModalProps) {
   const theme = getTheme(themeMode);
   const styles = createStyles(theme);
+  const iconScale = useRef(new Animated.Value(0.7)).current;
+  const iconOpacity = useRef(new Animated.Value(0)).current;
 
   const bodyParts = body.split("\n\n");
+
+  useEffect(() => {
+    if (!visible) {
+      iconScale.setValue(0.7);
+      iconOpacity.setValue(0);
+      return;
+    }
+
+    Animated.parallel([
+      Animated.timing(iconOpacity, {
+        toValue: 1,
+        duration: 180,
+        easing: Easing.out(Easing.ease),
+        useNativeDriver: true,
+      }),
+      Animated.spring(iconScale, {
+        toValue: 1,
+        friction: 5,
+        tension: 120,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [iconOpacity, iconScale, visible]);
 
   return (
     <Modal
@@ -65,16 +95,24 @@ export function FirstHubTipModal({
 
         <View pointerEvents="box-none" style={styles.cardRail}>
           <View style={styles.card}>
-            <View style={styles.headerIcon}>
+            <Animated.View
+              style={[
+                styles.headerIcon,
+                {
+                  opacity: iconOpacity,
+                  transform: [{ scale: iconScale }],
+                },
+              ]}
+            >
               <Ionicons
                 color={theme.colors.primary}
-                name="arrow-redo-outline"
+                name="sparkles-outline"
                 size={22}
               />
-            </View>
+            </Animated.View>
 
             <Text accessibilityRole="header" style={styles.title}>
-              {FIRST_HUB_TIP_MODAL_TITLE}
+              {title}
             </Text>
 
             <View style={styles.bodyWrap}>

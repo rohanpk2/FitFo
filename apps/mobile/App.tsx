@@ -87,6 +87,7 @@ import {
 import {
   ensureStarterWorkoutsSeeded,
   getFirstHubTipModalBody,
+  getFirstHubTipModalTitle,
   getFirstHubTipStorageKey,
 } from "./src/lib/starterHubWelcome";
 import * as Notifications from "expo-notifications";
@@ -2678,6 +2679,7 @@ export default function App() {
 
       <FirstHubTipModal
         body={getFirstHubTipModalBody(currentUser?.onboarding?.sex ?? null)}
+        title={getFirstHubTipModalTitle(currentUser?.onboarding?.sex ?? null)}
         themeMode={themeMode}
         visible={isFirstHubTipVisible && hasBillingAccess}
         onDismiss={handleDismissFirstHubTip}

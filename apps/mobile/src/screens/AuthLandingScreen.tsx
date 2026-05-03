@@ -179,11 +179,35 @@ export function AuthLandingScreen({
   const [heightInches, setHeightInches] = useState("9");
   const [tryStage, setTryStage] = useState<"tiktok" | "share" | "import" | "workout">("tiktok");
   const tryDemoVideoPlayer = sex === "female" ? samanthaVideoPlayer : nunoVideoPlayer;
-  const demoCreatorName = sex === "female" ? "Samantha" : "Nuno";
-  const demoCreatorHandle = sex === "female" ? "@samantha.fit" : "@nuno.fit";
-  const demoWorkoutTitle = `${demoCreatorName}'s Push Day`;
+  const isSamanthaDemo = sex === "female";
+  const demoCreatorName = isSamanthaDemo ? "Samantha" : "Jacob";
+  const demoCreatorHandle = isSamanthaDemo ? "@samantha.baio" : "@coach.daley";
+  const demoWorkoutTitle = isSamanthaDemo
+    ? "Samantha glutes and abs day"
+    : "Jacob 6 day push workout";
+  const demoCaption = isSamanthaDemo
+    ? "Glutes and abs day from a saved reel. Share it into Fitfo."
+    : "Push workout from a saved reel. Share it into Fitfo.";
+  const demoWorkoutTag = isSamanthaDemo ? "glutes and abs day" : "push workout";
+  const demoExerciseNames = isSamanthaDemo
+    ? [
+        { name: "Hip thrust", sets: 3, reps: 10 },
+        { name: "Step ups", sets: 3, reps: 8 },
+        { name: "Kick backs", sets: 3, reps: 10 },
+        { name: "Hip abductors", sets: 3, reps: 8 },
+        { name: "Leg raises", sets: 3, reps: 10 },
+      ]
+    : [
+        { name: "Single arm lateral raise", sets: 3, reps: 8 },
+        { name: "Pec dec", sets: 3, reps: 8 },
+        { name: "Incline press", sets: 3, reps: 8 },
+        { name: "Shoulder press machine", sets: 3, reps: 8 },
+        { name: "Tricep dip machine", sets: 2, reps: 8 },
+        { name: "Single arm cable extension", sets: 2, reps: 10 },
+      ];
+  const demoTotalSets = demoExerciseNames.reduce((total, exercise) => total + exercise.sets, 0);
   // Viral-range mock counts (20k–40k), TikTok-style abbreviations.
-  const demoLikeCountLabel = sex === "female" ? "27.4K" : "34.8K";
+  const demoLikeCountLabel = isSamanthaDemo ? "27.4K" : "34.8K";
 
   useEffect(() => { setFullName(initialFullName ?? ""); }, [initialFullName]);
   useEffect(() => { setPhoneNumber(initialPhoneNumber ?? ""); }, [initialPhoneNumber]);
@@ -495,7 +519,6 @@ export function AuthLandingScreen({
           <View style={styles.statsCard}>
             <View style={styles.fieldGrid}>
               <StatInput label="Weight" onChange={setWeightLbs} suffix="lb" value={weightLbs} />
-              <StatInput label="Age" onChange={(value) => setAge(Number(value.replace(/\D/g, "") || 0))} suffix="yrs" value={String(age)} />
             </View>
             <View style={styles.fieldGrid}>
               <StatInput label="Feet" onChange={setHeightFeet} suffix="ft" value={heightFeet} />
@@ -553,12 +576,12 @@ export function AuthLandingScreen({
 
               <View style={styles.tiktokSideRail}>
                 <View style={styles.tiktokAvatar}>
-                  <Text style={styles.tiktokAvatarText}>N</Text>
+                  <Text style={styles.tiktokAvatarText}>{demoCreatorName[0]}</Text>
                   <View style={styles.tiktokAvatarPlus}>
                     <Ionicons color="#FFFFFF" name="add" size={13} />
                   </View>
                 </View>
-                <TikTokAction icon="heart" label="65" />
+                <TikTokAction icon="heart" label={demoLikeCountLabel} />
                 <TikTokAction icon="chatbubble-ellipses" label="Add 1st" />
                 <TikTokAction icon="bookmark" label="6" />
                 <Pressable
@@ -577,7 +600,7 @@ export function AuthLandingScreen({
 
               <View style={styles.tiktokCaption}>
                 <Text style={styles.tiktokCreator}>{demoCreatorHandle}</Text>
-                <Text style={styles.tiktokCaptionText}>Push day from a saved reel. Share it into Fitfo.</Text>
+                <Text style={styles.tiktokCaptionText}>{demoCaption}</Text>
               </View>
 
               <View style={styles.tiktokBottomNav}>
@@ -683,7 +706,7 @@ export function AuthLandingScreen({
                     </View>
                     <Text style={styles.importedTitle}>{demoWorkoutTitle}</Text>
                     <Text style={styles.importedSubtitle}>
-                      Imported from TikTok and tagged as push day.
+                      Imported from TikTok and tagged as {demoWorkoutTag}.
                     </Text>
                     <View style={styles.originalReelPill}>
                       <Ionicons color={colors.accent} name="play-circle-outline" size={15} />
@@ -693,25 +716,35 @@ export function AuthLandingScreen({
                     <View style={styles.importedTimerCard}>
                       <Text style={styles.importedTimerLabel}>Time elapsed</Text>
                       <Text style={styles.importedTimerValue}>00:17</Text>
-                      <Text style={styles.importedTimerMeta}>0 of 9 sets logged</Text>
+                      <Text style={styles.importedTimerMeta}>0 of {demoTotalSets} sets logged</Text>
                     </View>
-                    <View style={styles.importedExerciseList}>
-                      {["Flat Press/fly", "Incline Press/low T...", "Shoulder Press"].map((name) => (
-                        <View key={name} style={styles.importedExerciseCard}>
+                    <ScrollView
+                      contentContainerStyle={styles.importedExerciseList}
+                      showsVerticalScrollIndicator={false}
+                      style={styles.importedExerciseScroll}
+                    >
+                      {demoExerciseNames.map((exercise) => (
+                        <View key={exercise.name} style={styles.importedExerciseCard}>
                           <View style={styles.importedExerciseIcon}>
-                            <Ionicons color={colors.accent} name="barbell-outline" size={18} />
+                            <Ionicons
+                              color={colors.accent}
+                              name={isSamanthaDemo ? "body-outline" : "barbell-outline"}
+                              size={18}
+                            />
                           </View>
                           <View style={styles.importedExerciseCopy}>
-                            <Text numberOfLines={1} style={styles.importedExerciseName}>{name}</Text>
+                            <Text numberOfLines={1} style={styles.importedExerciseName}>{exercise.name}</Text>
                             <Text style={styles.importedExerciseSub}>Follow coach notes</Text>
                           </View>
-                          <Text style={styles.importedSetPill}>0/3</Text>
+                          <Text style={styles.importedSetPill}>
+                            {exercise.sets}x{exercise.reps}
+                          </Text>
                           <View style={styles.importedTrash}>
                             <Ionicons color={colors.accent} name="trash-outline" size={16} />
                           </View>
                         </View>
                       ))}
-                    </View>
+                    </ScrollView>
                     <Pressable onPress={resetTryDemo} style={({ pressed }) => [styles.tryAgainButton, pressed && styles.pressed]}>
                       <Ionicons color={colors.onAccent} name="refresh" size={18} />
                       <Text style={styles.tryAgainText}>Try it again</Text>
@@ -732,7 +765,7 @@ export function AuthLandingScreen({
           subtitle="Drop imported workouts into your week and get a nudge when it is time."
           width={width}
         >
-          <FeatureCard type="calendar" />
+          <FeatureCard title={demoWorkoutTitle} type="calendar" />
         </StepSlide>
 
         <StepSlide
@@ -1069,7 +1102,7 @@ function Field({
   );
 }
 
-function FeatureCard({ type }: { type: "calendar" | "coach" }) {
+function FeatureCard({ title, type }: { title?: string; type: "calendar" | "coach" }) {
   const { colors, styles } = useAuthTheme();
   if (type === "calendar") {
     return (
@@ -1089,7 +1122,7 @@ function FeatureCard({ type }: { type: "calendar" | "coach" }) {
         <View style={styles.eventCard}>
           <Ionicons color={colors.accent} name="barbell-outline" size={20} />
           <View style={styles.optionCopy}>
-            <Text style={styles.optionTitle}>Push Day · Chest Focus</Text>
+            <Text style={styles.optionTitle}>{title ?? "Imported workout"}</Text>
             <Text style={styles.optionSub}>6:30 PM · 5 exercises</Text>
           </View>
           <Text style={styles.eventBadge}>QUEUED</Text>
@@ -2006,6 +2039,7 @@ function createAuthStyles(colors: AuthColors) {
     width: 34,
   },
   importedWorkoutContent: {
+    flex: 1,
     gap: 7,
   },
   importedHeader: {
@@ -2090,7 +2124,12 @@ function createAuthStyles(colors: AuthColors) {
     fontSize: 10,
   },
   importedExerciseList: {
+    paddingBottom: 8,
     gap: 8,
+  },
+  importedExerciseScroll: {
+    flex: 1,
+    minHeight: 96,
   },
   importedExerciseCard: {
     alignItems: "center",

@@ -137,13 +137,13 @@ const sexOptions: Array<{
 const demoCopy: Record<OnboardingSex, { creator: string; caption: string; tag: string }> = {
   male: {
     creator: "@coach.daley",
-    caption: "Push day every push-day guy needs to try",
-    tag: "Chest focus",
+    caption: "Push workout from a saved reel",
+    tag: "Push workout",
   },
   female: {
-    creator: "@maya.lifts",
-    caption: "Lower body day that actually works",
-    tag: "Leg day",
+    creator: "@samantha.baio",
+    caption: "Glutes and abs day that actually works",
+    tag: "Glutes · abs",
   },
   prefer_not_to_say: {
     creator: "@fitfo.daily",
@@ -206,7 +206,7 @@ export function OnboardingScreen({
   const [tryItStage, setTryItStage] = useState<"tiktok" | "share" | "import" | "workout">(
     "tiktok",
   );
-  const [nunoSpotlightStage, setNunoSpotlightStage] = useState<"video" | "parsed">("video");
+  const [spotlightStage, setSpotlightStage] = useState<"video" | "parsed">("video");
 
   const firstName = profile.full_name.trim().split(/\s+/)[0] || "you";
   const weightLbs = Number.parseFloat(weightLbsInput);
@@ -231,6 +231,29 @@ export function OnboardingScreen({
     age >= 13 &&
     age <= 120;
   const demo = demoCopy[sex || "prefer_not_to_say"];
+  const demoExercises =
+    sex === "female"
+      ? [
+          { label: "Hip thrust", meta: "3x10" },
+          { label: "Step ups", meta: "3x8" },
+          { label: "Kick backs", meta: "3x10" },
+          { label: "Hip abductors", meta: "3x8" },
+          { label: "Leg raises", meta: "3x10" },
+        ]
+      : sex === "male"
+        ? [
+            { label: "Single arm lateral raise", meta: "3x8" },
+            { label: "Pec dec", meta: "3x8" },
+            { label: "Incline press", meta: "3x8" },
+            { label: "Shoulder press machine", meta: "3x8" },
+            { label: "Tricep dip machine", meta: "2x8" },
+            { label: "Single arm cable extension", meta: "2x10" },
+          ]
+        : [
+            { label: "Goblet squat", meta: "3x10" },
+            { label: "Push-up", meta: "3 sets" },
+            { label: "Plank", meta: "3 sets" },
+          ];
 
   const savedSplit =
     existingOnboarding?.training_split ?? DEFAULT_TRAINING_SPLIT;
@@ -493,11 +516,11 @@ export function OnboardingScreen({
           </View>
           {demoStage === "parsed" ? (
             <View style={styles.parsedList}>
-              {["Incline press", "Cable fly", "Triceps pressdown"].map((item, index) => (
-                <View key={item} style={styles.parsedRow}>
+              {demoExercises.map((item, index) => (
+                <View key={item.label} style={styles.parsedRow}>
                   <Text style={styles.parsedIndex}>{index + 1}</Text>
-                  <Text style={styles.parsedText}>{item}</Text>
-                  <Text style={styles.parsedMeta}>3 sets</Text>
+                  <Text style={styles.parsedText}>{item.label}</Text>
+                  <Text style={styles.parsedMeta}>{item.meta}</Text>
                 </View>
               ))}
             </View>
@@ -688,13 +711,19 @@ export function OnboardingScreen({
         ) : (
           <>
             <Ionicons color={theme.colors.primaryLight} name="checkmark-circle-outline" size={34} />
-            <Text style={styles.tryTitle}>Push Day · Chest Focus</Text>
+            <Text style={styles.tryTitle}>
+              {sex === "female"
+                ? "Samantha glutes and abs day"
+                : sex === "male"
+                  ? "Jacob 6 day push workout"
+                  : "Full Body Session"}
+            </Text>
             <View style={styles.parsedList}>
-              {["Incline DB press", "Machine chest press", "Cable fly"].map((item, index) => (
-                <View key={item} style={styles.parsedRow}>
+              {demoExercises.map((item, index) => (
+                <View key={item.label} style={styles.parsedRow}>
                   <Text style={styles.parsedIndex}>{index + 1}</Text>
-                  <Text style={styles.parsedText}>{item}</Text>
-                  <Text style={styles.parsedMeta}>3x10</Text>
+                  <Text style={styles.parsedText}>{item.label}</Text>
+                  <Text style={styles.parsedMeta}>{item.meta}</Text>
                 </View>
               ))}
             </View>
@@ -833,8 +862,8 @@ export function OnboardingScreen({
     <>
       {renderScreenIntro(
         "Step 10 · Spotlight reel",
-        "Nuno clips land the same way.",
-        "Jacob opened the funnel on push day — Nuno reels follow the identical share → compile → save rhythm. Flip the card once to peek at exactly what we'd pull from captions, audio, and video.",
+        "Jacob clips land the same way.",
+        "Jacob reels follow the same share → compile → save rhythm. Flip the card once to peek at exactly what we'd pull from captions, audio, and video.",
       )}
       <View style={styles.demoPhone}>
         <LinearGradient
@@ -848,33 +877,33 @@ export function OnboardingScreen({
             <Text style={styles.demoTopActive}>For You</Text>
           </View>
           <View style={styles.demoPerson}>
-            <Text style={styles.demoPersonText}>N</Text>
+            <Text style={styles.demoPersonText}>J</Text>
           </View>
           <View style={styles.demoCaption}>
-            <Text style={styles.demoCreator}>@nunosfitness</Text>
-            <Text style={styles.demoCaptionText}>Posterior chain day you actually stick with</Text>
-            <Text style={styles.demoTag}>Back · legs</Text>
+            <Text style={styles.demoCreator}>@coach.daley</Text>
+            <Text style={styles.demoCaptionText}>Push workout you actually stick with</Text>
+            <Text style={styles.demoTag}>Push workout</Text>
           </View>
         </LinearGradient>
         <Pressable
           onPress={() =>
-            setNunoSpotlightStage((current) => (current === "video" ? "parsed" : "video"))
+            setSpotlightStage((current) => (current === "video" ? "parsed" : "video"))
           }
           style={styles.parseOverlay}
         >
           <View style={styles.parseHeader}>
             <Ionicons color={theme.colors.primaryLight} name="sparkles-outline" size={16} />
             <Text style={styles.parseEyebrow}>
-              {nunoSpotlightStage === "video" ? "Tap to parse" : "Workout found"}
+              {spotlightStage === "video" ? "Tap to parse" : "Workout found"}
             </Text>
           </View>
-          {nunoSpotlightStage === "parsed" ? (
+          {spotlightStage === "parsed" ? (
             <View style={styles.parsedList}>
               {[
-                { label: "Romanian deadlift", meta: "4x8" },
-                { label: "Lat pulldown", meta: "3x12" },
-                { label: "Walking lunge", meta: "3x10" },
-                { label: "Leg curl", meta: "3x12" },
+                { label: "Single arm lateral raise", meta: "3x8" },
+                { label: "Pec dec", meta: "3x8" },
+                { label: "Incline press", meta: "3x8" },
+                { label: "Shoulder press machine", meta: "3x8" },
               ].map((item, index) => (
                 <View key={item.label} style={styles.parsedRow}>
                   <Text style={styles.parsedIndex}>{index + 1}</Text>

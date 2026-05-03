@@ -1,109 +1,92 @@
 import { listSavedWorkouts, saveWorkoutForLater } from "./api";
 import type { OnboardingSex, SavedWorkoutRecord, WorkoutPlan } from "../types";
 
-/** Saved-row titles — must stay stable so we don't duplicate starters on reload. */
-export const STARTER_JACOB_TITLE = "Jacob · Push sampler";
-export const STARTER_NUNO_TITLE = "Nuno · Back & legs sampler";
-export const STARTER_SAMANTHA_TITLE = "Samantha · Lower body sampler";
+/** Saved-row titles double as de-dupe keys for demo imports. */
+export const STARTER_JACOB_TITLE = "Jacob 6 day push workout";
+export const STARTER_SAMANTHA_TITLE = "Samantha glutes and abs day";
 
 /** Shown once in-app after onboarding; copy used by `FirstHubTipModal`. */
-export const FIRST_HUB_TIP_MODAL_TITLE = "Get back to scrolling";
+export const FIRST_HUB_TIP_MODAL_TITLE = "Your demo workout is loaded";
 
 const HUB_TIP_INTRO =
-  "Any time you find a reel you want to train, hit Share → Fitfo. It compiles here so you can save it and drop it on your calendar.";
+  "We loaded the workout you tried in the demo into your Fitfo library. It is ready to save, schedule, or start whenever you want.";
 
 /** Male / prefer-not-to-say hub tip copy (same as legacy constant). */
-export const FIRST_HUB_TIP_MODAL_BODY = `${HUB_TIP_INTRO}\n\nWe added Jacob's push sampler and Nuno's back & legs sampler as sample workouts so you can explore the app before your first import.`;
+export const FIRST_HUB_TIP_MODAL_BODY = `${HUB_TIP_INTRO}\n\nJacob's push workout is waiting for you, just like you imported it from the demo.`;
+
+export function getFirstHubTipModalTitle(sex: OnboardingSex | null): string {
+  if (sex === "female") {
+    return "Samantha's workout is loaded";
+  }
+  return "Jacob's workout is loaded";
+}
 
 export function getFirstHubTipModalBody(sex: OnboardingSex | null): string {
   if (sex === "female") {
-    return `${HUB_TIP_INTRO}\n\nWe added Samantha's lower body sampler and Jacob's push sampler as sample workouts so you can explore the app before your first import.`;
+    return `${HUB_TIP_INTRO}\n\nSamantha's glutes and abs day is waiting for you, just like you imported it from the demo.`;
   }
-  return `${HUB_TIP_INTRO}\n\nWe added Jacob's push sampler and Nuno's back & legs sampler as sample workouts so you can explore the app before your first import.`;
+  return FIRST_HUB_TIP_MODAL_BODY;
 }
 
 export function getFirstHubTipStorageKey(profileId: string): string {
   return `@fitfo:first-hub-tip:${profileId}`;
 }
 
-const STARTER_META_LEFT = "Fitfo sample";
+const STARTER_META_LEFT = "Demo import";
 
 const JACOB_PLAN: WorkoutPlan = {
-  title: "Push day sampler",
+  title: "Jacob 6 day push workout",
   workout_type: "strength",
   muscle_groups: ["chest", "shoulders", "arms"],
   equipment: ["dumbbells", "machines", "cables"],
   blocks: [
     {
-      name: "Main work",
+      name: "Push day",
       exercises: [
         {
-          name: "Incline dumbbell press",
+          name: "Single arm lateral raise",
           sets: 3,
-          reps: 10,
-          duration_sec: null,
-          rest_sec: 90,
-          notes: null,
-        },
-        {
-          name: "Machine chest press",
-          sets: 3,
-          reps: 10,
-          duration_sec: null,
-          rest_sec: 90,
-          notes: null,
-        },
-        {
-          name: "Cable fly",
-          sets: 3,
-          reps: 12,
+          reps: 8,
           duration_sec: null,
           rest_sec: 60,
           notes: null,
         },
-      ],
-    },
-  ],
-  notes: null,
-};
-
-const NUNO_PLAN: WorkoutPlan = {
-  title: "Back & legs sampler",
-  workout_type: "strength",
-  muscle_groups: ["back", "legs"],
-  equipment: ["barbell", "machines"],
-  blocks: [
-    {
-      name: "Posterior chain",
-      exercises: [
         {
-          name: "Romanian deadlift",
-          sets: 4,
+          name: "Pec dec",
+          sets: 3,
           reps: 8,
           duration_sec: null,
-          rest_sec: 120,
+          rest_sec: 60,
           notes: null,
         },
         {
-          name: "Lat pulldown",
+          name: "Incline press",
           sets: 3,
-          reps: 12,
+          reps: 8,
           duration_sec: null,
-          rest_sec: 90,
+          rest_sec: 60,
           notes: null,
         },
         {
-          name: "Walking lunge",
+          name: "Shoulder press machine",
           sets: 3,
+          reps: 8,
+          duration_sec: null,
+          rest_sec: 60,
+          notes: null,
+        },
+        {
+          name: "Tricep dip machine",
+          sets: 2,
+          reps: 8,
+          duration_sec: null,
+          rest_sec: 60,
+          notes: null,
+        },
+        {
+          name: "Single arm cable extension",
+          sets: 2,
           reps: 10,
-          duration_sec: null,
-          rest_sec: 90,
-          notes: null,
-        },
-        {
-          name: "Leg curl",
-          sets: 3,
-          reps: 12,
           duration_sec: null,
           rest_sec: 60,
           notes: null,
@@ -115,24 +98,16 @@ const NUNO_PLAN: WorkoutPlan = {
 };
 
 const SAMANTHA_PLAN: WorkoutPlan = {
-  title: "Lower body sampler",
+  title: "Samantha glutes and abs day",
   workout_type: "strength",
   muscle_groups: ["legs"],
   equipment: ["barbell", "dumbbells", "machines"],
   blocks: [
     {
-      name: "Leg day",
+      name: "Glutes and abs",
       exercises: [
         {
-          name: "Barbell back squat",
-          sets: 4,
-          reps: 8,
-          duration_sec: null,
-          rest_sec: 120,
-          notes: null,
-        },
-        {
-          name: "Romanian deadlift",
+          name: "Hip thrust",
           sets: 3,
           reps: 10,
           duration_sec: null,
@@ -140,15 +115,31 @@ const SAMANTHA_PLAN: WorkoutPlan = {
           notes: null,
         },
         {
-          name: "Leg press",
+          name: "Step ups",
           sets: 3,
-          reps: 12,
+          reps: 8,
           duration_sec: null,
           rest_sec: 90,
           notes: null,
         },
         {
-          name: "Walking lunge",
+          name: "Kick backs",
+          sets: 3,
+          reps: 10,
+          duration_sec: null,
+          rest_sec: 60,
+          notes: null,
+        },
+        {
+          name: "Hip abductors",
+          sets: 3,
+          reps: 8,
+          duration_sec: null,
+          rest_sec: 60,
+          notes: null,
+        },
+        {
+          name: "Leg raises",
           sets: 3,
           reps: 10,
           duration_sec: null,
@@ -174,15 +165,9 @@ function starterTemplatesForSex(sex: OnboardingSex | null): StarterTemplate[] {
       {
         title: STARTER_SAMANTHA_TITLE,
         description:
-          "Preview of a Samantha-style lower body day—the same card shape as a real import from a reel.",
+          "Imported from the Samantha demo reel during onboarding.",
         plan: SAMANTHA_PLAN,
-        badge_label: "Sample",
-      },
-      {
-        title: STARTER_JACOB_TITLE,
-        description: "Preview of what a Jacob / Coach Daley-style push day looks like after you share a reel.",
-        plan: JACOB_PLAN,
-        badge_label: "Sample",
+        badge_label: "Demo import",
       },
     ];
   }
@@ -190,15 +175,9 @@ function starterTemplatesForSex(sex: OnboardingSex | null): StarterTemplate[] {
   return [
     {
       title: STARTER_JACOB_TITLE,
-      description: "Preview of what a Jacob / Coach Daley-style push day looks like after you share a reel.",
+      description: "Imported from the Jacob demo reel during onboarding.",
       plan: JACOB_PLAN,
-      badge_label: "Sample",
-    },
-    {
-      title: STARTER_NUNO_TITLE,
-      description: "Preview of a Nuno-style posterior chain day, same card shape as a real import.",
-      plan: NUNO_PLAN,
-      badge_label: "Sample",
+      badge_label: "Demo import",
     },
   ];
 }
@@ -220,7 +199,7 @@ async function seedStartersIfNeeded(
       title: template.title,
       description: template.description,
       meta_left: STARTER_META_LEFT,
-      meta_right: "@fitfo starter",
+      meta_right: "demo import",
       badge_label: template.badge_label,
       workout_plan: template.plan,
       source_url: null,
