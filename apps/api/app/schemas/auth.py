@@ -49,6 +49,8 @@ class UserProfileResponse(BaseModel):
     onboarding: Optional[UserOnboardingResponse] = None
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
+    #: When true, the API grants Fitfo Pro without RevenueCat (allowlisted account).
+    fitfo_pro_bypass: bool = False
 
 
 class AccountStatusRequest(BaseModel):

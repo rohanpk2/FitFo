@@ -16,12 +16,14 @@ import {
 import { getTheme, type ThemeMode } from "../theme";
 
 interface FirstHubTipModalProps {
+  body?: string;
   visible: boolean;
   onDismiss: () => void;
   themeMode?: ThemeMode;
 }
 
 export function FirstHubTipModal({
+  body = FIRST_HUB_TIP_MODAL_BODY,
   visible,
   onDismiss,
   themeMode = "dark",
@@ -29,7 +31,7 @@ export function FirstHubTipModal({
   const theme = getTheme(themeMode);
   const styles = createStyles(theme);
 
-  const bodyParts = FIRST_HUB_TIP_MODAL_BODY.split("\n\n");
+  const bodyParts = body.split("\n\n");
 
   return (
     <Modal

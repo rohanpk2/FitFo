@@ -206,23 +206,15 @@ function LibraryWorkoutCard({
       ]}
     >
       <View style={styles.cardTopRow}>
-        <View style={styles.cardThumb}>
-          {routine.thumbnailUrl ? (
+        {routine.thumbnailUrl ? (
+          <View style={styles.cardThumb}>
             <Image
               source={{ uri: routine.thumbnailUrl }}
               style={styles.cardThumbImage}
               resizeMode="cover"
             />
-          ) : (
-            <View style={styles.cardThumbPlaceholder}>
-              <Ionicons
-                color={theme.colors.textMuted}
-                name={isDraft ? "document-text-outline" : "barbell-outline"}
-                size={28}
-              />
-            </View>
-          )}
-        </View>
+          </View>
+        ) : null}
 
         <View style={styles.cardContent}>
           <View style={styles.cardHeader}>
@@ -897,11 +889,6 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     cardThumbImage: {
       width: "100%",
       height: "100%",
-    },
-    cardThumbPlaceholder: {
-      flex: 1,
-      alignItems: "center",
-      justifyContent: "center",
     },
     cardContent: {
       flex: 1,

@@ -7,9 +7,11 @@ import {
   getCustomerInfo,
   getRevenueCatErrorMessage,
   hasFitfoPro,
+  isRevenueCatSdkAvailable,
   logOutRevenueCat,
   presentFitfoPaywallIfNeeded,
   presentRevenueCatCustomerCenter,
+  purchaseProductId,
   restoreRevenueCatPurchases,
 } from "../lib/revenueCat";
 import type { UserProfile } from "../types";
@@ -26,11 +28,16 @@ export function useRevenueCat(profile: UserProfile | null) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const accountBypass = profile ? hasBillingBypassForUser(profile) : false;
+  const accountBypass =
+    (profile ? hasBillingBypassForUser(profile) : false) ||
+    Boolean(profile?.fitfo_pro_bypass);
   const hasPro = accountBypass || hasFitfoPro(customerInfo);
 
   const refreshCustomerInfo = useCallback(async () => {
     if (REVENUECAT_SDK_DISABLED || accountBypass) {
+      return null;
+    }
+    if (!isRevenueCatSdkAvailable()) {
       return null;
     }
     setIsLoading(true);
@@ -70,6 +77,14 @@ export function useRevenueCat(profile: UserProfile | null) {
     }
 
     if (REVENUECAT_SDK_DISABLED) {
+      setCustomerInfo(null);
+      setIsConfigured(true);
+      setIsLoading(false);
+      setError(null);
+      return;
+    }
+
+    if (!isRevenueCatSdkAvailable()) {
       setCustomerInfo(null);
       setIsConfigured(true);
       setIsLoading(false);
@@ -117,13 +132,47 @@ export function useRevenueCat(profile: UserProfile | null) {
 
     return () => {
       isMounted = false;
-      Purchases.removeCustomerInfoUpdateListener(listener);
+      if (isRevenueCatSdkAvailable()) {
+        Purchases.removeCustomerInfoUpdateListener(listener);
+      }
     };
-  }, [profile?.id, profile?.email, profile?.phone, accountBypass]);
+  }, [profile?.id, profile?.email, profile?.phone, profile?.fitfo_pro_bypass, accountBypass]);
+
+  const purchaseProduct = useCallback(async (productId: string) => {
+    if (REVENUECAT_SDK_DISABLED || accountBypass) {
+      return true;
+    }
+    if (!isRevenueCatSdkAvailable()) {
+      return false;
+    }
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const result = await purchaseProductId(productId);
+      if (result.customerInfo) {
+        setCustomerInfo(result.customerInfo);
+      }
+      return result.hasAccess;
+    } catch (purchaseError) {
+      setError(
+        getRevenueCatErrorMessage(
+          purchaseError,
+          "Unable to complete purchase. Please try again.",
+        ),
+      );
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [accountBypass]);
 
   const presentPaywall = useCallback(async () => {
     if (REVENUECAT_SDK_DISABLED || accountBypass) {
       return true;
+    }
+    if (!isRevenueCatSdkAvailable()) {
+      return false;
     }
     setIsLoading(true);
     setError(null);
@@ -145,6 +194,9 @@ export function useRevenueCat(profile: UserProfile | null) {
   const restorePurchases = useCallback(async () => {
     if (REVENUECAT_SDK_DISABLED || accountBypass) {
       return true;
+    }
+    if (!isRevenueCatSdkAvailable()) {
+      return false;
     }
     setIsLoading(true);
     setError(null);
@@ -169,6 +221,9 @@ export function useRevenueCat(profile: UserProfile | null) {
   const openCustomerCenter = useCallback(async () => {
     if (REVENUECAT_SDK_DISABLED || accountBypass) {
       return true;
+    }
+    if (!isRevenueCatSdkAvailable()) {
+      return false;
     }
     setError(null);
 
@@ -204,6 +259,7 @@ export function useRevenueCat(profile: UserProfile | null) {
     isLoading,
     error,
     refreshCustomerInfo,
+    purchaseProduct,
     presentPaywall,
     restorePurchases,
     openCustomerCenter,

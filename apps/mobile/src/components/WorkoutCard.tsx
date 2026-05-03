@@ -229,23 +229,15 @@ export function WorkoutCard({
             </View>
           </View>
 
-          <View style={styles.lastHitThumb}>
-            {routine.thumbnailUrl ? (
+          {routine.thumbnailUrl ? (
+            <View style={styles.lastHitThumb}>
               <Image
                 source={{ uri: routine.thumbnailUrl }}
                 style={styles.lastHitThumbImage}
                 resizeMode="cover"
               />
-            ) : (
-              <View style={styles.lastHitThumbPlaceholder}>
-                <Ionicons
-                  color={theme.colors.textMuted}
-                  name="barbell-outline"
-                  size={28}
-                />
-              </View>
-            )}
-          </View>
+            </View>
+          ) : null}
         </View>
       ) : (
         <>
@@ -439,11 +431,6 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     lastHitThumbImage: {
       width: "100%",
       height: "100%",
-    },
-    lastHitThumbPlaceholder: {
-      flex: 1,
-      alignItems: "center",
-      justifyContent: "center",
     },
     workoutHeader: {
       flexDirection: "row",

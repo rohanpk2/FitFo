@@ -4,11 +4,13 @@ import {
   ActivityIndicator,
   Alert,
   InteractionManager,
+  Pressable,
   SafeAreaView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFonts } from "expo-font";
@@ -83,6 +85,7 @@ import {
 } from "./src/lib/fitfo";
 import {
   ensureStarterWorkoutsSeeded,
+  getFirstHubTipModalBody,
   getFirstHubTipStorageKey,
 } from "./src/lib/starterHubWelcome";
 import * as Notifications from "expo-notifications";
@@ -157,7 +160,7 @@ interface ScheduledConfirmationState {
   origin: "share" | "manual";
 }
 
-const AUTH_LANDING_AUTH_INDEX = 10;
+const AUTH_LANDING_AUTH_INDEX = 8;
 const TRIAL_LENGTH_MS = 7 * 24 * 60 * 60 * 1000;
 
 function isWithinInitialTrial(createdAt: string | null | undefined) {
@@ -382,9 +385,11 @@ export default function App() {
   const styles = createStyles(theme);
   const revenueCat = useRevenueCat(currentUser);
   const isAccountBillingBypass = hasBillingBypassForUser(currentUser);
+  const isServerProBypass = currentUser?.fitfo_pro_bypass === true;
   const isInitialTrialActive = isWithinInitialTrial(currentUser?.created_at);
   const hasBillingAccess =
     isAccountBillingBypass ||
+    isServerProBypass ||
     isInitialTrialActive ||
     revenueCat.hasPro ||
     (__DEV__ && isDevPaywallBypassed);
@@ -393,10 +398,36 @@ export default function App() {
     Boolean(currentUser?.onboarding) &&
     activeOnboardingUserId !== currentUser?.id;
 
-  const isBillingCheckPending =
+  const [billingCheckGiveUp, setBillingCheckGiveUp] = useState(false);
+  const [billingCheckShowBuyNow, setBillingCheckShowBuyNow] = useState(false);
+
+  const needsBillingVerification =
     Boolean(currentUser && userPastOnboarding) &&
     !isAccountBillingBypass &&
-    (revenueCat.isLoading || !revenueCat.isConfigured);
+    !isServerProBypass;
+
+  const isBillingCheckStalled =
+    needsBillingVerification &&
+    (revenueCat.isLoading ||
+      (!revenueCat.isConfigured && !revenueCat.error));
+
+  useEffect(() => {
+    if (!isBillingCheckStalled) {
+      setBillingCheckGiveUp(false);
+    }
+  }, [isBillingCheckStalled]);
+
+  const isBillingCheckPending =
+    isBillingCheckStalled && !billingCheckGiveUp;
+
+  useEffect(() => {
+    if (!isBillingCheckPending) {
+      setBillingCheckShowBuyNow(false);
+      return;
+    }
+    const id = setTimeout(() => setBillingCheckShowBuyNow(true), 10_000);
+    return () => clearTimeout(id);
+  }, [isBillingCheckPending]);
 
   const resetPostLoginState = useCallback(() => {
     setActiveTab("saved");
@@ -797,12 +828,16 @@ export default function App() {
     let alive = true;
     void (async () => {
       try {
-        await ensureStarterWorkoutsSeeded(accessToken, async () => {
-          if (!alive) {
-            return;
-          }
-          await loadSavedWorkouts(accessToken);
-        });
+        await ensureStarterWorkoutsSeeded(
+          accessToken,
+          async () => {
+            if (!alive) {
+              return;
+            }
+            await loadSavedWorkouts(accessToken);
+          },
+          currentUser.onboarding?.sex ?? null,
+        );
         if (!alive) {
           return;
         }
@@ -831,6 +866,7 @@ export default function App() {
     activeOnboardingUserId,
     currentUser?.id,
     currentUser?.onboarding,
+    currentUser?.onboarding?.sex,
     hasBillingAccess,
     isBillingCheckPending,
     loadSavedWorkouts,
@@ -2422,13 +2458,36 @@ export default function App() {
                 size={160}
                 themeMode={themeMode}
               />
+              {billingCheckShowBuyNow ? (
+                <View style={styles.billingCheckActions}>
+                  <Text style={styles.billingCheckHint}>
+                    Taking longer than usual? Continue to subscribe.
+                  </Text>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Buy Fitfo Pro now"
+                    onPress={() => setBillingCheckGiveUp(true)}
+                    style={({ pressed }) => [
+                      styles.billingCheckBuyNowButton,
+                      pressed ? styles.billingCheckBuyNowButtonPressed : null,
+                    ]}
+                  >
+                    <Text style={styles.billingCheckBuyNowText}>Buy now</Text>
+                    <Ionicons
+                      color={theme.colors.surface}
+                      name="arrow-forward"
+                      size={18}
+                    />
+                  </Pressable>
+                </View>
+              ) : null}
             </View>
           ) : !hasBillingAccess ? (
             <PaywallScreen
               error={revenueCat.error}
               isLoading={revenueCat.isLoading}
               onManageSubscription={revenueCat.openCustomerCenter}
-              onPresentPaywall={revenueCat.presentPaywall}
+              onPurchaseProduct={revenueCat.purchaseProduct}
               onRestorePurchases={revenueCat.restorePurchases}
               onDevBypass={
                 __DEV__
@@ -2544,6 +2603,7 @@ export default function App() {
       />
 
       <FirstHubTipModal
+        body={getFirstHubTipModalBody(currentUser?.onboarding?.sex ?? null)}
         themeMode={themeMode}
         visible={isFirstHubTipVisible && hasBillingAccess}
         onDismiss={handleDismissFirstHubTip}
@@ -2587,6 +2647,39 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       justifyContent: "center",
       gap: 12,
       paddingHorizontal: 24,
+    },
+    billingCheckActions: {
+      alignItems: "center",
+      gap: 14,
+      marginTop: 8,
+      maxWidth: 320,
+    },
+    billingCheckHint: {
+      color: theme.colors.textMuted,
+      fontSize: 13,
+      lineHeight: 18,
+      textAlign: "center",
+    },
+    billingCheckBuyNowButton: {
+      minHeight: 54,
+      minWidth: 220,
+      borderRadius: 18,
+      alignItems: "center",
+      justifyContent: "center",
+      flexDirection: "row",
+      gap: 10,
+      paddingHorizontal: 24,
+      backgroundColor: theme.colors.primary,
+      ...theme.shadows.primary,
+    },
+    billingCheckBuyNowButtonPressed: {
+      opacity: 0.9,
+    },
+    billingCheckBuyNowText: {
+      color: theme.colors.surface,
+      fontSize: 15,
+      fontFamily: "Satoshi-Bold",
+      fontWeight: "800",
     },
     loadingTitle: {
       color: theme.colors.textPrimary,

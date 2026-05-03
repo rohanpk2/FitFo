@@ -1,16 +1,17 @@
 import type { UserProfile } from "../types";
 
 /**
- * Comma-separated lists from env (optional). Example:
+ * Comma-, newline-, or semicolon-separated lists from env (optional). Example:
  * EXPO_PUBLIC_BILLING_BYPASS_USER_IDS=uuid1,uuid2
- * EXPO_PUBLIC_BILLING_BYPASS_EMAILS=you@company.com
+ * EXPO_PUBLIC_BILLING_BYPASS_EMAILS=you@company.com,other@company.com
  * EXPO_PUBLIC_BILLING_BYPASS_PHONES=+15551234567,5551234567
  */
 function parseCsv(raw: string | undefined): string[] {
   if (!raw?.trim()) {
     return [];
   }
-  return raw
+  const normalized = raw.replace(/\n/g, ",").replace(/\r/g, ",").replace(/;/g, ",");
+  return normalized
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);

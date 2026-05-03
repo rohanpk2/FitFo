@@ -22,21 +22,14 @@ import { AppleSignInButton } from "../components/AppleSignInButton";
 import { isAppleSignInAvailable } from "../lib/appleAuth";
 import { F } from "../lib/fonts";
 import { getTheme, type ThemeMode } from "../theme";
-import type {
-  AuthMode,
-  ExperienceLevel,
-  OnboardingGoal,
-  OnboardingSex,
-  SaveOnboardingRequest,
-  TrainingSplit,
-} from "../types";
+import type { AuthMode, OnboardingGoal, OnboardingSex, SaveOnboardingRequest } from "../types";
 
-const AUTH_SLIDE_INDEX = 10;
+const AUTH_SLIDE_INDEX = 8;
 const ONBOARDING_STEP_COUNT = AUTH_SLIDE_INDEX - 1;
 const AGE_ITEM_WIDTH = 56;
 const AGE_ITEM_GAP = 8;
 const AGE_SNAP_INTERVAL = AGE_ITEM_WIDTH + AGE_ITEM_GAP;
-const TRY_DEMO_SLIDE_INDEX = 7;
+const TRY_DEMO_SLIDE_INDEX = 5;
 const WORKOUT_VIDEO = require("../../assets/my-workout.mp4");
 const NUNO_VIDEO = require("../../assets/nuno.mov");
 const SAMANTHA_VIDEO = require("../../assets/samantha2.mov");
@@ -136,31 +129,6 @@ const sexOptions: Array<{ label: string; sub: string; value: OnboardingSex }> = 
   { label: "Prefer not to say", sub: "Skip creator matching", value: "prefer_not_to_say" },
 ];
 
-const experienceOptions: Array<{
-  label: string;
-  sub: string;
-  value: ExperienceLevel;
-  bars: number;
-}> = [
-  { label: "Beginner", sub: "New or rebuilding consistency", value: "beginner", bars: 1 },
-  { label: "Intermediate", sub: "Training regularly", value: "intermediate", bars: 2 },
-  { label: "Advanced", sub: "Structured programming", value: "advanced", bars: 3 },
-];
-
-const splitOptions: Array<{
-  label: string;
-  sub: string;
-  value: TrainingSplit;
-  days: number;
-}> = [
-  { label: "Push / Pull / Legs", sub: "Classic hypertrophy cadence", value: "ppl", days: 6 },
-  { label: "Upper / Lower", sub: "Balanced and repeatable", value: "upper_lower", days: 4 },
-  { label: "Bro Split", sub: "One body part each session", value: "bro_split", days: 5 },
-  { label: "Full Body", sub: "Time-efficient, 3 days", value: "full_body", days: 3 },
-  { label: "5/3/1", sub: "Strength progression", value: "five_three_one", days: 4 },
-  { label: "Custom", sub: "I will tune this later", value: "custom", days: 4 },
-];
-
 const ageOptions = Array.from({ length: 57 }, (_, index) => index + 14);
 
 export function AuthLandingScreen({
@@ -205,10 +173,7 @@ export function AuthLandingScreen({
   const [isAppleAvailable, setIsAppleAvailable] = useState(false);
   const [age, setAge] = useState(22);
   const [sex, setSex] = useState<OnboardingSex | null>(null);
-  const [experience, setExperience] = useState<ExperienceLevel | null>(null);
   const [selectedGoals, setSelectedGoals] = useState<OnboardingGoal[]>([]);
-  const [split, setSplit] = useState<TrainingSplit | null>(null);
-  const [daysPerWeek, setDaysPerWeek] = useState(4);
   const [weightLbs, setWeightLbs] = useState("165");
   const [heightFeet, setHeightFeet] = useState("5");
   const [heightInches, setHeightInches] = useState("9");
@@ -262,9 +227,7 @@ export function AuthLandingScreen({
   const onboardingPayload = useMemo<SaveOnboardingRequest | null>(() => {
     if (
       !sex ||
-      !experience ||
       selectedGoals.length === 0 ||
-      !split ||
       !Number.isFinite(numericWeight) ||
       !Number.isFinite(totalHeightInches)
     ) {
@@ -273,25 +236,16 @@ export function AuthLandingScreen({
 
     return {
       age,
-      days_per_week: daysPerWeek,
-      experience_level: experience,
+      days_per_week: 4,
+      experience_level: "intermediate",
       goals: selectedGoals,
       height_inches: totalHeightInches,
       sex,
-      training_split: split,
-      custom_split_notes: split === "custom" ? "Custom split selected during onboarding." : null,
+      training_split: "ppl",
+      custom_split_notes: null,
       weight_lbs: numericWeight,
     };
-  }, [
-    age,
-    daysPerWeek,
-    experience,
-    numericWeight,
-    selectedGoals,
-    sex,
-    split,
-    totalHeightInches,
-  ]);
+  }, [age, numericWeight, selectedGoals, sex, totalHeightInches]);
 
   useEffect(() => {
     onOnboardingPayloadChange?.(onboardingPayload);
@@ -505,31 +459,8 @@ export function AuthLandingScreen({
 
         <StepSlide
           back={back}
-          canContinue={Boolean(experience)}
-          index={3}
-          next={next}
-          title="How experienced are you?"
-          subtitle="This calibrates workout language, rest defaults, and load suggestions."
-          width={width}
-        >
-          <View style={styles.optionList}>
-            {experienceOptions.map((option) => (
-              <OptionRow
-                key={option.value}
-                active={experience === option.value}
-                label={option.label}
-                meter={option.bars}
-                onPress={() => setExperience(option.value)}
-                sub={option.sub}
-              />
-            ))}
-          </View>
-        </StepSlide>
-
-        <StepSlide
-          back={back}
           canContinue={selectedGoals.length > 0}
-          index={4}
+          index={3}
           next={next}
           title="What drives you?"
           subtitle="Pick all that fit. Fitfo will bias your setup around these goals."
@@ -554,34 +485,8 @@ export function AuthLandingScreen({
 
         <StepSlide
           back={back}
-          canContinue={Boolean(split)}
-          index={5}
-          next={next}
-          title="Pick your split."
-          subtitle="Sets your weekly cadence. You can change this later."
-          width={width}
-        >
-          <View style={styles.optionList}>
-            {splitOptions.map((option) => (
-              <OptionRow
-                key={option.value}
-                active={split === option.value}
-                label={option.label}
-                onPress={() => {
-                  setSplit(option.value);
-                  setDaysPerWeek(option.days);
-                }}
-                sub={option.sub}
-                weekDots={option.days}
-              />
-            ))}
-          </View>
-        </StepSlide>
-
-        <StepSlide
-          back={back}
           canContinue={Number.isFinite(numericWeight) && Number.isFinite(totalHeightInches)}
-          index={6}
+          index={4}
           next={next}
           title="How tall and heavy?"
           subtitle="This gives progress charts a baseline. You can edit it any time."
@@ -603,7 +508,7 @@ export function AuthLandingScreen({
           back={back}
           canContinue
           compact
-          index={7}
+          index={5}
           next={next}
           showContinue={tryStage === "workout"}
           title="Take it for a spin."
@@ -821,7 +726,7 @@ export function AuthLandingScreen({
         <StepSlide
           back={back}
           canContinue
-          index={8}
+          index={6}
           next={next}
           title="Schedule it. Show up to it."
           subtitle="Drop imported workouts into your week and get a nudge when it is time."
@@ -833,7 +738,7 @@ export function AuthLandingScreen({
         <StepSlide
           back={back}
           canContinue
-          index={9}
+          index={7}
           next={next}
           title="Coach in your pocket."
           subtitle="Form cues, swaps, and progression notes while you train."
@@ -857,7 +762,7 @@ export function AuthLandingScreen({
               <Text style={styles.authSub}>
                 {authMode === "login"
                   ? "Log in to pick up where you left off."
-                  : "Create an account so your imports, split, and progress sync everywhere."}
+                  : "Create an account so your imports and progress sync everywhere."}
               </Text>
 
               <View style={styles.tabs}>

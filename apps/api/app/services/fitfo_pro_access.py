@@ -1,0 +1,53 @@
+"""
+Server-side Fitfo Pro bypass (team accounts, founders) independent of RevenueCat.
+
+Configure via env (comma-, newline-, or semicolon-separated lists). Example:
+  FITFO_PRO_BYPASS_USER_IDS=uuid1,uuid2
+  FITFO_PRO_BYPASS_EMAILS=you@company.com,other@company.com
+  FITFO_PRO_BYPASS_PHONES=+15551234567
+"""
+
+from __future__ import annotations
+
+import os
+from typing import Any, Mapping
+
+
+def _env_csv(name: str) -> set[str]:
+    raw = (os.environ.get(name) or "").strip()
+    if not raw:
+        return set()
+    # Allow multi-account lists pasted from spreadsheets or secrets managers.
+    normalized = raw.replace("\n", ",").replace("\r", ",").replace(";", ",")
+    return {part.strip() for part in normalized.split(",") if part.strip()}
+
+
+_DEFAULT_EMAILS = frozenset({"support@fitfo.app"})
+
+
+def profile_has_fitfo_pro_bypass(profile: Mapping[str, Any]) -> bool:
+    """True when this account should be treated as Pro on the backend."""
+    user_id = str(profile.get("id") or "").strip()
+    if user_id and user_id in _env_csv("FITFO_PRO_BYPASS_USER_IDS"):
+        return True
+
+    email = str(profile.get("email") or "").strip().lower()
+    if email:
+        extra = {e.strip().lower() for e in _env_csv("FITFO_PRO_BYPASS_EMAILS")}
+        if email in _DEFAULT_EMAILS or email in extra:
+            return True
+
+    phone = str(profile.get("phone") or "").replace(" ", "")
+    if phone:
+        phones = {p.replace(" ", "") for p in _env_csv("FITFO_PRO_BYPASS_PHONES")}
+        if phone in phones:
+            return True
+
+    return False
+
+
+def embed_fitfo_pro_bypass(profile: Mapping[str, Any]) -> dict[str, Any]:
+    """Shallow copy with computed ``fitfo_pro_bypass`` for API responses."""
+    out = dict(profile)
+    out["fitfo_pro_bypass"] = profile_has_fitfo_pro_bypass(profile)
+    return out

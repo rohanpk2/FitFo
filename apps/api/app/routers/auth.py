@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from twilio.base.exceptions import TwilioRestException
 
 from app.routers.deps import require_access_payload, require_profile_id
+from app.services.fitfo_pro_access import embed_fitfo_pro_bypass
 from app.schemas.auth import (
     AccountStatusRequest,
     AccountStatusResponse,
@@ -272,7 +273,7 @@ def verify_otp(body: VerifyOtpRequest) -> VerifyOtpResponse:
             verified=True,
             access_token=access_token,
             token_type="bearer",
-            profile=profile,
+            profile=embed_fitfo_pro_bypass(profile),
             message=message,
         )
     except HTTPException:
@@ -353,7 +354,7 @@ def apple_sign_in(body: AppleSignInRequest) -> AppleSignInResponse:
             verified=True,
             access_token=access_token,
             token_type="bearer",
-            profile=profile,
+            profile=embed_fitfo_pro_bypass(profile),
             message=message,
         )
     except HTTPException:
@@ -381,7 +382,7 @@ def patch_me(
         profile = supabase_db.update_profile_full_name(
             profile_id, full_name=body.full_name
         )
-        return MeResponse(ok=True, profile=profile)
+        return MeResponse(ok=True, profile=embed_fitfo_pro_bypass(profile))
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except supabase_db.ProfileNotFoundError as exc:
@@ -407,7 +408,7 @@ def me(payload: Dict[str, Any] = Depends(require_access_payload)) -> MeResponse:
                 detail="Account not found for this access token.",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        return MeResponse(ok=True, profile=profile)
+        return MeResponse(ok=True, profile=embed_fitfo_pro_bypass(profile))
     except HTTPException:
         raise
     except supabase_db.SupabaseNotConfiguredError as exc:
@@ -491,7 +492,7 @@ def save_onboarding(
             )
         return SaveOnboardingResponse(
             ok=True,
-            profile=profile,
+            profile=embed_fitfo_pro_bypass(profile),
             message="Onboarding saved.",
         )
     except HTTPException:

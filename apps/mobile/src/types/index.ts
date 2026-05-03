@@ -86,6 +86,8 @@ export interface UserProfile {
   onboarding: UserOnboarding | null;
   created_at: string | null;
   updated_at: string | null;
+  /** When true, API grants Pro (server allowlist); client should treat as paid tier. */
+  fitfo_pro_bypass?: boolean;
 }
 
 export type OnboardingGoal =

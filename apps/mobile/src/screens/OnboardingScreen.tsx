@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -41,10 +41,8 @@ type RequiredStepId =
   | "welcome"
   | "age"
   | "sex"
-  | "experience"
   | "demo"
   | "goals"
-  | "split"
   | "stats"
   | "tryit"
   | "coach"
@@ -53,7 +51,7 @@ type RequiredStepId =
   | "spotlight"
   | "done";
 
-type EditStepId = "age" | "sex" | "experience" | "goals" | "split" | "stats" | "done";
+type EditStepId = "age" | "sex" | "goals" | "stats" | "done";
 type StepId = RequiredStepId | EditStepId;
 
 interface StepConfig {
@@ -65,10 +63,8 @@ const requiredSteps: StepConfig[] = [
   { id: "welcome", label: "Welcome" },
   { id: "age", label: "Age" },
   { id: "sex", label: "Sex" },
-  { id: "experience", label: "Experience" },
   { id: "demo", label: "Demo" },
   { id: "goals", label: "Goals" },
-  { id: "split", label: "Split" },
   { id: "stats", label: "Stats" },
   { id: "tryit", label: "Try it" },
   { id: "coach", label: "Coach" },
@@ -81,9 +77,7 @@ const requiredSteps: StepConfig[] = [
 const editSteps: StepConfig[] = [
   { id: "age", label: "Age" },
   { id: "sex", label: "Sex" },
-  { id: "experience", label: "Experience" },
   { id: "goals", label: "Goals" },
-  { id: "split", label: "Split" },
   { id: "stats", label: "Stats" },
   { id: "done", label: "Done" },
 ];
@@ -107,22 +101,20 @@ const goalOptions: Array<{
   },
 ];
 
-const splitOptions: Array<{
-  label: string;
-  sublabel: string;
-  value: TrainingSplit;
-  days: number;
-}> = [
-  { label: "Push / Pull / Legs", sublabel: "Classic hypertrophy cadence", value: "ppl", days: 6 },
-  { label: "Upper / Lower", sublabel: "Balanced and repeatable", value: "upper_lower", days: 4 },
-  { label: "Bro Split", sublabel: "One body part each session", value: "bro_split", days: 5 },
-  { label: "Full Body", sublabel: "Time-efficient, 3 days", value: "full_body", days: 3 },
-  { label: "5/3/1", sublabel: "Strength progression", value: "five_three_one", days: 4 },
-  { label: "Arnold Split", sublabel: "High-volume classic", value: "arnold_split", days: 6 },
-  { label: "Custom", sublabel: "Tell Fitfo your rotation", value: "custom", days: 0 },
-];
+const DEFAULT_TRAINING_SPLIT: TrainingSplit = "ppl";
+const DEFAULT_DAYS_PER_WEEK = 4;
+const DEFAULT_EXPERIENCE_LEVEL: ExperienceLevel = "intermediate";
 
-const dayOptions = [3, 4, 5, 6];
+const TRAINING_SPLIT_LABELS: Record<TrainingSplit, string> = {
+  ppl: "Push / Pull / Legs",
+  upper_lower: "Upper / Lower",
+  bro_split: "Bro Split",
+  full_body: "Full Body",
+  five_three_one: "5/3/1",
+  arnold_split: "Arnold Split",
+  custom: "Custom split",
+};
+
 const ageOptions = Array.from({ length: 57 }, (_, index) => index + 14);
 const STATS_INPUT_ACCESSORY_ID = "fitfoOnboardingStatsAccessory";
 
@@ -140,17 +132,6 @@ const sexOptions: Array<{
     icon: "person-outline",
     value: "prefer_not_to_say",
   },
-];
-
-const experienceOptions: Array<{
-  label: string;
-  detail: string;
-  value: ExperienceLevel;
-  bars: number;
-}> = [
-  { label: "Beginner", detail: "New or rebuilding consistency", value: "beginner", bars: 1 },
-  { label: "Intermediate", detail: "Training regularly", value: "intermediate", bars: 2 },
-  { label: "Advanced", detail: "Structured programming", value: "advanced", bars: 3 },
 ];
 
 const demoCopy: Record<OnboardingSex, { creator: string; caption: string; tag: string }> = {
@@ -208,15 +189,6 @@ export function OnboardingScreen({
   const finalInputIndex = doneIndex > 0 ? doneIndex - 1 : steps.length - 2;
 
   const [goals, setGoals] = useState<OnboardingGoal[]>(existingOnboarding?.goals || []);
-  const [trainingSplit, setTrainingSplit] = useState<TrainingSplit | null>(
-    existingOnboarding?.training_split || "ppl",
-  );
-  const [customSplitNotes, setCustomSplitNotes] = useState<string>(
-    existingOnboarding?.custom_split_notes || "",
-  );
-  const [daysPerWeek, setDaysPerWeek] = useState<number | null>(
-    existingOnboarding?.days_per_week || 4,
-  );
   const [weightLbsInput, setWeightLbsInput] = useState(
     existingOnboarding ? String(existingOnboarding.weight_lbs) : "165",
   );
@@ -225,9 +197,6 @@ export function OnboardingScreen({
   );
   const [heightInchesInput, setHeightInchesInput] = useState(
     existingOnboarding ? String(existingOnboarding.height_inches % 12) : "9",
-  );
-  const [experienceLevel, setExperienceLevel] = useState<ExperienceLevel | null>(
-    existingOnboarding?.experience_level || null,
   );
   const [ageInput, setAgeInput] = useState(existingOnboarding ? String(existingOnboarding.age) : "22");
   const [sex, setSex] = useState<OnboardingSex | null>(
@@ -248,13 +217,7 @@ export function OnboardingScreen({
     Number.isFinite(heightFeet) && Number.isFinite(heightInches)
       ? heightFeet * 12 + heightInches
       : Number.NaN;
-  const trimmedCustomSplitNotes = customSplitNotes.trim();
   const isGoalStepValid = goals.length > 0;
-  const isSplitStepValid = Boolean(
-    trainingSplit &&
-      daysPerWeek &&
-      (trainingSplit !== "custom" || trimmedCustomSplitNotes.length > 0),
-  );
   const isStatsStepValid =
     Number.isFinite(weightLbs) &&
     weightLbs > 0 &&
@@ -269,25 +232,23 @@ export function OnboardingScreen({
     age <= 120;
   const demo = demoCopy[sex || "prefer_not_to_say"];
 
-  const selectedSplit = useMemo(
-    () => splitOptions.find((option) => option.value === trainingSplit),
-    [trainingSplit],
-  );
+  const savedSplit =
+    existingOnboarding?.training_split ?? DEFAULT_TRAINING_SPLIT;
+  const savedDaysPerWeek =
+    existingOnboarding?.days_per_week ?? DEFAULT_DAYS_PER_WEEK;
+  const calendarSplitLabel = TRAINING_SPLIT_LABELS[savedSplit];
+  const calendarSessionsLabel = savedDaysPerWeek;
 
   const canAdvance =
     currentStep === "age"
       ? Number.isFinite(age) && age >= 13 && age <= 120
       : currentStep === "sex"
         ? Boolean(sex)
-        : currentStep === "experience"
-          ? Boolean(experienceLevel)
-          : currentStep === "goals"
-            ? isGoalStepValid
-            : currentStep === "split"
-              ? isSplitStepValid
-              : currentStep === "stats"
-                ? isStatsStepValid && !isSubmitting
-                : !isSubmitting;
+        : currentStep === "goals"
+          ? isGoalStepValid
+          : currentStep === "stats"
+            ? isStatsStepValid && !isSubmitting
+            : !isSubmitting;
 
   const toggleGoal = (value: OnboardingGoal) => {
     setGoals((current) =>
@@ -298,16 +259,26 @@ export function OnboardingScreen({
   };
 
   const submitOnboarding = async () => {
-    if (!trainingSplit || !daysPerWeek || !experienceLevel || !sex) {
+    if (!sex) {
       return;
     }
+
+    const trainingSplit =
+      existingOnboarding?.training_split ?? DEFAULT_TRAINING_SPLIT;
+    const daysPerWeek =
+      existingOnboarding?.days_per_week ?? DEFAULT_DAYS_PER_WEEK;
+    const experienceLevel =
+      existingOnboarding?.experience_level ?? DEFAULT_EXPERIENCE_LEVEL;
+    const notes =
+      trainingSplit === "custom"
+        ? existingOnboarding?.custom_split_notes ?? null
+        : null;
 
     await onSubmit({
       goals,
       sex,
       training_split: trainingSplit,
-      custom_split_notes:
-        trainingSplit === "custom" ? trimmedCustomSplitNotes : null,
+      custom_split_notes: notes,
       days_per_week: daysPerWeek,
       weight_lbs: weightLbs,
       height_inches: totalHeightInches,
@@ -483,51 +454,10 @@ export function OnboardingScreen({
     </>
   );
 
-  const renderExperienceStep = () => (
-    <>
-      {renderScreenIntro(
-        "Step 03 · Training",
-        "How experienced are you?",
-        "This calibrates coaching language, rest defaults, and load suggestions.",
-      )}
-      <View style={styles.cardList}>
-        {experienceOptions.map((option) => {
-          const selected = experienceLevel === option.value;
-          return (
-            <Pressable
-              key={option.value}
-              onPress={() => setExperienceLevel(option.value)}
-              style={[styles.choiceCard, selected ? styles.choiceCardSelected : null]}
-            >
-              <View style={styles.barMeter}>
-                {[1, 2, 3].map((bar) => (
-                  <View
-                    key={bar}
-                    style={[
-                      styles.barMeterItem,
-                      { height: 9 + bar * 8 },
-                      bar <= option.bars ? styles.barMeterItemActive : null,
-                      selected && bar <= option.bars ? styles.barMeterItemSelected : null,
-                    ]}
-                  />
-                ))}
-              </View>
-              <View style={styles.choiceCopy}>
-                <Text style={styles.choiceTitle}>{option.label}</Text>
-                <Text style={styles.choiceBody}>{option.detail}</Text>
-              </View>
-              <SelectionDot selected={selected} theme={theme} />
-            </Pressable>
-          );
-        })}
-      </View>
-    </>
-  );
-
   const renderDemoStep = () => (
     <>
       {renderScreenIntro(
-        "Step 04 · Preview",
+        "Step 03 · Preview",
         "A reel becomes a routine.",
         "This is the handoff Fitfo is built for: save the thing you already wanted to train.",
       )}
@@ -582,7 +512,7 @@ export function OnboardingScreen({
   const renderGoalsStep = () => (
     <>
       {renderScreenIntro(
-        "Step 05 · Goals",
+        "Step 04 · Goals",
         "What drives you?",
         "Pick all that fit. We will bias saved workouts and coaching context around these.",
       )}
@@ -616,91 +546,6 @@ export function OnboardingScreen({
     </>
   );
 
-  const renderSplitStep = () => (
-    <>
-      {renderScreenIntro(
-        "Step 06 · Training",
-        "Pick your split.",
-        "This sets the cadence Fitfo uses when it helps you schedule and organize workouts.",
-      )}
-      <View style={styles.cardList}>
-        {splitOptions.map((option) => {
-          const selected = trainingSplit === option.value;
-          return (
-            <Pressable
-              key={option.value}
-              onPress={() => {
-                setTrainingSplit(option.value);
-                if (option.days > 0) {
-                  setDaysPerWeek(option.days);
-                }
-              }}
-              style={[styles.choiceCard, selected ? styles.choiceCardSelected : null]}
-            >
-              <View style={styles.choiceCopy}>
-                <Text style={styles.choiceTitle}>{option.label}</Text>
-                <Text style={styles.choiceBody}>{option.sublabel}</Text>
-              </View>
-              <View style={styles.weekDots}>
-                {Array.from({ length: 7 }, (_, index) => (
-                  <View
-                    key={`${option.value}-${index}`}
-                    style={[
-                      styles.weekDot,
-                      index < (option.days || daysPerWeek || 0) ? styles.weekDotActive : null,
-                      selected && index < (option.days || daysPerWeek || 0)
-                        ? styles.weekDotSelected
-                        : null,
-                    ]}
-                  />
-                ))}
-              </View>
-            </Pressable>
-          );
-        })}
-      </View>
-
-      {trainingSplit === "custom" ? (
-        <View style={styles.customSplitGroup}>
-          <Text style={styles.inputLabel}>Describe your split</Text>
-          <View style={styles.customSplitShell}>
-            <TextInput
-              multiline
-              maxLength={500}
-              onChangeText={setCustomSplitNotes}
-              placeholder="e.g. Push / Pull / Legs / Arms / Rest, rotating weekly"
-              placeholderTextColor={theme.colors.textMuted}
-              style={styles.customSplitInput}
-              value={customSplitNotes}
-              textAlignVertical="top"
-            />
-          </View>
-          <Text style={styles.customSplitHint}>{customSplitNotes.length}/500</Text>
-        </View>
-      ) : null}
-
-      <View style={styles.daysBlock}>
-        <Text style={styles.sectionLabel}>Days per week</Text>
-        <View style={styles.dayRow}>
-          {dayOptions.map((dayOption) => {
-            const selected = daysPerWeek === dayOption;
-            return (
-              <Pressable
-                key={dayOption}
-                onPress={() => setDaysPerWeek(dayOption)}
-                style={[styles.dayChip, selected ? styles.dayChipSelected : null]}
-              >
-                <Text style={[styles.dayChipText, selected ? styles.dayChipTextSelected : null]}>
-                  {dayOption}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      </View>
-    </>
-  );
-
   const renderStatsStep = () => (
     <>
       {Platform.OS === "ios" ? (
@@ -714,7 +559,7 @@ export function OnboardingScreen({
       ) : null}
 
       {renderScreenIntro(
-        "Step 07 · Body stats",
+        "Step 05 · Body stats",
         "How tall and heavy?",
         "This gives progress charts a baseline and keeps workout suggestions more grounded.",
       )}
@@ -805,7 +650,7 @@ export function OnboardingScreen({
   const renderTryItStep = () => (
     <>
       {renderScreenIntro(
-        "Step 08 · Try it",
+        "Step 06 · Try it",
         "Take it for a spin.",
         "Tap through the import path before you hit the real app.",
       )}
@@ -862,7 +707,7 @@ export function OnboardingScreen({
   const renderCoachStep = () => (
     <>
       {renderScreenIntro(
-        "Step 09 · Coach",
+        "Step 07 · Coach",
         "Your trainer in the corner.",
         "During any session, tap the coach avatar (top-right)—same spot on every workout. Ask about form cues, exercise swaps or order, footwear, reps and weight—it answers from the workout you're actually logging, not generic internet advice.",
       )}
@@ -897,7 +742,7 @@ export function OnboardingScreen({
   const renderCalendarStep = () => (
     <>
       {renderScreenIntro(
-        "Step 10 · Feature",
+        "Step 08 · Feature",
         "Schedule it. Show up to it.",
         "Drop any imported workout onto a day. Fitfo keeps the week clear and nudges you when it is time.",
       )}
@@ -921,12 +766,12 @@ export function OnboardingScreen({
         <View style={styles.eventCard}>
           <Ionicons color={theme.colors.primaryLight} name="barbell-outline" size={20} />
           <View style={styles.choiceCopy}>
-            <Text style={styles.choiceTitle}>{selectedSplit?.label || "Push / Pull / Legs"}</Text>
-            <Text style={styles.choiceBody}>{daysPerWeek || 4} sessions queued</Text>
+            <Text style={styles.choiceTitle}>{calendarSplitLabel}</Text>
+            <Text style={styles.choiceBody}>{calendarSessionsLabel} sessions queued</Text>
           </View>
           <Text style={styles.eventBadge}>READY</Text>
         </View>
-        {["Auto-fill from your split", "Reminder before lift time", "Skip or reschedule in one tap"].map((item) => (
+        {["Plan your week fast", "Reminder before lift time", "Skip or reschedule in one tap"].map((item) => (
           <View key={item} style={styles.featureBullet}>
             <Ionicons color={theme.colors.primaryLight} name="checkmark-circle" size={16} />
             <Text style={styles.featureBulletText}>{item}</Text>
@@ -939,7 +784,7 @@ export function OnboardingScreen({
   const renderArchiveStep = () => (
     <>
       {renderScreenIntro(
-        "Step 11 · Feature",
+        "Step 09 · Feature",
         "Every set. Every PR. Logged.",
         "Your training archive and body-weight baseline are ready when you are.",
       )}
@@ -987,7 +832,7 @@ export function OnboardingScreen({
   const renderSpotlightStep = () => (
     <>
       {renderScreenIntro(
-        "Step 12 · Spotlight reel",
+        "Step 10 · Spotlight reel",
         "Nuno clips land the same way.",
         "Jacob opened the funnel on push day — Nuno reels follow the identical share → compile → save rhythm. Flip the card once to peek at exactly what we'd pull from captions, audio, and video.",
       )}
@@ -1068,14 +913,10 @@ export function OnboardingScreen({
         return renderAgeStep();
       case "sex":
         return renderSexStep();
-      case "experience":
-        return renderExperienceStep();
       case "demo":
         return renderDemoStep();
       case "goals":
         return renderGoalsStep();
-      case "split":
-        return renderSplitStep();
       case "stats":
         return renderStatsStep();
       case "tryit":
@@ -1469,27 +1310,6 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       fontFamily: "Satoshi-Bold",
       fontWeight: "700",
     },
-    barMeter: {
-      width: 44,
-      height: 44,
-      flexDirection: "row",
-      alignItems: "flex-end",
-      justifyContent: "center",
-      gap: 4,
-      borderRadius: 15,
-      backgroundColor: "rgba(255, 255, 255, 0.04)",
-    },
-    barMeterItem: {
-      width: 6,
-      borderRadius: 3,
-      backgroundColor: "rgba(255, 255, 255, 0.12)",
-    },
-    barMeterItemActive: {
-      backgroundColor: theme.colors.textPrimary,
-    },
-    barMeterItemSelected: {
-      backgroundColor: theme.colors.primaryLight,
-    },
     demoPhone: {
       borderRadius: 28,
       overflow: "hidden",
@@ -1687,52 +1507,6 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       justifyContent: "center",
       backgroundColor: theme.colors.primaryLight,
     },
-    weekDots: {
-      flexDirection: "row",
-      gap: 4,
-    },
-    weekDot: {
-      width: 8,
-      height: 8,
-      borderRadius: 3,
-      backgroundColor: "rgba(255, 255, 255, 0.12)",
-    },
-    weekDotActive: {
-      backgroundColor: theme.colors.textMuted,
-    },
-    weekDotSelected: {
-      backgroundColor: theme.colors.primaryLight,
-    },
-    customSplitGroup: {
-      gap: 8,
-    },
-    customSplitShell: {
-      borderRadius: 16,
-      backgroundColor: theme.colors.surface,
-      borderWidth: 1,
-      borderColor: theme.colors.borderSoft,
-      paddingHorizontal: 14,
-      paddingVertical: Platform.OS === "ios" ? 14 : 10,
-    },
-    customSplitInput: {
-      minHeight: 88,
-      color: theme.colors.textPrimary,
-      fontSize: 15,
-      fontFamily: "Satoshi-Bold",
-      fontWeight: "700",
-      lineHeight: 22,
-      paddingVertical: 0,
-    },
-    customSplitHint: {
-      color: theme.colors.textMuted,
-      fontSize: 12,
-      fontFamily: "Satoshi-Bold",
-      fontWeight: "700",
-      letterSpacing: 0.2,
-    },
-    daysBlock: {
-      gap: 10,
-    },
     sectionLabel: {
       color: theme.colors.textMuted,
       fontSize: 11,
@@ -1740,33 +1514,6 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
       fontWeight: "900",
       letterSpacing: 1.5,
       textTransform: "uppercase",
-    },
-    dayRow: {
-      flexDirection: "row",
-      gap: 10,
-    },
-    dayChip: {
-      width: 58,
-      height: 52,
-      borderRadius: 16,
-      alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: theme.colors.surface,
-      borderWidth: 1,
-      borderColor: theme.colors.borderSoft,
-    },
-    dayChipSelected: {
-      backgroundColor: theme.colors.primaryLight,
-      borderColor: theme.colors.primaryLight,
-    },
-    dayChipText: {
-      color: theme.colors.textPrimary,
-      fontSize: 16,
-      fontFamily: "Satoshi-Black",
-      fontWeight: "900",
-    },
-    dayChipTextSelected: {
-      color: "#1A0A02",
     },
     statsCard: {
       gap: 14,

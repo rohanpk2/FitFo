@@ -14,12 +14,14 @@ import { usePostHog } from "posthog-react-native";
 import { isRevenueCatNativePaywallSupported } from "../lib/revenueCat";
 import { getTheme, type ThemeMode } from "../theme";
 
+import { ViewPlansScreen } from "./ViewPlansScreen";
+
 interface PaywallScreenProps {
   error?: string | null;
   isLoading?: boolean;
   onDevBypass?: () => void;
   onManageSubscription?: () => Promise<boolean>;
-  onPresentPaywall: () => Promise<boolean>;
+  onPurchaseProduct: (productId: string) => Promise<boolean>;
   onRestorePurchases: () => Promise<boolean>;
   onUnlocked: () => void;
   themeMode?: ThemeMode;
@@ -30,39 +32,17 @@ export function PaywallScreen({
   isLoading = false,
   onDevBypass,
   onManageSubscription,
-  onPresentPaywall,
+  onPurchaseProduct,
   onRestorePurchases,
   onUnlocked,
   themeMode = "light",
 }: PaywallScreenProps) {
   const posthog = usePostHog();
+  const [phase, setPhase] = useState<"intro" | "plans">("intro");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const didTrackPaywallViewRef = useRef(false);
   const theme = getTheme(themeMode);
   const styles = createStyles(theme);
-
-  const handlePresentPaywall = async () => {
-    if (isSubmitting) {
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    try {
-      const hasAccess = await onPresentPaywall();
-      if (hasAccess) {
-        posthog.capture("subscription_started");
-        onUnlocked();
-      }
-    } catch {
-      Alert.alert(
-        "Subscription unavailable",
-        "We could not open the subscription screen. Please try again.",
-      );
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   const handleRestorePurchases = async () => {
     if (isSubmitting) {
@@ -124,6 +104,20 @@ export function PaywallScreen({
   const busy = isLoading || isSubmitting;
   const nativePaywall = isRevenueCatNativePaywallSupported();
 
+  if (phase === "plans") {
+    return (
+      <ViewPlansScreen
+        error={error}
+        isLoading={isLoading}
+        onBack={() => setPhase("intro")}
+        onPurchaseProduct={onPurchaseProduct}
+        onRestorePurchases={onRestorePurchases}
+        onUnlocked={onUnlocked}
+        themeMode={themeMode}
+      />
+    );
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.heroIcon}>
@@ -135,16 +129,17 @@ export function PaywallScreen({
         />
       </View>
       <Text style={styles.eyebrow}>Fitfo Pro</Text>
-      <Text style={styles.title}>Your 7-day trial is complete.</Text>
+      <Text style={styles.title}>Turn TikToks into real workouts.</Text>
       <Text style={styles.body}>
-        Subscribe with Apple to keep importing workout videos, saving routines,
-        scheduling sessions, logging workouts, and tracking progress.
+        Stop saving clips you never train. Structure them into real sessions—starting
+        with your 7-day free trial, cancel anytime. Annual plan $59.99/year, billed
+        annually.
       </Text>
 
       {!nativePaywall ? (
         <Text style={styles.hintText}>
-          Expo Go cannot show Apple subscription sheets. Use a development
-          build to test purchases, or tap Restore if you already subscribed.
+          In Expo Go, Apple checkout is limited. Tap below to see plans and pricing;
+          use a dev build or TestFlight to complete your trial.
         </Text>
       ) : null}
 
@@ -152,14 +147,14 @@ export function PaywallScreen({
 
       <Pressable
         disabled={busy}
-        onPress={handlePresentPaywall}
+        onPress={() => setPhase("plans")}
         style={[styles.primaryButton, busy ? styles.buttonDisabled : null]}
       >
         {busy ? (
           <ActivityIndicator color={theme.colors.surface} size="small" />
         ) : (
           <>
-            <Text style={styles.primaryButtonText}>View Plans</Text>
+            <Text style={styles.primaryButtonText}>See plans · start trial</Text>
             <Ionicons color={theme.colors.surface} name="arrow-forward" size={18} />
           </>
         )}
@@ -243,6 +238,7 @@ const createStyles = (theme: ReturnType<typeof getTheme>) =>
     },
     body: {
       maxWidth: 340,
+      fontFamily: "satoshi",
       color: theme.colors.textSecondary,
       fontSize: 15,
       lineHeight: 23,

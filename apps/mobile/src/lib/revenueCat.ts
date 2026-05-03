@@ -8,7 +8,6 @@ import Purchases, {
 import RevenueCatUI, { PAYWALL_RESULT } from "react-native-purchases-ui";
 import { Platform } from "react-native";
 
-export const REVENUECAT_API_KEY = "test_bnGbvHTYiymiRGyFjzEhoqeDPIJ";
 export const FITFO_PRO_ENTITLEMENT = "Fitfo Pro";
 export const REVENUECAT_OFFERING_ID = "default";
 
@@ -31,6 +30,30 @@ export function isRevenueCatNativePaywallSupported(): boolean {
   return Constants.executionEnvironment !== ExecutionEnvironment.StoreClient;
 }
 
+function readExtraKey(name: "revenueCatAppleApiKey" | "revenueCatGoogleApiKey"): string {
+  const extra = Constants.expoConfig?.extra as Record<string, unknown> | undefined;
+  const v = extra?.[name];
+  return typeof v === "string" ? v.trim() : "";
+}
+
+/**
+ * RevenueCat public SDK key for this platform (set at build time via env / app.config extra).
+ * iOS TestFlight and App Store builds must use the **App Store** key from the RevenueCat
+ * dashboard (`appl_...`). Sandbox `test_...` keys trigger a native "Wrong API Key" exit.
+ */
+export function getRevenueCatSdkApiKey(): string {
+  if (Platform.OS === "android") {
+    return (
+      readExtraKey("revenueCatGoogleApiKey") ||
+      (process.env.EXPO_PUBLIC_REVENUECAT_GOOGLE_API_KEY ?? "").trim()
+    );
+  }
+  return (
+    readExtraKey("revenueCatAppleApiKey") ||
+    (process.env.EXPO_PUBLIC_REVENUECAT_APPLE_API_KEY ?? "").trim()
+  );
+}
+
 function asErrorRecord(error: unknown): Record<string, unknown> | null {
   return error && typeof error === "object" ? (error as Record<string, unknown>) : null;
 }
@@ -49,18 +72,40 @@ export function isRevenueCatUserCancelled(error: unknown) {
   return record?.userCancelled === true || record?.code === "PURCHASE_CANCELLED";
 }
 
+/**
+ * True when this binary has a RevenueCat public SDK key suitable for this build.
+ * Missing key: skip the SDK (no throws). Release + `test_` key: skip to avoid
+ * RevenueCat's native forced exit — use an `appl_`/`goog_` key for store builds.
+ */
+export function isRevenueCatSdkAvailable(): boolean {
+  const apiKey = getRevenueCatSdkApiKey();
+  if (!apiKey) {
+    return false;
+  }
+  if (!__DEV__ && apiKey.toLowerCase().startsWith("test_")) {
+    return false;
+  }
+  return true;
+}
+
 export async function configureRevenueCat(userId: string) {
   await Purchases.setLogLevel(__DEV__ ? LOG_LEVEL.DEBUG : LOG_LEVEL.INFO);
+
+  if (!isRevenueCatSdkAvailable()) {
+    return;
+  }
 
   if (configuredUserId === userId) {
     return;
   }
 
+  const apiKey = getRevenueCatSdkApiKey();
+
   if (configuredUserId) {
     await Purchases.logIn(userId);
   } else {
     Purchases.configure({
-      apiKey: REVENUECAT_API_KEY,
+      apiKey,
       appUserID: userId,
     });
   }
@@ -139,6 +184,12 @@ export async function purchaseProductId(productId: string) {
 }
 
 export async function restoreRevenueCatPurchases() {
+  if (!isRevenueCatSdkAvailable()) {
+    return {
+      customerInfo: null,
+      hasAccess: false,
+    };
+  }
   const customerInfo = await Purchases.restorePurchases();
   return {
     customerInfo,
@@ -147,6 +198,15 @@ export async function restoreRevenueCatPurchases() {
 }
 
 export async function presentFitfoPaywallIfNeeded() {
+  if (!isRevenueCatSdkAvailable()) {
+    return {
+      result: PAYWALL_RESULT.NOT_PRESENTED,
+      customerInfo: null,
+      hasAccess: false,
+      purchased: false,
+    };
+  }
+
   const customerInfo = await Purchases.getCustomerInfo();
 
   if (!isRevenueCatNativePaywallSupported()) {
@@ -173,7 +233,7 @@ export async function presentFitfoPaywallIfNeeded() {
 }
 
 export async function presentRevenueCatCustomerCenter() {
-  if (!isRevenueCatNativePaywallSupported()) {
+  if (!isRevenueCatNativePaywallSupported() || !isRevenueCatSdkAvailable()) {
     return;
   }
   await RevenueCatUI.presentCustomerCenter();
