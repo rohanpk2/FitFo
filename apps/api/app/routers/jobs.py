@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from app.routers.deps import require_profile_id
-from app.services import supabase_db, workout_parser
+from app.services import expo_push, supabase_db, workout_parser
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
@@ -274,5 +274,17 @@ def confirm_visual_blocks(
         supabase_db.update_ingestion_job(job_id, status="complete")
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    try:
+        tokens = supabase_db.list_expo_push_tokens_for_user(user_id)
+        source_url = str(row.get("source_url") or "").strip() or None
+        expo_push.send_ingestion_ready_to_tokens(
+            expo_push_tokens=tokens,
+            job_id=job_id,
+            workout_title=str(plan.get("title") or "").strip(),
+            source_url=source_url,
+        )
+    except Exception:
+        pass
 
     return {"ok": True, "job_id": job_id}

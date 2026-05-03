@@ -104,6 +104,16 @@ class PatchProfileRequest(BaseModel):
     full_name: str = Field(..., min_length=1, max_length=120)
 
 
+class RegisterExpoPushTokenRequest(BaseModel):
+    """Expo device push token from Notifications.getExpoPushTokenAsync."""
+
+    expo_push_token: str = Field(..., min_length=16, max_length=512)
+
+
+class RegisterExpoPushTokenResponse(BaseModel):
+    ok: bool
+
+
 class AppleSignInRequest(BaseModel):
     identity_token: str = Field(..., min_length=1)
     raw_nonce: Optional[str] = None

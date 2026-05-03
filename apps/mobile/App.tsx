@@ -3,6 +3,7 @@ import { StatusBar } from "expo-status-bar";
 import {
   ActivityIndicator,
   Alert,
+  AppState,
   InteractionManager,
   Pressable,
   SafeAreaView,
@@ -98,6 +99,7 @@ import {
   requestNotificationPermissionForOnboarding,
   scheduleWorkoutReminder,
   setAutoNotifyImportsPreference,
+  syncExpoPushTokenWithBackend,
 } from "./src/lib/notifications";
 import { ActiveWorkoutScreen } from "./src/screens/ActiveWorkoutScreen";
 import { AuthLandingScreen } from "./src/screens/AuthLandingScreen";
@@ -315,6 +317,7 @@ export default function App() {
 
   const handledImportedWorkoutId = useRef<string | null>(null);
   const handledNativeShareUrls = useRef(new Set<string>());
+  const handledImportLaunchNotificationRef = useRef(false);
   // Tracks any pending post-close cleanup of AddWorkoutModal so we can cancel
   // it if the user re-opens the modal before the cleanup fires (otherwise a
   // late reset would wipe out freshly re-populated state).
@@ -363,6 +366,28 @@ export default function App() {
     return () => {
       cancelled = true;
     };
+  }, [isAuthReady, accessToken, currentUser?.id]);
+
+  useEffect(() => {
+    if (!accessToken) {
+      handledImportLaunchNotificationRef.current = false;
+    }
+  }, [accessToken]);
+
+  useEffect(() => {
+    if (!isAuthReady || !accessToken?.trim() || !currentUser?.id) {
+      return;
+    }
+    void syncExpoPushTokenWithBackend(accessToken);
+  }, [isAuthReady, accessToken, currentUser?.id]);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (next) => {
+      if (next === "active" && isAuthReady && accessToken?.trim() && currentUser?.id) {
+        void syncExpoPushTokenWithBackend(accessToken);
+      }
+    });
+    return () => sub.remove();
   }, [isAuthReady, accessToken, currentUser?.id]);
 
   useEffect(() => {
@@ -613,13 +638,50 @@ export default function App() {
   );
 
   // Re-opens the AddWorkoutModal when the user taps the "Workout's ready"
-  // local notification. The routine is already populated in
-  // `latestImportedRoutine`, so the modal lands directly on the preview card.
-  const handleReopenImportFromNotification = useCallback(() => {
-    cancelPendingAddWorkoutCleanup();
-    setIsImportRunningInBackground(false);
-    setIsAddWorkoutVisible(true);
-  }, [cancelPendingAddWorkoutCleanup]);
+  // notification (local or server push). Optionally restores `jobId` from payload.
+  const handleReopenImportFromNotification = useCallback(
+    (jobIdFromNotification?: string | null) => {
+      cancelPendingAddWorkoutCleanup();
+      const trimmed = jobIdFromNotification?.trim();
+      if (trimmed) {
+        setJobId(trimmed);
+      }
+      setIsImportRunningInBackground(false);
+      setIsAddWorkoutVisible(true);
+    },
+    [cancelPendingAddWorkoutCleanup],
+  );
+
+  // Cold start: user opened the app by tapping an import-ready push.
+  useEffect(() => {
+    if (
+      !isAuthReady ||
+      !accessToken?.trim() ||
+      !currentUser?.id ||
+      handledImportLaunchNotificationRef.current
+    ) {
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const last = await Notifications.getLastNotificationResponseAsync();
+      if (cancelled || !last?.notification?.request?.content?.data) {
+        return;
+      }
+      const raw = last.notification.request.content.data as Record<string, unknown>;
+      if (
+        raw?.kind === INGESTION_READY_NOTIFICATION_KIND &&
+        typeof raw.jobId === "string" &&
+        raw.jobId.trim()
+      ) {
+        handledImportLaunchNotificationRef.current = true;
+        handleReopenImportFromNotification(raw.jobId.trim());
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthReady, accessToken, currentUser?.id, handleReopenImportFromNotification]);
 
   // Load the persisted auto-notify preference once on mount.
   useEffect(() => {
@@ -641,9 +703,12 @@ export default function App() {
   useEffect(() => {
     const subscription = Notifications.addNotificationResponseReceivedListener(
       (response) => {
-        const data = response.notification.request.content.data;
-        if (data && data.kind === INGESTION_READY_NOTIFICATION_KIND) {
-          handleReopenImportFromNotification();
+        const data = response.notification.request.content.data as
+          | { kind?: string; jobId?: string }
+          | undefined;
+        if (data?.kind === INGESTION_READY_NOTIFICATION_KIND) {
+          const jid = typeof data.jobId === "string" ? data.jobId : null;
+          handleReopenImportFromNotification(jid);
         }
       },
     );
@@ -738,7 +803,9 @@ export default function App() {
       posthog.capture("onboarding_completed", { user_id: response.profile.id });
       await loadBodyWeightEntries(token);
       setTimeout(() => {
-        void requestNotificationPermissionForOnboarding();
+        void requestNotificationPermissionForOnboarding().then(() => {
+          void syncExpoPushTokenWithBackend(token);
+        });
       }, 400);
       return response.profile;
     },

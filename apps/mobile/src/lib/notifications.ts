@@ -1,7 +1,9 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Alert } from "react-native";
+import Constants from "expo-constants";
 import * as Notifications from "expo-notifications";
 
+import { registerExpoPushToken as registerExpoPushTokenApi } from "./api";
 import { getCreatorDisplayLabel } from "./fitfo";
 import type { ScheduledWorkoutRecord } from "../types";
 
@@ -518,5 +520,48 @@ export async function setAutoNotifyImportsPreference(
     }
   } catch {
     // Best-effort — failing to persist just means we'll re-ask next time.
+  }
+}
+
+/**
+ * Registers the Expo push token with the API (after notification permission).
+ * Safe no-op on failure (simulator, missing EAS project id, etc.).
+ */
+export async function syncExpoPushTokenWithBackend(
+  accessToken: string | null | undefined,
+): Promise<void> {
+  if (!accessToken?.trim()) {
+    return;
+  }
+  try {
+    const existing = await Notifications.getPermissionsAsync();
+    let status = existing.status;
+    if (status !== "granted") {
+      const req = await Notifications.requestPermissionsAsync();
+      status = req.status;
+    }
+    if (status !== "granted") {
+      return;
+    }
+    const extra = Constants.expoConfig?.extra as
+      | { eas?: { projectId?: string } }
+      | undefined;
+    const projectId =
+      extra?.eas?.projectId ??
+      (
+        Constants as {
+          easConfig?: { projectId?: string };
+        }
+      ).easConfig?.projectId;
+    const tokenResult = await Notifications.getExpoPushTokenAsync(
+      projectId ? { projectId } : undefined,
+    );
+    const token = tokenResult.data?.trim();
+    if (!token) {
+      return;
+    }
+    await registerExpoPushTokenApi(accessToken, token);
+  } catch {
+    // Missing projectId, Expo Go limitations, etc.
   }
 }

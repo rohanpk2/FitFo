@@ -222,6 +222,18 @@ export async function patchProfile(
   });
 }
 
+/** Register device for server-driven "import ready" push notifications. */
+export async function registerExpoPushToken(
+  accessToken: string,
+  expoPushToken: string,
+): Promise<{ ok: boolean }> {
+  return request<{ ok: boolean }>("/auth/expo-push-token", {
+    method: "POST",
+    accessToken,
+    body: JSON.stringify({ expo_push_token: expoPushToken }),
+  });
+}
+
 export async function saveOnboarding(
   accessToken: string,
   body: SaveOnboardingRequest,

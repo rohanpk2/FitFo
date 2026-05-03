@@ -11,6 +11,7 @@ import httpx
 
 from app.services import (
     apify_reel,
+    expo_push,
     frame_ocr,
     supabase_db,
     tikwm,
@@ -452,6 +453,21 @@ async def _run_parsing(job_id: str, *, video_path: Path | None = None) -> None:
         _log.info("[job:%s] parser_empty_reason=%s", job_id, parser_reason)
 
     supabase_db.update_ingestion_job(job_id, status="complete")
+    try:
+        tokens = supabase_db.list_expo_push_tokens_for_user(user_id)
+        src = (
+            str(job_row.get("source_url") or "").strip()
+            if isinstance(job_row, dict)
+            else ""
+        )
+        expo_push.send_ingestion_ready_to_tokens(
+            expo_push_tokens=tokens,
+            job_id=job_id,
+            workout_title=str(title).strip() if title is not None else "",
+            source_url=src or None,
+        )
+    except Exception:
+        _log.exception("[job:%s] expo push after ingest complete failed", job_id)
 
 
 async def _maybe_extract_on_screen_text(

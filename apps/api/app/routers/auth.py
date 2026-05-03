@@ -14,6 +14,8 @@ from app.schemas.auth import (
     DeleteAccountResponse,
     MeResponse,
     PatchProfileRequest,
+    RegisterExpoPushTokenRequest,
+    RegisterExpoPushTokenResponse,
     SaveOnboardingRequest,
     SaveOnboardingResponse,
     SendOtpRequest,
@@ -394,6 +396,25 @@ def patch_me(
     except Exception as exc:
         raise HTTPException(
             status_code=500, detail=f"Failed to update profile: {exc}"
+        ) from exc
+
+
+@router.post("/expo-push-token", response_model=RegisterExpoPushTokenResponse)
+def register_expo_push_token(
+    body: RegisterExpoPushTokenRequest,
+    profile_id: str = Depends(require_profile_id),
+) -> RegisterExpoPushTokenResponse:
+    """Persist Expo push token so the API can notify when imports finish."""
+    try:
+        supabase_db.upsert_expo_push_token(profile_id, body.expo_push_token)
+        return RegisterExpoPushTokenResponse(ok=True)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except supabase_db.SupabaseNotConfiguredError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to register push token: {exc}"
         ) from exc
 
 

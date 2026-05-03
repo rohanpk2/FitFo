@@ -142,6 +142,52 @@ def merge_provider_meta(existing: Optional[Dict[str, Any]], updates: Dict[str, A
     return base
 
 
+def upsert_expo_push_token(user_id: str, expo_push_token: str) -> None:
+    """Register or refresh an Expo push token for this profile."""
+    supa = get_supabase()
+    token = (expo_push_token or "").strip()
+    if not token or len(token) > 512:
+        raise ValueError("Invalid Expo push token")
+    patch_time = _utc_now_iso()
+    found = (
+        supa.table("user_push_tokens")
+        .select("id")
+        .eq("user_id", user_id)
+        .eq("expo_push_token", token)
+        .limit(1)
+        .execute()
+    )
+    if found.data:
+        supa.table("user_push_tokens").update({"updated_at": patch_time}).eq(
+            "user_id", user_id
+        ).eq("expo_push_token", token).execute()
+        return
+    supa.table("user_push_tokens").insert(
+        {
+            "user_id": user_id,
+            "expo_push_token": token,
+            "updated_at": patch_time,
+        }
+    ).execute()
+
+
+def list_expo_push_tokens_for_user(user_id: str) -> List[str]:
+    """All registered device tokens for push (may be empty)."""
+    supa = get_supabase()
+    result = (
+        supa.table("user_push_tokens")
+        .select("expo_push_token")
+        .eq("user_id", user_id)
+        .execute()
+    )
+    out: List[str] = []
+    for row in result.data or []:
+        t = row.get("expo_push_token")
+        if isinstance(t, str) and t.strip():
+            out.append(t.strip())
+    return out
+
+
 def create_transcript(
     job_id: str,
     *,
@@ -679,6 +725,7 @@ def update_profile_full_name(profile_id: str, *, full_name: str) -> Dict[str, An
 # Order is child-first so foreign keys don't block the cascade even if
 # individual FK constraints aren't `on delete cascade` in the DB.
 _USER_SCOPED_TABLES: Tuple[str, ...] = (
+    "user_push_tokens",
     "body_weight_entries",
     "completed_workouts",
     "scheduled_workouts",
