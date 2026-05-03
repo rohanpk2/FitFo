@@ -22,16 +22,31 @@ const DEFAULT_BYPASS_EMAILS = ["support@fitfo.app"];
 
 const bypassUserIds = new Set(parseCsv(process.env.EXPO_PUBLIC_BILLING_BYPASS_USER_IDS));
 
+/** Founders / team — profile UUIDs from Supabase (Arjun has two profiles). */
+const HARDCODED_BILLING_BYPASS_USER_IDS = new Set<string>([
+  "9dfd253a-19c3-4500-9967-a710fc9ae21d", // Nirv Nag
+  "0faf45e1-7036-46e4-9ed6-88950e6d0ae3", // Rohan Kulkarni
+  "6b8c2e2d-184c-49a4-9962-d091afb31ebd", // Arjun (email account)
+  "7e188dc1-80fc-4628-bf76-d97208a798c0", // Arjun (phone account)
+]);
+
+const HARDCODED_BILLING_BYPASS_EMAILS = ["arjunpkulkarni@gmail.com"];
+
+const HARDCODED_BILLING_BYPASS_PHONES = ["+19146597022", "+19145225446", "+19147192129"];
+
 const bypassEmails = new Set(
-  [...DEFAULT_BYPASS_EMAILS, ...parseCsv(process.env.EXPO_PUBLIC_BILLING_BYPASS_EMAILS)].map((e) =>
-    e.toLowerCase(),
-  ),
+  [
+    ...DEFAULT_BYPASS_EMAILS,
+    ...parseCsv(process.env.EXPO_PUBLIC_BILLING_BYPASS_EMAILS),
+    ...HARDCODED_BILLING_BYPASS_EMAILS,
+  ].map((e) => e.toLowerCase()),
 );
 
 const bypassPhones = new Set(
-  parseCsv(process.env.EXPO_PUBLIC_BILLING_BYPASS_PHONES).map((p) =>
-    p.replace(/\s/g, ""),
-  ),
+  [
+    ...parseCsv(process.env.EXPO_PUBLIC_BILLING_BYPASS_PHONES),
+    ...HARDCODED_BILLING_BYPASS_PHONES,
+  ].map((p) => p.replace(/\s/g, "")),
 );
 
 /**
@@ -43,7 +58,10 @@ export function hasBillingBypassForUser(profile: UserProfile | null): boolean {
     return false;
   }
 
-  if (profile.id && bypassUserIds.has(profile.id)) {
+  if (
+    profile.id &&
+    (bypassUserIds.has(profile.id) || HARDCODED_BILLING_BYPASS_USER_IDS.has(profile.id))
+  ) {
     return true;
   }
 

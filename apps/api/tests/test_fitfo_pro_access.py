@@ -2,6 +2,7 @@
 
 import os
 import unittest
+from unittest.mock import patch
 
 from app.services import fitfo_pro_access
 
@@ -44,6 +45,28 @@ class FitfoProBypassTests(unittest.TestCase):
 
     def test_no_match(self) -> None:
         profile = {"id": "other", "email": "a@b.com", "phone": "+1999"}
+        self.assertFalse(fitfo_pro_access.profile_has_fitfo_pro_bypass(profile))
+
+    def test_hardcoded_arjun_email(self) -> None:
+        profile = {
+            "id": "not-in-list",
+            "email": "arjunpkulkarni@gmail.com",
+            "phone": None,
+        }
+        self.assertTrue(fitfo_pro_access.profile_has_fitfo_pro_bypass(profile))
+
+    def test_hardcoded_founder_phone(self) -> None:
+        profile = {"id": "x", "email": None, "phone": "+19146597022"}
+        self.assertTrue(fitfo_pro_access.profile_has_fitfo_pro_bypass(profile))
+
+    def test_hardcoded_user_id(self) -> None:
+        profile = {"id": "hardcoded-uuid", "email": None, "phone": None}
+        with patch.object(
+            fitfo_pro_access,
+            "_HARDCODED_BYPASS_USER_IDS",
+            frozenset({"hardcoded-uuid"}),
+        ):
+            self.assertTrue(fitfo_pro_access.profile_has_fitfo_pro_bypass(profile))
         self.assertFalse(fitfo_pro_access.profile_has_fitfo_pro_bypass(profile))
 
     def test_embed_adds_flag(self) -> None:

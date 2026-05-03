@@ -163,6 +163,11 @@ interface ScheduledConfirmationState {
 const AUTH_LANDING_AUTH_INDEX = 8;
 const TRIAL_LENGTH_MS = 7 * 24 * 60 * 60 * 1000;
 
+/** When true, skip the 7-day post-signup access window so the paywall shows unless Pro/bypass. */
+const FORCE_PAYWALL_IGNORE_INITIAL_TRIAL =
+  process.env.EXPO_PUBLIC_FORCE_PAYWALL === "1" ||
+  process.env.EXPO_PUBLIC_FORCE_PAYWALL === "true";
+
 function isWithinInitialTrial(createdAt: string | null | undefined) {
   if (!createdAt) {
     return false;
@@ -386,7 +391,9 @@ export default function App() {
   const revenueCat = useRevenueCat(currentUser);
   const isAccountBillingBypass = hasBillingBypassForUser(currentUser);
   const isServerProBypass = currentUser?.fitfo_pro_bypass === true;
-  const isInitialTrialActive = isWithinInitialTrial(currentUser?.created_at);
+  const isInitialTrialActive = FORCE_PAYWALL_IGNORE_INITIAL_TRIAL
+    ? false
+    : isWithinInitialTrial(currentUser?.created_at);
   const hasBillingAccess =
     isAccountBillingBypass ||
     isServerProBypass ||
